@@ -144,13 +144,27 @@ func TestLoadEnvVarOverrides(t *testing.T) {
 	}
 }
 
-func TestLoadMissingConfigFile(t *testing.T) {
+func TestLoadNoConfigFile(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
 
-	_, err := config.Load()
-	if err == nil {
-		t.Fatal("expected error for missing config file")
+	t.Setenv("HERALD_DB_NAME", "testdb")
+	t.Setenv("HERALD_DB_USER", "testuser")
+	t.Setenv("HERALD_STORAGE_CONNECTION_STRING", "conn")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load without config.toml failed: %v", err)
+	}
+
+	if cfg.Server.Port != 8080 {
+		t.Errorf("server port default: got %d, want 8080", cfg.Server.Port)
+	}
+	if cfg.Database.Name != "testdb" {
+		t.Errorf("db name from env: got %s, want testdb", cfg.Database.Name)
+	}
+	if cfg.Storage.ConnectionString != "conn" {
+		t.Errorf("storage conn from env: got %s, want conn", cfg.Storage.ConnectionString)
 	}
 }
 
