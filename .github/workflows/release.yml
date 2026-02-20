@@ -47,6 +47,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Create GitHub Release
         uses: taiki-e/create-gh-release-action@v1
