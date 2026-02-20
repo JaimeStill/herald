@@ -1,0 +1,164 @@
+package api_test
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/JaimeStill/herald/internal/api"
+	"github.com/JaimeStill/herald/internal/config"
+	"github.com/JaimeStill/herald/internal/infrastructure"
+	"github.com/JaimeStill/herald/pkg/database"
+	"github.com/JaimeStill/herald/pkg/middleware"
+	"github.com/JaimeStill/herald/pkg/openapi"
+	"github.com/JaimeStill/herald/pkg/pagination"
+	"github.com/JaimeStill/herald/pkg/storage"
+)
+
+const azuriteConnString = "DefaultEndpointsProtocol=http;AccountName=heraldstore;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/heraldstore;"
+
+func validConfig() *config.Config {
+	return &config.Config{
+		Server: config.ServerConfig{
+			Host:            "0.0.0.0",
+			Port:            8080,
+			ReadTimeout:     "1m",
+			WriteTimeout:    "15m",
+			ShutdownTimeout: "30s",
+		},
+		Database: database.Config{
+			Host:            "localhost",
+			Port:            5432,
+			Name:            "herald",
+			User:            "herald",
+			Password:        "herald",
+			SSLMode:         "disable",
+			MaxOpenConns:    25,
+			MaxIdleConns:    5,
+			ConnMaxLifetime: "15m",
+			ConnTimeout:     "5s",
+		},
+		Storage: storage.Config{
+			ContainerName:    "documents",
+			ConnectionString: azuriteConnString,
+		},
+		API: config.APIConfig{
+			BasePath: "/api",
+			CORS: middleware.CORSConfig{
+				Enabled: false,
+			},
+			OpenAPI: openapi.Config{
+				Title:       "Herald API",
+				Description: "Test description",
+			},
+			Pagination: pagination.Config{
+				DefaultPageSize: 20,
+				MaxPageSize:     100,
+			},
+		},
+		ShutdownTimeout: "30s",
+		Version:         "0.1.0",
+	}
+}
+
+func setupInfra(t *testing.T) *infrastructure.Infrastructure {
+	t.Helper()
+	infra, err := infrastructure.New(validConfig())
+	if err != nil {
+		t.Fatalf("infrastructure.New() error = %v", err)
+	}
+	return infra
+}
+
+func TestNewModule(t *testing.T) {
+	cfg := validConfig()
+	infra := setupInfra(t)
+
+	m, err := api.NewModule(cfg, infra)
+	if err != nil {
+		t.Fatalf("NewModule() error = %v", err)
+	}
+
+	if m.Prefix() != "/api" {
+		t.Errorf("prefix: got %s, want /api", m.Prefix())
+	}
+}
+
+func TestNewModuleOpenAPIEndpoint(t *testing.T) {
+	cfg := validConfig()
+	infra := setupInfra(t)
+
+	m, err := api.NewModule(cfg, infra)
+	if err != nil {
+		t.Fatalf("NewModule() error = %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/openapi.json", nil)
+	m.Serve(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status: got %d, want 200", rec.Code)
+	}
+
+	contentType := rec.Header().Get("Content-Type")
+	if contentType != "application/json; charset=utf-8" {
+		t.Errorf("content-type: got %s, want application/json; charset=utf-8", contentType)
+	}
+
+	var spec map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&spec); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	info, ok := spec["info"].(map[string]any)
+	if !ok {
+		t.Fatal("spec missing info object")
+	}
+
+	if title, _ := info["title"].(string); title != "Herald API" {
+		t.Errorf("spec title: got %s, want Herald API", title)
+	}
+
+	if version, _ := info["version"].(string); version != "0.1.0" {
+		t.Errorf("spec version: got %s, want 0.1.0", version)
+	}
+}
+
+func TestNewRuntime(t *testing.T) {
+	cfg := validConfig()
+	infra := setupInfra(t)
+
+	runtime := api.NewRuntime(cfg, infra)
+
+	if runtime.Pagination.DefaultPageSize != 20 {
+		t.Errorf("pagination default page size: got %d, want 20", runtime.Pagination.DefaultPageSize)
+	}
+	if runtime.Pagination.MaxPageSize != 100 {
+		t.Errorf("pagination max page size: got %d, want 100", runtime.Pagination.MaxPageSize)
+	}
+	if runtime.Logger == nil {
+		t.Error("runtime logger is nil")
+	}
+	if runtime.Database == nil {
+		t.Error("runtime database is nil")
+	}
+	if runtime.Storage == nil {
+		t.Error("runtime storage is nil")
+	}
+	if runtime.Lifecycle == nil {
+		t.Error("runtime lifecycle is nil")
+	}
+}
+
+func TestNewDomain(t *testing.T) {
+	cfg := validConfig()
+	infra := setupInfra(t)
+	runtime := api.NewRuntime(cfg, infra)
+
+	domain := api.NewDomain(runtime)
+	if domain == nil {
+		t.Fatal("NewDomain() returned nil")
+	}
+}

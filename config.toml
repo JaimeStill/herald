@@ -38,3 +38,7 @@ max_age = 3600
 [api.openapi]
 title = "Herald API"
 description = "Security marking classification service for DoD PDF documents."
+
+[api.pagination]
+default_page_size = 20
+max_page_size = 100

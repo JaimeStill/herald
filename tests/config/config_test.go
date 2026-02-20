@@ -46,6 +46,10 @@ enabled = false
 [api.openapi]
 title = "Herald API"
 description = "Test description"
+
+[api.pagination]
+default_page_size = 25
+max_page_size = 50
 `
 
 const overlayConfig = `
@@ -96,6 +100,12 @@ func TestLoad(t *testing.T) {
 	}
 	if cfg.API.BasePath != "/api" {
 		t.Errorf("api base_path: got %s, want /api", cfg.API.BasePath)
+	}
+	if cfg.API.Pagination.DefaultPageSize != 25 {
+		t.Errorf("pagination default_page_size: got %d, want 25", cfg.API.Pagination.DefaultPageSize)
+	}
+	if cfg.API.Pagination.MaxPageSize != 50 {
+		t.Errorf("pagination max_page_size: got %d, want 50", cfg.API.Pagination.MaxPageSize)
 	}
 }
 
@@ -238,6 +248,57 @@ func TestServerAddr(t *testing.T) {
 
 	if addr := cfg.Server.Addr(); addr != "0.0.0.0:8080" {
 		t.Errorf("addr: got %s, want 0.0.0.0:8080", addr)
+	}
+}
+
+func TestPaginationDefaults(t *testing.T) {
+	dir := t.TempDir()
+	// Config with no pagination section — defaults should apply
+	writeConfig(t, dir, "config.toml", `
+shutdown_timeout = "30s"
+[server]
+port = 8080
+[database]
+name = "herald"
+user = "herald"
+[storage]
+connection_string = "conn"
+[api]
+base_path = "/api"
+`)
+	chdir(t, dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.API.Pagination.DefaultPageSize != 20 {
+		t.Errorf("pagination default_page_size: got %d, want 20", cfg.API.Pagination.DefaultPageSize)
+	}
+	if cfg.API.Pagination.MaxPageSize != 100 {
+		t.Errorf("pagination max_page_size: got %d, want 100", cfg.API.Pagination.MaxPageSize)
+	}
+}
+
+func TestPaginationEnvOverrides(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.toml", baseConfig)
+	chdir(t, dir)
+
+	t.Setenv("HERALD_PAGINATION_DEFAULT_PAGE_SIZE", "10")
+	t.Setenv("HERALD_PAGINATION_MAX_PAGE_SIZE", "200")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.API.Pagination.DefaultPageSize != 10 {
+		t.Errorf("pagination default_page_size: got %d, want 10", cfg.API.Pagination.DefaultPageSize)
+	}
+	if cfg.API.Pagination.MaxPageSize != 200 {
+		t.Errorf("pagination max_page_size: got %d, want 200", cfg.API.Pagination.MaxPageSize)
 	}
 }
 
