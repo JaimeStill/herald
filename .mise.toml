@@ -1,0 +1,21 @@
+[tasks.web]
+description = "Build web assets"
+run = "cd web && bun install && bun run build"
+
+[tasks.dev]
+description = "Run the server in development mode"
+depends = ["web"]
+run = "go run ./cmd/server"
+
+[tasks.build]
+description = "Build the server binary"
+depends = ["web"]
+run = "go build -o bin/server ./cmd/server"
+
+[tasks.test]
+description = "Run all tests"
+run = "go test ./tests/..."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
