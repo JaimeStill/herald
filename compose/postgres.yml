@@ -20,11 +20,6 @@ services:
 
 volumes:
   herald-postgres:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${HOME}/storage/herald/postgres
 
 networks:
   herald:
