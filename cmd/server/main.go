@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,17 +15,22 @@ func main() {
 		log.Fatal("config load failed:", err)
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	logger.Info(
-		"herald starting",
-		"version", cfg.Version,
-		"addr", cfg.Server.Addr(),
-		"env", cfg.Env(),
-	)
+	srv, err := NewServer(cfg)
+	if err != nil {
+		log.Fatal("service init failed:", err)
+	}
+
+	if err := srv.Start(); err != nil {
+		log.Fatal("service start failed:", err)
+	}
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
-	logger.Info("herald stopped")
+	if err := srv.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
+		log.Fatal("shutdown failed:", err)
+	}
+
+	log.Println("service stopped gracefully")
 }

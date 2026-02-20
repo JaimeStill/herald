@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.0-dev.1.7
+
+- Add infrastructure assembly, API module shell, and server entry point with health/readiness probes, OpenAPI endpoint, Scalar UI, and graceful shutdown lifecycle (#7)
+
 ## v0.1.0-dev.1.6
 
 - Add storage abstraction with Azure Blob Storage implementation, streaming blob operations, and lifecycle-coordinated container initialization (#6)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/JaimeStill/herald/pkg/middleware"
 	"github.com/JaimeStill/herald/pkg/openapi"
+	"github.com/JaimeStill/herald/pkg/pagination"
 )
 
 var corsEnv = &middleware.CORSEnv{
@@ -22,11 +23,17 @@ var openAPIEnv = &openapi.ConfigEnv{
 	Description: "HERALD_OPENAPI_DESCRIPTION",
 }
 
+var paginationEnv = &pagination.ConfigEnv{
+	DefaultPageSize: "HERALD_PAGINATION_DEFAULT_PAGE_SIZE",
+	MaxPageSize:     "HERALD_PAGINATION_MAX_PAGE_SIZE",
+}
+
 // APIConfig holds API routing, CORS, and OpenAPI settings.
 type APIConfig struct {
-	BasePath string                `toml:"base_path"`
-	CORS     middleware.CORSConfig `toml:"cors"`
-	OpenAPI  openapi.Config        `toml:"openapi"`
+	BasePath   string                `toml:"base_path"`
+	CORS       middleware.CORSConfig `toml:"cors"`
+	OpenAPI    openapi.Config        `toml:"openapi"`
+	Pagination pagination.Config     `toml:"pagination"`
 }
 
 // Finalize applies defaults, environment variable overrides, and validation
@@ -41,6 +48,9 @@ func (c *APIConfig) Finalize() error {
 	if err := c.OpenAPI.Finalize(openAPIEnv); err != nil {
 		return fmt.Errorf("openapi: %w", err)
 	}
+	if err := c.Pagination.Finalize(paginationEnv); err != nil {
+		return fmt.Errorf("pagination: %w", err)
+	}
 	return nil
 }
 
@@ -51,6 +61,7 @@ func (c *APIConfig) Merge(overlay *APIConfig) {
 	}
 	c.CORS.Merge(&overlay.CORS)
 	c.OpenAPI.Merge(&overlay.OpenAPI)
+	c.Pagination.Merge(&overlay.Pagination)
 }
 
 func (c *APIConfig) loadDefaults() {
