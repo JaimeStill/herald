@@ -15,19 +15,14 @@ services:
       test: ["CMD", "nc", "-z", "127.0.0.1", "10000"]
       interval: 10s
       timeout: 5s
-      retries: 5s
+      retries: 5
     networks:
       - herald
 
 volumes:
   herald-azurite:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${HOME}/storage/herald/azurite
 
 networks:
   herald:
     name: herald
-    external: true
+    driver: bridge
