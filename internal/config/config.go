@@ -61,11 +61,18 @@ func (c *Config) ShutdownTimeoutDuration() time.Duration {
 	return d
 }
 
-// Load reads the base config, applies any environment overlay, and finalizes all values.
+// Load reads the base config (if present), applies any environment overlay,
+// and finalizes all values. If no config.toml exists, defaults and environment
+// variables provide all configuration.
 func Load() (*Config, error) {
-	cfg, err := load(BaseConfigFile)
-	if err != nil {
-		return nil, err
+	cfg := &Config{}
+
+	if _, err := os.Stat(BaseConfigFile); err == nil {
+		loaded, err := load(BaseConfigFile)
+		if err != nil {
+			return nil, err
+		}
+		cfg = loaded
 	}
 
 	if path := overlayPath(); path != "" {

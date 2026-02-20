@@ -1,0 +1,14 @@
+bin/
+node_modules/
+.claude/
+.github/
+.git/
+tests/
+coverage*
+*.test
+*.out
+config.*.toml
+docker-compose.yml
+compose/
+CHANGELOG.md
+_project/
