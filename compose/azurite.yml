@@ -10,7 +10,7 @@ services:
       - "${AZURITE_TABLE_PORT:-10002}:10002"
     volumes:
       - herald-azurite:/data
-    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0"
+    command: "azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --skipApiVersionCheck"
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "10000"]
       interval: 10s
