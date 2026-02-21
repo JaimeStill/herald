@@ -2,6 +2,10 @@
 
 Go web service for classifying DoD PDF documents' security markings using Azure AI Foundry GPT vision models. See `_project/README.md` for full architecture and roadmap.
 
+## Reference Project
+
+The `~/code/agent-lab` project is available for reference. Herald's architecture, package structure, and domain patterns (System/Repository/Handler/Mapping/Errors) are adapted from agent-lab. Consult it for proven patterns when implementing new domains or infrastructure that have not yet been adapted to Herald.
+
 ## Architecture
 
 Herald follows the Layered Composition Architecture (LCA) from agent-lab: cold start (config load, subsystem creation) → hot start (connections, HTTP listen) → graceful shutdown (reverse-order teardown).
