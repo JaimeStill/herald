@@ -1,3 +1,5 @@
+#:tombi schema.strict = false
+
 [tasks.web]
 description = "Build web assets"
 run = "cd web && bun install && bun run build"
@@ -19,3 +21,15 @@ run = "go test ./tests/..."
 [tasks.vet]
 description = "Run go vet"
 run = "go vet ./..."
+
+[tasks."migrate:up"]
+description = "Run all up migrations"
+run = "go run ./cmd/migrate -up"
+
+[tasks."migrate:down"]
+description = "Run all down migrations"
+run = "go run ./cmd/migrate -down"
+
+[tasks."migrate:version"]
+description = "Print current migration version"
+run = "go run ./cmd/migrate -version"

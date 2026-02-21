@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.0-dev.2.13
+
+- Add migration CLI with embedded SQL and initial documents schema (#13)
+
 ## v0.1.0-dev.1.7
 
 - Add infrastructure assembly, API module shell, and server entry point with health/readiness probes, OpenAPI endpoint, Scalar UI, and graceful shutdown lifecycle (#7)

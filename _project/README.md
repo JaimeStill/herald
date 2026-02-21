@@ -180,9 +180,8 @@ Documents are immutable after upload. Processing status is tracked exclusively i
 
 Azure PostgreSQL with golang-migrate. Core tables:
 
-**documents** -- Registration records with metadata and blob reference.
-- id, filename, content_type, size_bytes, page_count, storage_key, status (pending/processing/classified/error), uploaded_at, updated_at
-- TBD: external system identifier fields for linking to originating systems
+**documents** -- Registration records with metadata and blob reference. Status tracks a document's position in the classification lifecycle, not operational concerns. `pending` means inference hasn't completed; `review` means inference produced a result awaiting human validation; `complete` means the classification has been validated or adjusted. Errors during inference leave the document in `pending` — error handling and observability are separate concerns.
+- id, external_id, external_platform, filename, content_type, size_bytes, page_count, storage_key, status (pending/review/complete), uploaded_at, updated_at
 
 **classifications** -- 1:1 with documents, overwritten on re-classification.
 - id, document_id (unique FK), classification, confidence, markings_found (JSONB), rationale, workflow_metadata (JSONB), agent_config, classified_at
