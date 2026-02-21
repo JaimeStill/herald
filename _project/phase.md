@@ -38,6 +38,6 @@ Establish the Go service foundation for Herald — from `go.mod` to a running we
 
 - **Storage implementation**: Azure Blob Storage via azblob SDK; Azurite emulator for local development
 - **Database driver**: pgx with connection pooling
-- **Document status**: `pending` is the only status set in Phase 1; transitions (`processing`, `classified`, `error`) added in Phase 2
+- **Document status**: `pending` is the only status set in Phase 1; transitions (`review`, `complete`) added in Phase 2
 - **Batch upload**: First-class `POST /documents/batch` endpoint for the 1M-document ingestion use case
 - **Test pattern**: Black-box tests in `tests/` directory mirroring `internal/` (e.g., `tests/documents/`)
