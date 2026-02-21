@@ -22,7 +22,7 @@ Establish the Go service foundation for Herald — from `go.mod` to a running we
 | # | Objective | Status | Dependencies |
 |---|-----------|--------|--------------|
 | [#1](https://github.com/JaimeStill/herald/issues/1) | Project Scaffolding, Configuration, and Service Skeleton | Complete | — |
-| [#2](https://github.com/JaimeStill/herald/issues/2) | Database Schema and Migration Tooling | Open | #1 |
+| [#2](https://github.com/JaimeStill/herald/issues/2) | Database Schema and Migration Tooling | Complete | #1 |
 | [#3](https://github.com/JaimeStill/herald/issues/3) | Document Domain | Open | #1, #2 |
 
 ## Constraints
