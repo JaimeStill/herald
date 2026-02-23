@@ -23,8 +23,9 @@ Deliver the complete document lifecycle — upload (single and batch), registrat
 
 | # | Title | Labels | Status | Dependencies |
 |---|-------|--------|--------|--------------|
-| [#16](https://github.com/JaimeStill/herald/issues/16) | Document domain core — types, mapping, repository, and system | `feature`, `task` | Open | — |
-| [#17](https://github.com/JaimeStill/herald/issues/17) | Document HTTP handlers, OpenAPI specs, and API wiring | `feature`, `task` | Open | #16 |
+| [#16](https://github.com/JaimeStill/herald/issues/16) | Document domain core — types, mapping, repository, and system | `feature`, `task` | Complete | — |
+| [#17](https://github.com/JaimeStill/herald/issues/17) | Document HTTP handlers and API wiring | `feature`, `task` | Complete | #16 |
+| [#21](https://github.com/JaimeStill/herald/issues/21) | Blob storage query endpoints — list, metadata, and download | `feature`, `task` | Open | — |
 
 ## Architecture Decisions
 
