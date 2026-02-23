@@ -14,7 +14,6 @@ func TestNewValidPrefix(t *testing.T) {
 		prefix string
 	}{
 		{"api", "/api"},
-		{"scalar", "/scalar"},
 		{"docs", "/docs"},
 	}
 
@@ -125,15 +124,15 @@ func TestRouterDispatch(t *testing.T) {
 		w.Write([]byte("api"))
 	})
 
-	scalarMux := http.NewServeMux()
-	scalarMux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+	docsMux := http.NewServeMux()
+	docsMux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("scalar"))
+		w.Write([]byte("docs"))
 	})
 
 	router := module.NewRouter()
 	router.Mount(module.New("/api", apiMux))
-	router.Mount(module.New("/scalar", scalarMux))
+	router.Mount(module.New("/docs", docsMux))
 
 	tests := []struct {
 		name     string
@@ -141,7 +140,7 @@ func TestRouterDispatch(t *testing.T) {
 		wantBody string
 	}{
 		{"api module", "/api/health", "api"},
-		{"scalar module", "/scalar", "scalar"},
+		{"docs module", "/docs", "docs"},
 	}
 
 	for _, tt := range tests {

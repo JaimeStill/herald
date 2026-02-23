@@ -7,14 +7,11 @@ import (
 	"github.com/JaimeStill/herald/internal/api"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/internal/infrastructure"
-	"github.com/JaimeStill/herald/pkg/middleware"
 	"github.com/JaimeStill/herald/pkg/module"
-	"github.com/JaimeStill/herald/web/scalar"
 )
 
 type Modules struct {
-	API    *module.Module
-	Scalar *module.Module
+	API *module.Module
 }
 
 func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modules, error) {
@@ -23,18 +20,13 @@ func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modu
 		return nil, err
 	}
 
-	scalarModule := scalar.NewModule("/scalar")
-	scalarModule.Use(middleware.Logger(infra.Logger))
-
 	return &Modules{
-		API:    apiModule,
-		Scalar: scalarModule,
+		API: apiModule,
 	}, nil
 }
 
 func (m *Modules) Mount(router *module.Router) {
 	router.Mount(m.API)
-	router.Mount(m.Scalar)
 }
 
 func buildRouter(infra *infrastructure.Infrastructure) *module.Router {

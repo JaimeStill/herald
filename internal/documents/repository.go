@@ -39,6 +39,10 @@ func New(
 	}
 }
 
+func (r *repo) Handler(maxUploadSize int64) *Handler {
+	return NewHandler(r, r.logger, r.pagination, maxUploadSize)
+}
+
 func (r *repo) List(
 	ctx context.Context,
 	page pagination.PageRequest,
@@ -119,27 +123,6 @@ func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Document, error)
 
 	r.logger.Info("document created", "id", d.ID, "filename", d.Filename)
 	return &d, nil
-}
-
-func (r *repo) CreateBatch(ctx context.Context, cmds []CreateCommand) []BatchResult {
-	results := make([]BatchResult, len(cmds))
-
-	for i, cmd := range cmds {
-		doc, err := r.Create(ctx, cmd)
-		if err != nil {
-			results[i] = BatchResult{
-				Filename: cmd.Filename,
-				Error:    err.Error(),
-			}
-		} else {
-			results[i] = BatchResult{
-				Document: doc,
-				Filename: cmd.Filename,
-			}
-		}
-	}
-
-	return results
 }
 
 func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {

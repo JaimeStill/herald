@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.0-dev.3.17
+
+- Add document HTTP handlers (List, Find, Search, Upload, Delete), multipart upload with pdfcpu page count extraction, configurable max upload size, and API route wiring (#17)
+- Replace OpenAPI/Scalar with API Cartographer — markdown-based API documentation with executable curl examples (#17)
+
 ## v0.1.0-dev.3.16
 
 - Add document domain core: types, mapping, repository, and system interface with blob+DB atomicity and paginated filtered queries (#16)

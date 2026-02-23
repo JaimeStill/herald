@@ -43,10 +43,6 @@ base_path = "/api"
 [api.cors]
 enabled = false
 
-[api.openapi]
-title = "Herald API"
-description = "Test description"
-
 [api.pagination]
 default_page_size = 25
 max_page_size = 50
@@ -299,6 +295,64 @@ func TestPaginationEnvOverrides(t *testing.T) {
 	}
 	if cfg.API.Pagination.MaxPageSize != 200 {
 		t.Errorf("pagination max_page_size: got %d, want 200", cfg.API.Pagination.MaxPageSize)
+	}
+}
+
+func TestMaxUploadSizeBytes(t *testing.T) {
+	tests := []struct {
+		name string
+		size string
+		want int64
+	}{
+		{"valid 50MB", "50MB", 50 * 1024 * 1024},
+		{"valid 10MB", "10MB", 10 * 1024 * 1024},
+		{"valid 1GB", "1GB", 1024 * 1024 * 1024},
+		{"invalid falls back to 50MB", "bad", 50 * 1024 * 1024},
+		{"empty falls back to 50MB", "", 50 * 1024 * 1024},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.APIConfig{MaxUploadSize: tt.size}
+			got := cfg.MaxUploadSizeBytes()
+			if got != tt.want {
+				t.Errorf("MaxUploadSizeBytes() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMaxUploadSizeDefault(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.toml", baseConfig)
+	chdir(t, dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	want := int64(50 * 1024 * 1024)
+	if got := cfg.API.MaxUploadSizeBytes(); got != want {
+		t.Errorf("MaxUploadSizeBytes() = %d, want %d", got, want)
+	}
+}
+
+func TestMaxUploadSizeEnvOverride(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.toml", baseConfig)
+	chdir(t, dir)
+
+	t.Setenv("HERALD_API_MAX_UPLOAD_SIZE", "100MB")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	want := int64(100 * 1024 * 1024)
+	if got := cfg.API.MaxUploadSizeBytes(); got != want {
+		t.Errorf("MaxUploadSizeBytes() = %d, want %d", got, want)
 	}
 }
 

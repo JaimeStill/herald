@@ -1,9 +1,6 @@
 package api_test
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/JaimeStill/herald/internal/api"
@@ -11,7 +8,6 @@ import (
 	"github.com/JaimeStill/herald/internal/infrastructure"
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/middleware"
-	"github.com/JaimeStill/herald/pkg/openapi"
 	"github.com/JaimeStill/herald/pkg/pagination"
 	"github.com/JaimeStill/herald/pkg/storage"
 )
@@ -48,10 +44,6 @@ func validConfig() *config.Config {
 			CORS: middleware.CORSConfig{
 				Enabled: false,
 			},
-			OpenAPI: openapi.Config{
-				Title:       "Herald API",
-				Description: "Test description",
-			},
 			Pagination: pagination.Config{
 				DefaultPageSize: 20,
 				MaxPageSize:     100,
@@ -82,47 +74,6 @@ func TestNewModule(t *testing.T) {
 
 	if m.Prefix() != "/api" {
 		t.Errorf("prefix: got %s, want /api", m.Prefix())
-	}
-}
-
-func TestNewModuleOpenAPIEndpoint(t *testing.T) {
-	cfg := validConfig()
-	infra := setupInfra(t)
-
-	m, err := api.NewModule(cfg, infra)
-	if err != nil {
-		t.Fatalf("NewModule() error = %v", err)
-	}
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/api/openapi.json", nil)
-	m.Serve(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("status: got %d, want 200", rec.Code)
-	}
-
-	contentType := rec.Header().Get("Content-Type")
-	if contentType != "application/json; charset=utf-8" {
-		t.Errorf("content-type: got %s, want application/json; charset=utf-8", contentType)
-	}
-
-	var spec map[string]any
-	if err := json.NewDecoder(rec.Body).Decode(&spec); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-
-	info, ok := spec["info"].(map[string]any)
-	if !ok {
-		t.Fatal("spec missing info object")
-	}
-
-	if title, _ := info["title"].(string); title != "Herald API" {
-		t.Errorf("spec title: got %s, want Herald API", title)
-	}
-
-	if version, _ := info["version"].(string); version != "0.1.0" {
-		t.Errorf("spec version: got %s, want 0.1.0", version)
 	}
 }
 
