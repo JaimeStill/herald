@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/JaimeStill/herald/pkg/formatting"
 	"github.com/JaimeStill/herald/pkg/middleware"
-	"github.com/JaimeStill/herald/pkg/openapi"
 	"github.com/JaimeStill/herald/pkg/pagination"
 )
 
@@ -18,35 +18,35 @@ var corsEnv = &middleware.CORSEnv{
 	MaxAge:           "HERALD_CORS_MAX_AGE",
 }
 
-var openAPIEnv = &openapi.ConfigEnv{
-	Title:       "HERALD_OPENAPI_TITLE",
-	Description: "HERALD_OPENAPI_DESCRIPTION",
-}
-
 var paginationEnv = &pagination.ConfigEnv{
 	DefaultPageSize: "HERALD_PAGINATION_DEFAULT_PAGE_SIZE",
 	MaxPageSize:     "HERALD_PAGINATION_MAX_PAGE_SIZE",
 }
 
-// APIConfig holds API routing, CORS, and OpenAPI settings.
+// APIConfig holds API routing, CORS, and pagination settings.
 type APIConfig struct {
-	BasePath   string                `toml:"base_path"`
-	CORS       middleware.CORSConfig `toml:"cors"`
-	OpenAPI    openapi.Config        `toml:"openapi"`
-	Pagination pagination.Config     `toml:"pagination"`
+	BasePath      string                `toml:"base_path"`
+	MaxUploadSize string                `toml:"max_upload_size"`
+	CORS          middleware.CORSConfig `toml:"cors"`
+	Pagination    pagination.Config     `toml:"pagination"`
+}
+
+func (c *APIConfig) MaxUploadSizeBytes() int64 {
+	size, err := formatting.ParseBytes(c.MaxUploadSize)
+	if err != nil {
+		return 50 * 1024 * 1024 // 50MB fallback
+	}
+	return size
 }
 
 // Finalize applies defaults, environment variable overrides, and validation
-// for the API config and its nested CORS and OpenAPI configs.
+// for the API config and its nested CORS and pagination configs.
 func (c *APIConfig) Finalize() error {
 	c.loadDefaults()
 	c.loadEnv()
 
 	if err := c.CORS.Finalize(corsEnv); err != nil {
 		return fmt.Errorf("cors: %w", err)
-	}
-	if err := c.OpenAPI.Finalize(openAPIEnv); err != nil {
-		return fmt.Errorf("openapi: %w", err)
 	}
 	if err := c.Pagination.Finalize(paginationEnv); err != nil {
 		return fmt.Errorf("pagination: %w", err)
@@ -59,8 +59,11 @@ func (c *APIConfig) Merge(overlay *APIConfig) {
 	if overlay.BasePath != "" {
 		c.BasePath = overlay.BasePath
 	}
+	if overlay.MaxUploadSize != "" {
+		c.MaxUploadSize = overlay.MaxUploadSize
+	}
+
 	c.CORS.Merge(&overlay.CORS)
-	c.OpenAPI.Merge(&overlay.OpenAPI)
 	c.Pagination.Merge(&overlay.Pagination)
 }
 
@@ -68,10 +71,16 @@ func (c *APIConfig) loadDefaults() {
 	if c.BasePath == "" {
 		c.BasePath = "/api"
 	}
+	if c.MaxUploadSize == "" {
+		c.MaxUploadSize = "50MB"
+	}
 }
 
 func (c *APIConfig) loadEnv() {
 	if v := os.Getenv("HERALD_API_BASE_PATH"); v != "" {
 		c.BasePath = v
+	}
+	if v := os.Getenv("HERALD_API_MAX_UPLOAD_SIZE"); v != "" {
+		c.MaxUploadSize = v
 	}
 }

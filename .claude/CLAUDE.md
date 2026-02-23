@@ -16,7 +16,7 @@ Herald follows the Layered Composition Architecture (LCA) from agent-lab: cold s
 - `internal/` — Private application packages (config, infrastructure, domain systems)
 - `pkg/` — Reusable library packages (database, lifecycle, middleware, module, etc.)
 - `workflow/` — Classification workflow definition (Phase 2)
-- `web/` — Web client and Scalar API docs
+- `web/` — Web client
 
 ### Configuration Pattern
 
@@ -33,9 +33,9 @@ Lower-level packages (`pkg/`) define contracts (interfaces). Higher-level packag
 
 ## AI Responsibilities
 
-### OpenAPI Schema Maintenance
+### API Cartographer Maintenance
 
-OpenAPI schema maintenance is an AI responsibility. After an implementation plan is accepted, the AI completes all OpenAPI schema adjustments (operations, request/response schemas, parameters) before transitioning control to the developer. Domain handlers define their OpenAPI specs alongside route definitions.
+API Cartographer maintenance is an AI responsibility. After an implementation plan is accepted, the AI generates or updates the corresponding `_project/api/<group>/README.md` and `.http` file before transitioning control to the developer. See `.claude/skills/api-cartographer/SKILL.md` for conventions.
 
 ### Testing
 

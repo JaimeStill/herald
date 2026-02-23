@@ -217,7 +217,7 @@ Key views: document upload/management, classification results with PDF viewer, b
 | Database | Azure PostgreSQL | Maximizes code reuse from agent-lab (pgx, query builder, repository patterns). |
 | Observability | No observer; results self-contain workflow context | Observer infrastructure adds complexity. Single workflow with deterministic topology doesn't benefit from generic execution tracking. |
 | Batch processing | API-triggered, service-managed queue | Internal worker pool is simpler than external queue infrastructure for initial delivery. |
-| Bulk upload | Batch API endpoint (multipart) | All documents enter through the service, ensuring DB + blob atomicity. |
+| Bulk upload | Sequential single-file uploads (no batch endpoint) | `ParseMultipartForm(maxMemory)` caps total request memory, making a batch endpoint's per-file size limit unpredictable. Single-file uploads give deterministic per-file size limits. The web client coordinates multi-file uploads via `<input multiple>` with `Promise.allSettled`, providing per-file progress, retry, and error handling. |
 | Web client scope | Full management MVP | Upload, browse, classify, validate, monitor, manage prompts. Complete operational interface. |
 
 ## Dependencies
