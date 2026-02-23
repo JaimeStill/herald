@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.0-dev.3.16
+
+- Add document domain core: types, mapping, repository, and system interface with blob+DB atomicity and paginated filtered queries (#16)
+
 ## v0.1.0-dev.2.13
 
 - Add migration CLI with embedded SQL and initial documents schema (#13)
