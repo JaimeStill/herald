@@ -23,7 +23,7 @@ CREATE TABLE prompts (
   name TEXT NOT NULL UNIQUE,
   stage TEXT NOT NULL
     CHECK (stage IN ('init', 'classify', 'enhance')),
-  system_prompt TEXT NOT NULL,
+  instructions TEXT NOT NULL,
   description TEXT
 );
 

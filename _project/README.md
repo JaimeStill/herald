@@ -130,7 +130,7 @@ Each domain follows the handler pattern: a System interface, repository with que
 
 **classifications** -- 1:1 relationship with documents. Stores the classification result with flattened workflow metadata columns. Supports manual validation and adjustment.
 
-**prompts** -- Named prompt overrides stored in PostgreSQL with CRUD API endpoints. Each override targets a specific workflow stage. Hard-coded defaults used when no override is loaded.
+**prompts** -- Named prompt instruction overrides stored in PostgreSQL with CRUD API endpoints. Each override targets a specific workflow stage and provides tunable instructions. The final system prompt is composed of two layers: instructions (tunable, from DB or hard-coded defaults) + output format (hard-coded, never exposed). The workflow assembles both layers at execution time.
 
 ### Classification Workflow
 
@@ -205,8 +205,8 @@ Azure PostgreSQL with golang-migrate. Core tables:
 - Flattened workflow metadata columns (exact schema TBD during Phase 2 when workflow output shape is concrete)
 - validated_by, validated_at, adjusted_classification, adjustment_rationale
 
-**prompts** -- Named overrides per workflow stage.
-- id, name (unique), stage (init/classify/enhance), system_prompt, description
+**prompts** -- Named instruction overrides per workflow stage. Stores the tunable instruction layer; the output format layer is hard-coded in `workflow/prompts.go` and composed at execution time.
+- id, name (unique), stage (init/classify/enhance), instructions, description
 
 ### Web Client
 
@@ -230,7 +230,7 @@ Key views: document upload/management, classification results with PDF viewer, b
 | Image lifecycle | Ephemeral (render, encode, discard) | 1M documents would generate enormous image storage. Images serve only as Vision API input. |
 | Classification result model | 1:1 with document, overwritten on re-classification | Simpler than run/stage/decision tracking. Flattened workflow metadata columns preserve provenance. |
 | Agent configuration | Single externally-configured agent | Herald serves one purpose with one or two GPT models. External config matches deployment patterns. |
-| Prompt management | Hard-coded defaults + named DB overrides | Lighter than agent-lab's profile + profile_stages system. |
+| Prompt management | Two-layer composition: tunable instructions (DB overrides or hard-coded defaults) + hard-coded output format | Lighter than agent-lab's profile + profile_stages system. Instructions are tunable without risking broken output formats. |
 | Blob storage layout | Flat with DB-driven status | Avoids expensive blob-move operations across 1M documents. DB is single source of truth. |
 | Database | Azure PostgreSQL | Maximizes code reuse from agent-lab (pgx, query builder, repository patterns). |
 | Observability | No observer; results self-contain workflow context | Observer infrastructure adds complexity. Single workflow with deterministic topology doesn't benefit from generic execution tracking. |
