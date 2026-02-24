@@ -1,43 +1,46 @@
-# Phase 1 — Service Foundation
+# Phase 2 — Classification Engine
 
-**Version Target:** v0.1.0
+**Version Target:** v0.2.0
 
 ## Scope
 
-Establish the Go service foundation for Herald — from `go.mod` to a running web service that accepts document uploads and manages them through Azure Blob Storage and PostgreSQL. All infrastructure patterns are adapted from agent-lab's proven Layered Composition Architecture.
+Build the classification engine that reads security markings from PDF documents using Azure AI Foundry GPT vision models. Adapts the sequential page-by-page context accumulation pattern from classify-docs (96.3% accuracy) into a 3-node state graph (init → classify → enhance?) hosted in Herald's web service. Two new domains (prompts, classifications) provide persistence and API access.
 
 ## Goals
 
-- Running Go web service with cold start → hot start → graceful shutdown lifecycle
-- Configuration system with TOML base, environment overlays, and env var overrides
-- PostgreSQL integration with migrations, query builder, and repository helpers
-- Azure Blob Storage integration for document persistence
-- Module-based HTTP routing with middleware and response utilities
-- Complete document domain: upload (single + batch), registration, metadata, CRUD queries
-- Local development environment via Docker Compose (PostgreSQL + Azurite)
-- mise-based task runner for build, test, and development workflows
+- Single externally-configured agent (go-agents) connected to Azure AI Foundry
+- Classification workflow state graph using go-agents-orchestration
+- Sequential page-by-page processing with context accumulation via document-context
+- Named prompt overrides with CRUD API (prompts domain)
+- Classification result persistence with flattened workflow metadata (classifications domain)
+- Single-document classification HTTP endpoint
+- Document status transitions through the classification lifecycle (pending → review → complete)
+- Manual validation and adjustment of classification results
 
 ## Objectives
 
 | # | Objective | Status | Dependencies |
 |---|-----------|--------|--------------|
-| [#1](https://github.com/JaimeStill/herald/issues/1) | Project Scaffolding, Configuration, and Service Skeleton | Complete | — |
-| [#2](https://github.com/JaimeStill/herald/issues/2) | Database Schema and Migration Tooling | Complete | #1 |
-| [#3](https://github.com/JaimeStill/herald/issues/3) | Document Domain | Open | #1, #2 |
+| [#24](https://github.com/JaimeStill/herald/issues/24) | Agent Configuration and Database Schema | Open | — |
+| [#25](https://github.com/JaimeStill/herald/issues/25) | Prompts Domain | Open | #24 |
+| [#26](https://github.com/JaimeStill/herald/issues/26) | Classification Workflow | Open | #24, #25 |
+| [#27](https://github.com/JaimeStill/herald/issues/27) | Classifications Domain | Open | #24, #26 |
+| [#28](https://github.com/JaimeStill/herald/issues/28) | Classification HTTP Endpoints | Open | #25, #27 |
 
 ## Constraints
 
-- **No classification logic** — workflow, agents, and prompt management are Phase 2
+- **No batch classification endpoint** — clients orchestrate parallel single-document classifications (same pattern as document uploads)
 - **No web client** — Lit SPA is Phase 3
 - **No authentication** — Azure Entra ID is Phase 4
-- **No OpenAPI/Scalar** — excluded per concept for velocity
-- **mise over Makefile** — all task automation via `.mise.toml`
-- **Azurite for local dev** — Azure Blob Storage emulator via Docker Compose
+- **No observer/checkpoint infrastructure** — results self-contain provenance via flattened metadata columns
+- **No workflow registry** — single workflow, direct `Execute()` function
+- **Confidence scoring is categorical** — HIGH/MEDIUM/LOW (aligns with classify-docs)
+- **Enhance node starts as placeholder** — trigger conditions require experimentation; initially always skips
 
 ## Cross-Cutting Decisions
 
-- **Storage implementation**: Azure Blob Storage via azblob SDK; Azurite emulator for local development
-- **Database driver**: pgx with connection pooling
-- **Document status**: `pending` is the only status set in Phase 1; transitions (`review`, `complete`) added in Phase 2
-- **Batch upload**: First-class `POST /documents/batch` endpoint for the 1M-document ingestion use case
-- **Test pattern**: Black-box tests in `tests/` directory mirroring `internal/` (e.g., `tests/documents/`)
+- **Workflow topology**: init → classify → enhance? — init purely prepares images, classify runs sequential page-by-page analysis, enhance conditionally re-renders and reassesses as a terminal stage
+- **Agent lifetime**: Stateless, created during cold start, stored on `Infrastructure` (no lifecycle hooks)
+- **Metadata storage**: Flattened columns on `classifications` table, no JSONB for workflow metadata
+- **Table naming**: `prompts` (not `prompt_modifications`) — single prompt-related table
+- **Prompt overrides**: Hard-coded defaults in `workflow/prompts.go` + optional per-stage overrides from the prompts domain
