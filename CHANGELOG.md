@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.0-dev.24.30
+
+- Add classification engine database migration with classifications and prompts tables, CHECK constraints, and indexes (#30)
+
 ## v0.2.0-dev.24.29
 
 - Migrate config format from TOML to JSON, add go-agents AgentConfig to Config and Infrastructure with env var overrides and startup validation (#29)
