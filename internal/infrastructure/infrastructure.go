@@ -7,24 +7,30 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/JaimeStill/go-agents/pkg/agent"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/lifecycle"
 	"github.com/JaimeStill/herald/pkg/storage"
+
+	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
 )
 
 // Infrastructure holds the core systems required by all domain modules.
 // It provides a single point of initialization for lifecycle coordination,
-// logging, database access, and file storage.
+// logging, database access, file storage, and agent configuration.
 type Infrastructure struct {
 	Lifecycle *lifecycle.Coordinator
 	Logger    *slog.Logger
 	Database  database.System
 	Storage   storage.System
+	Agent     gaconfig.AgentConfig
 }
 
 // New creates an Infrastructure from the application configuration.
 // It initializes all systems but does not start them; call Start separately.
+// Agent configuration is validated by creating a test agent via agent.New,
+// which verifies the full provider pipeline (registration, option extraction).
 func New(cfg *config.Config) (*Infrastructure, error) {
 	lc := lifecycle.New()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -39,11 +45,16 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 		return nil, fmt.Errorf("storage init failed: %w", err)
 	}
 
+	if _, err := agent.New(&cfg.Agent); err != nil {
+		return nil, fmt.Errorf("agent validation failed: %w", err)
+	}
+
 	return &Infrastructure{
 		Lifecycle: lc,
 		Logger:    logger,
 		Database:  db,
 		Storage:   store,
+		Agent:     cfg.Agent,
 	}, nil
 }
 

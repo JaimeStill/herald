@@ -8,12 +8,12 @@ import (
 
 // CORSConfig holds CORS policy settings.
 type CORSConfig struct {
-	Enabled          bool     `toml:"enabled"`
-	Origins          []string `toml:"origins"`
-	AllowedMethods   []string `toml:"allowed_methods"`
-	AllowedHeaders   []string `toml:"allowed_headers"`
-	AllowCredentials bool     `toml:"allow_credentials"`
-	MaxAge           int      `toml:"max_age"`
+	Enabled          bool     `json:"enabled"`
+	Origins          []string `json:"origins"`
+	AllowedMethods   []string `json:"allowed_methods"`
+	AllowedHeaders   []string `json:"allowed_headers"`
+	AllowCredentials bool     `json:"allow_credentials"`
+	MaxAge           int      `json:"max_age"`
 }
 
 // CORSEnv maps CORS config fields to environment variable names for override injection.

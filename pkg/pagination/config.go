@@ -9,8 +9,8 @@ import (
 
 // Config holds pagination settings including page size limits.
 type Config struct {
-	DefaultPageSize int `toml:"default_page_size"`
-	MaxPageSize     int `toml:"max_page_size"`
+	DefaultPageSize int `json:"default_page_size"`
+	MaxPageSize     int `json:"max_page_size"`
 }
 
 // ConfigEnv maps environment variable names for pagination configuration.

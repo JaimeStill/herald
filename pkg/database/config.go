@@ -9,16 +9,16 @@ import (
 
 // Config holds PostgreSQL connection parameters.
 type Config struct {
-	Host            string `toml:"host"`
-	Port            int    `toml:"port"`
-	Name            string `toml:"name"`
-	User            string `toml:"user"`
-	Password        string `toml:"password"`
-	SSLMode         string `toml:"ssl_mode"`
-	MaxOpenConns    int    `toml:"max_open_conns"`
-	MaxIdleConns    int    `toml:"max_idle_conns"`
-	ConnMaxLifetime string `toml:"conn_max_lifetime"`
-	ConnTimeout     string `toml:"conn_timeout"`
+	Host            string `json:"host"`
+	Port            int    `json:"port"`
+	Name            string `json:"name"`
+	User            string `json:"user"`
+	Password        string `json:"password"`
+	SSLMode         string `json:"ssl_mode"`
+	MaxOpenConns    int    `json:"max_open_conns"`
+	MaxIdleConns    int    `json:"max_idle_conns"`
+	ConnMaxLifetime string `json:"conn_max_lifetime"`
+	ConnTimeout     string `json:"conn_timeout"`
 }
 
 // Env maps config fields to environment variable names for override injection.

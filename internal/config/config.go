@@ -1,22 +1,25 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/storage"
-	"github.com/pelletier/go-toml/v2"
+
+	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
 )
 
 const (
-	BaseConfigFile       = "config.toml"
-	OverlayConfigPattern = "config.%s.toml"
+	BaseConfigFile       = "config.json"
+	OverlayConfigPattern = "config.%s.json"
 
 	EnvHeraldEnv             = "HERALD_ENV"
 	EnvHeraldShutdownTimeout = "HERALD_SHUTDOWN_TIMEOUT"
 	EnvHeraldVersion         = "HERALD_VERSION"
+	EnvHeraldAgentToken      = "HERALD_AGENT_TOKEN"
 )
 
 var databaseEnv = &database.Env{
@@ -40,12 +43,13 @@ var storageEnv = &storage.Env{
 
 // Config is the root configuration for the Herald service.
 type Config struct {
-	Server          ServerConfig    `toml:"server"`
-	Database        database.Config `toml:"database"`
-	Storage         storage.Config  `toml:"storage"`
-	API             APIConfig       `toml:"api"`
-	ShutdownTimeout string          `toml:"shutdown_timeout"`
-	Version         string          `toml:"version"`
+	Agent           gaconfig.AgentConfig `json:"agent"`
+	Server          ServerConfig         `json:"server"`
+	Database        database.Config      `json:"database"`
+	Storage         storage.Config       `json:"storage"`
+	API             APIConfig            `json:"api"`
+	ShutdownTimeout string               `json:"shutdown_timeout"`
+	Version         string               `json:"version"`
 }
 
 // Env returns the HERALD_ENV value, defaulting to "local".
@@ -63,7 +67,7 @@ func (c *Config) ShutdownTimeoutDuration() time.Duration {
 }
 
 // Load reads the base config (if present), applies any environment overlay,
-// and finalizes all values. If no config.toml exists, defaults and environment
+// and finalizes all values. If no config.json exists, defaults and environment
 // variables provide all configuration.
 func Load() (*Config, error) {
 	cfg := &Config{}
@@ -99,6 +103,7 @@ func (c *Config) Merge(overlay *Config) {
 	if overlay.Version != "" {
 		c.Version = overlay.Version
 	}
+	c.Agent.Merge(&overlay.Agent)
 	c.Server.Merge(&overlay.Server)
 	c.Database.Merge(&overlay.Database)
 	c.Storage.Merge(&overlay.Storage)
@@ -111,6 +116,9 @@ func (c *Config) finalize() error {
 
 	if err := c.validate(); err != nil {
 		return err
+	}
+	if err := FinalizeAgent(&c.Agent); err != nil {
+		return fmt.Errorf("agent: %w", err)
 	}
 	if err := c.Server.Finalize(); err != nil {
 		return fmt.Errorf("server: %w", err)
@@ -158,7 +166,7 @@ func load(path string) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := toml.Unmarshal(data, &cfg); err != nil {
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 

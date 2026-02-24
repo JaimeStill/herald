@@ -25,10 +25,10 @@ var paginationEnv = &pagination.ConfigEnv{
 
 // APIConfig holds API routing, CORS, and pagination settings.
 type APIConfig struct {
-	BasePath      string                `toml:"base_path"`
-	MaxUploadSize string                `toml:"max_upload_size"`
-	CORS          middleware.CORSConfig `toml:"cors"`
-	Pagination    pagination.Config     `toml:"pagination"`
+	BasePath      string                `json:"base_path"`
+	MaxUploadSize string                `json:"max_upload_size"`
+	CORS          middleware.CORSConfig `json:"cors"`
+	Pagination    pagination.Config     `json:"pagination"`
 }
 
 func (c *APIConfig) MaxUploadSizeBytes() int64 {

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.0-dev.24.29
+
+- Migrate config format from TOML to JSON, add go-agents AgentConfig to Config and Infrastructure with env var overrides and startup validation (#29)
+
 ## v0.1.0
 
 - Establish Go project scaffolding with mise-based build tooling, Docker Compose local infrastructure (PostgreSQL + Azurite), and configuration system with TOML base, environment overlays, and env var overrides
