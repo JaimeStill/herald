@@ -35,6 +35,7 @@ var databaseEnv = &database.Env{
 var storageEnv = &storage.Env{
 	ContainerName:    "HERALD_STORAGE_CONTAINER_NAME",
 	ConnectionString: "HERALD_STORAGE_CONNECTION_STRING",
+	MaxListSize:      "HERALD_STORAGE_MAX_LIST_SIZE",
 }
 
 // Config is the root configuration for the Herald service.

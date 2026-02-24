@@ -16,6 +16,9 @@ func TestFinalizeDefaults(t *testing.T) {
 	if cfg.ContainerName != "documents" {
 		t.Errorf("container_name: got %s, want documents", cfg.ContainerName)
 	}
+	if cfg.MaxListSize != 50 {
+		t.Errorf("max_list_size: got %d, want 50", cfg.MaxListSize)
+	}
 }
 
 func TestFinalizeEnvOverrides(t *testing.T) {
@@ -77,13 +80,70 @@ func TestFinalizeValidation(t *testing.T) {
 	}
 }
 
+func TestFinalizeMaxListSizeCap(t *testing.T) {
+	cfg := storage.Config{
+		ConnectionString: "test-connection",
+		MaxListSize:      10000,
+	}
+	if err := cfg.Finalize(nil); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.MaxListSize != storage.MaxListCap {
+		t.Errorf("max_list_size: got %d, want %d (capped)", cfg.MaxListSize, storage.MaxListCap)
+	}
+}
+
+func TestFinalizeMaxListSizeEnvOverride(t *testing.T) {
+	t.Setenv("TEST_MAX_LIST", "200")
+
+	env := &storage.Env{
+		ConnectionString: "TEST_CONN",
+		MaxListSize:      "TEST_MAX_LIST",
+	}
+
+	t.Setenv("TEST_CONN", "test-connection")
+
+	cfg := storage.Config{}
+	if err := cfg.Finalize(env); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.MaxListSize != 200 {
+		t.Errorf("max_list_size: got %d, want 200", cfg.MaxListSize)
+	}
+}
+
+func TestFinalizeMaxListSizeEnvCapped(t *testing.T) {
+	t.Setenv("TEST_MAX_LIST", "99999")
+	t.Setenv("TEST_CONN", "test-connection")
+
+	env := &storage.Env{
+		ConnectionString: "TEST_CONN",
+		MaxListSize:      "TEST_MAX_LIST",
+	}
+
+	cfg := storage.Config{}
+	if err := cfg.Finalize(env); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.MaxListSize != storage.MaxListCap {
+		t.Errorf("max_list_size: got %d, want %d (capped)", cfg.MaxListSize, storage.MaxListCap)
+	}
+}
+
 func TestMerge(t *testing.T) {
 	base := storage.Config{
 		ContainerName:    "documents",
 		ConnectionString: "base-conn",
+		MaxListSize:      50,
 	}
 
-	overlay := storage.Config{ConnectionString: "overlay-conn"}
+	overlay := storage.Config{
+		ConnectionString: "overlay-conn",
+		MaxListSize:      100,
+	}
 	base.Merge(&overlay)
 
 	if base.ContainerName != "documents" {
@@ -91,5 +151,23 @@ func TestMerge(t *testing.T) {
 	}
 	if base.ConnectionString != "overlay-conn" {
 		t.Errorf("connection_string: got %s, want overlay-conn", base.ConnectionString)
+	}
+	if base.MaxListSize != 100 {
+		t.Errorf("max_list_size: got %d, want 100", base.MaxListSize)
+	}
+}
+
+func TestMergeZeroMaxListSizePreservesBase(t *testing.T) {
+	base := storage.Config{
+		ContainerName:    "documents",
+		ConnectionString: "base-conn",
+		MaxListSize:      50,
+	}
+
+	overlay := storage.Config{}
+	base.Merge(&overlay)
+
+	if base.MaxListSize != 50 {
+		t.Errorf("max_list_size: got %d, want 50 (preserved)", base.MaxListSize)
 	}
 }
