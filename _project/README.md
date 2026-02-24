@@ -40,8 +40,8 @@ herald/
 │   └── migrate/          # Database migration CLI
 ├── internal/
 │   ├── api/              # API module: Runtime, Domain, route registration
-│   ├── config/           # Configuration management (TOML + env overlays)
-│   ├── infrastructure/   # Infrastructure assembly (lifecycle, logger, database, storage)
+│   ├── config/           # Configuration management (JSON + env overlays)
+│   ├── infrastructure/   # Infrastructure assembly (lifecycle, logger, database, storage, agent)
 │   ├── documents/        # Document domain (upload, registration, metadata, blob management)
 │   ├── classifications/  # Classification result domain (store, query, validate, adjust)
 │   └── prompts/          # Named prompt override domain (CRUD, per-stage loading)
@@ -70,7 +70,7 @@ herald/
 │       ├── app.go        # Go module: embed dist/*, shell template, NewModule()
 │       ├── client/       # TypeScript source (Bun + Vite build)
 │       └── server/       # Go HTML templates (shell.html)
-├── config.toml           # Base configuration
+├── config.json           # Base configuration
 ├── Makefile
 ├── Dockerfile
 └── _project/
@@ -82,8 +82,8 @@ herald/
 Herald follows the Layered Composition Architecture (LCA) established in agent-lab:
 
 **Cold Start** (initialization, no connections):
-1. `config.Load()` -- Read TOML base + environment overlay + env var overrides
-2. `infrastructure.New(cfg)` -- Create lifecycle coordinator, logger, database system, storage system
+1. `config.Load()` -- Read JSON base + environment overlay + env var overrides
+2. `infrastructure.New(cfg)` -- Create lifecycle coordinator, logger, database system, storage system, validate agent config
 3. `NewModules(infra, cfg)` -- Create API module (runtime + domain assembly) and web app module
 
 **Hot Start** (connections established, ready to serve):
@@ -102,7 +102,8 @@ type Infrastructure struct {
     Lifecycle *lifecycle.Coordinator
     Logger    *slog.Logger
     Database  database.System
-    Storage   storage.System  // Azure Blob Storage implementation
+    Storage   storage.System          // Azure Blob Storage implementation
+    Agent     gaconfig.AgentConfig    // go-agents config for per-request agent creation
 }
 ```
 
@@ -152,19 +153,35 @@ This collapses agent-lab's 5-node graph (init, detect, enhance, classify, score)
 
 ### Agent Configuration
 
-Single agent definition from external configuration (not CRUD-managed):
+Single agent definition from external configuration (not CRUD-managed). Uses go-agents' `config.AgentConfig` type directly — no Herald-specific agent config structs:
 
-```toml
-[agent]
-model = "gpt-5-mini"
-
-[agent.provider]
-name = "azure-ai-foundry"
-base_url = "https://..."
-api_version = "2024-12-01-preview"
+```json
+{
+  "agent": {
+    "name": "herald-classifier",
+    "provider": {
+      "name": "azure",
+      "base_url": "https://...",
+      "options": {
+        "deployment": "gpt-5-mini",
+        "api_version": "2024-12-01-preview",
+        "auth_type": "api_key"
+      }
+    },
+    "model": {
+      "name": "gpt-5-mini",
+      "capabilities": {
+        "vision": {
+          "max_tokens": 4096,
+          "temperature": 0.1
+        }
+      }
+    }
+  }
+}
 ```
 
-Configured at startup from TOML + env vars. Token for Azure AI Foundry is provided at runtime through environment variables or Azure Key Vault.
+Configured at startup from JSON config + env var overrides. Token injected via `HERALD_AGENT_TOKEN` env var. Provider, model, and provider options are also overridable via `HERALD_AGENT_*` env vars.
 
 ### Storage Architecture
 
@@ -233,7 +250,6 @@ Key views: document upload/management, classification results with PDF viewer, b
 
 - **pgx**: PostgreSQL driver with connection pooling
 - **golang-migrate**: Database migration management
-- **go-toml**: TOML configuration parsing
 - **google/uuid**: UUID generation
 - **azure-sdk-for-go**: Azure Blob Storage client, Azure Identity (Entra auth)
 - **pdfcpu**: PDF page count extraction on upload
@@ -258,7 +274,7 @@ Key views: document upload/management, classification results with PDF viewer, b
 - Single configurable agent targeting GPT-5-mini or GPT-5.2 per deployment
 - Vision API for page classification (base64 data URI encoded images)
 - Authentication via API key (Azure Key Vault) or access token
-- Configuration: base URL, API version, model name, token via TOML + env vars
+- Configuration: go-agents AgentConfig in config.json + HERALD_AGENT_* env var overrides
 
 ### Azure Blob Storage
 

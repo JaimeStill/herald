@@ -3,6 +3,7 @@ package api_test
 import (
 	"testing"
 
+	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
 	"github.com/JaimeStill/herald/internal/api"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/internal/infrastructure"
@@ -16,6 +17,17 @@ const azuriteConnString = "DefaultEndpointsProtocol=http;AccountName=heraldstore
 
 func validConfig() *config.Config {
 	return &config.Config{
+		Agent: gaconfig.AgentConfig{
+			Name: "test-agent",
+			Provider: &gaconfig.ProviderConfig{
+				Name:    "ollama",
+				BaseURL: "http://localhost:11434",
+				Options: make(map[string]any),
+			},
+			Model: &gaconfig.ModelConfig{
+				Name: "llama3.1:8b",
+			},
+		},
 		Server: config.ServerConfig{
 			Host:            "0.0.0.0",
 			Port:            8080,

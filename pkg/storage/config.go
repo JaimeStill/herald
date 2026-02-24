@@ -8,9 +8,9 @@ import (
 
 // Config holds Azure Blob Storage connection parameters.
 type Config struct {
-	ContainerName    string `toml:"container_name"`
-	ConnectionString string `toml:"connection_string"`
-	MaxListSize      int32  `toml:"max_list_size"`
+	ContainerName    string `json:"container_name"`
+	ConnectionString string `json:"connection_string"`
+	MaxListSize      int32  `json:"max_list_size"`
 }
 
 // Env maps config fields to environment variable names for override injection.

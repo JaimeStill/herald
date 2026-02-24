@@ -17,11 +17,11 @@ const (
 
 // ServerConfig holds HTTP server parameters.
 type ServerConfig struct {
-	Host            string `toml:"host"`
-	Port            int    `toml:"port"`
-	ReadTimeout     string `toml:"read_timeout"`
-	WriteTimeout    string `toml:"write_timeout"`
-	ShutdownTimeout string `toml:"shutdown_timeout"`
+	Host            string `json:"host"`
+	Port            int    `json:"port"`
+	ReadTimeout     string `json:"read_timeout"`
+	WriteTimeout    string `json:"write_timeout"`
+	ShutdownTimeout string `json:"shutdown_timeout"`
 }
 
 // Addr returns the host:port listen address.

@@ -1,14 +1,14 @@
 module github.com/JaimeStill/herald
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4
+	github.com/JaimeStill/go-agents v0.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/pdfcpu/pdfcpu v0.11.1
-	github.com/pelletier/go-toml/v2 v2.2.4
 )
 
 require (

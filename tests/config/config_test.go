@@ -10,51 +10,82 @@ import (
 	"github.com/JaimeStill/herald/internal/config"
 )
 
-const baseConfig = `
-shutdown_timeout = "30s"
-version = "0.1.0"
+const baseConfig = `{
+  "shutdown_timeout": "30s",
+  "version": "0.1.0",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "read_timeout": "1m",
+    "write_timeout": "15m",
+    "shutdown_timeout": "30s"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "herald",
+    "user": "herald",
+    "password": "herald",
+    "ssl_mode": "disable",
+    "max_open_conns": 25,
+    "max_idle_conns": 5,
+    "conn_max_lifetime": "15m",
+    "conn_timeout": "5s"
+  },
+  "storage": {
+    "container_name": "documents",
+    "connection_string": "DefaultEndpointsProtocol=http;AccountName=heraldstore;AccountKey=key;BlobEndpoint=http://127.0.0.1:10000/heraldstore;"
+  },
+  "api": {
+    "base_path": "/api",
+    "cors": {
+      "enabled": false
+    },
+    "pagination": {
+      "default_page_size": 25,
+      "max_page_size": 50
+    }
+  },
+  "agent": {
+    "name": "test-agent",
+    "provider": {
+      "name": "ollama",
+      "base_url": "http://localhost:11434"
+    },
+    "model": {
+      "name": "llama3.1:8b"
+    }
+  }
+}`
 
-[server]
-host = "0.0.0.0"
-port = 8080
-read_timeout = "1m"
-write_timeout = "15m"
-shutdown_timeout = "30s"
+const overlayConfig = `{
+  "server": {
+    "port": 9090
+  },
+  "database": {
+    "host": "prodhost"
+  }
+}`
 
-[database]
-host = "localhost"
-port = 5432
-name = "herald"
-user = "herald"
-password = "herald"
-ssl_mode = "disable"
-max_open_conns = 25
-max_idle_conns = 5
-conn_max_lifetime = "15m"
-conn_timeout = "5s"
-
-[storage]
-container_name = "documents"
-connection_string = "DefaultEndpointsProtocol=http;AccountName=heraldstore;AccountKey=key;BlobEndpoint=http://127.0.0.1:10000/heraldstore;"
-
-[api]
-base_path = "/api"
-
-[api.cors]
-enabled = false
-
-[api.pagination]
-default_page_size = 25
-max_page_size = 50
-`
-
-const overlayConfig = `
-[server]
-port = 9090
-
-[database]
-host = "prodhost"
-`
+// minimalConfig provides the minimum fields required
+// for validation to pass (db name, db user, storage connection string).
+// Agent defaults fill in from go-agents DefaultAgentConfig().
+const minimalConfig = `{
+  "shutdown_timeout": "30s",
+  "server": {
+    "port": 8080
+  },
+  "database": {
+    "name": "herald",
+    "user": "herald"
+  },
+  "storage": {
+    "connection_string": "conn"
+  },
+  "api": {
+    "base_path": "/api"
+  }
+}`
 
 func writeConfig(t *testing.T, dir, filename, content string) {
 	t.Helper()
@@ -77,7 +108,7 @@ func chdir(t *testing.T, dir string) {
 
 func TestLoad(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	cfg, err := config.Load()
@@ -107,8 +138,8 @@ func TestLoad(t *testing.T) {
 
 func TestLoadWithOverlay(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
-	writeConfig(t, dir, "config.staging.toml", overlayConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
+	writeConfig(t, dir, "config.staging.json", overlayConfig)
 	chdir(t, dir)
 
 	t.Setenv("HERALD_ENV", "staging")
@@ -131,7 +162,7 @@ func TestLoadWithOverlay(t *testing.T) {
 
 func TestLoadEnvVarOverrides(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	t.Setenv("HERALD_VERSION", "2.0.0")
@@ -160,7 +191,7 @@ func TestLoadNoConfigFile(t *testing.T) {
 
 	cfg, err := config.Load()
 	if err != nil {
-		t.Fatalf("load without config.toml failed: %v", err)
+		t.Fatalf("load without config.json failed: %v", err)
 	}
 
 	if cfg.Server.Port != 8080 {
@@ -176,18 +207,18 @@ func TestLoadNoConfigFile(t *testing.T) {
 
 func TestLoadInvalidConfig(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", "invalid = [toml")
+	writeConfig(t, dir, "config.json", `{"invalid": }`)
 	chdir(t, dir)
 
 	_, err := config.Load()
 	if err == nil {
-		t.Fatal("expected error for invalid TOML")
+		t.Fatal("expected error for invalid JSON")
 	}
 }
 
 func TestEnvDefault(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	cfg, err := config.Load()
@@ -202,7 +233,7 @@ func TestEnvDefault(t *testing.T) {
 
 func TestEnvFromEnvVar(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	t.Setenv("HERALD_ENV", "production")
@@ -219,7 +250,7 @@ func TestEnvFromEnvVar(t *testing.T) {
 
 func TestShutdownTimeoutDuration(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	cfg, err := config.Load()
@@ -234,7 +265,7 @@ func TestShutdownTimeoutDuration(t *testing.T) {
 
 func TestServerAddr(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	cfg, err := config.Load()
@@ -249,19 +280,7 @@ func TestServerAddr(t *testing.T) {
 
 func TestPaginationDefaults(t *testing.T) {
 	dir := t.TempDir()
-	// Config with no pagination section — defaults should apply
-	writeConfig(t, dir, "config.toml", `
-shutdown_timeout = "30s"
-[server]
-port = 8080
-[database]
-name = "herald"
-user = "herald"
-[storage]
-connection_string = "conn"
-[api]
-base_path = "/api"
-`)
+	writeConfig(t, dir, "config.json", minimalConfig)
 	chdir(t, dir)
 
 	cfg, err := config.Load()
@@ -279,7 +298,7 @@ base_path = "/api"
 
 func TestPaginationEnvOverrides(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	t.Setenv("HERALD_PAGINATION_DEFAULT_PAGE_SIZE", "10")
@@ -324,7 +343,7 @@ func TestMaxUploadSizeBytes(t *testing.T) {
 
 func TestMaxUploadSizeDefault(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	cfg, err := config.Load()
@@ -340,7 +359,7 @@ func TestMaxUploadSizeDefault(t *testing.T) {
 
 func TestMaxUploadSizeEnvOverride(t *testing.T) {
 	dir := t.TempDir()
-	writeConfig(t, dir, "config.toml", baseConfig)
+	writeConfig(t, dir, "config.json", baseConfig)
 	chdir(t, dir)
 
 	t.Setenv("HERALD_API_MAX_UPLOAD_SIZE", "100MB")
@@ -364,30 +383,22 @@ func TestServerValidation(t *testing.T) {
 	}{
 		{
 			name: "invalid port",
-			config: `
-shutdown_timeout = "30s"
-[server]
-port = 99999
-[database]
-name = "herald"
-user = "herald"
-[storage]
-connection_string = "conn"
-`,
+			config: `{
+				"shutdown_timeout": "30s",
+				"server": {"port": 99999},
+				"database": {"name": "herald", "user": "herald"},
+				"storage": {"connection_string": "conn"}
+			}`,
 			wantErr: "invalid port",
 		},
 		{
 			name: "invalid read_timeout",
-			config: `
-shutdown_timeout = "30s"
-[server]
-read_timeout = "bad"
-[database]
-name = "herald"
-user = "herald"
-[storage]
-connection_string = "conn"
-`,
+			config: `{
+				"shutdown_timeout": "30s",
+				"server": {"read_timeout": "bad"},
+				"database": {"name": "herald", "user": "herald"},
+				"storage": {"connection_string": "conn"}
+			}`,
 			wantErr: "invalid read_timeout",
 		},
 	}
@@ -395,7 +406,7 @@ connection_string = "conn"
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			writeConfig(t, dir, "config.toml", tt.config)
+			writeConfig(t, dir, "config.json", tt.config)
 			chdir(t, dir)
 
 			_, err := config.Load()
@@ -406,5 +417,160 @@ connection_string = "conn"
 				t.Errorf("error %q does not contain %q", err.Error(), tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestAgentConfigFromJSON(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.Agent.Name != "test-agent" {
+		t.Errorf("agent name: got %s, want test-agent", cfg.Agent.Name)
+	}
+	if cfg.Agent.Provider == nil {
+		t.Fatal("agent provider is nil")
+	}
+	if cfg.Agent.Provider.Name != "ollama" {
+		t.Errorf("provider name: got %s, want ollama", cfg.Agent.Provider.Name)
+	}
+	if cfg.Agent.Provider.BaseURL != "http://localhost:11434" {
+		t.Errorf("provider base_url: got %s, want http://localhost:11434", cfg.Agent.Provider.BaseURL)
+	}
+	if cfg.Agent.Model == nil {
+		t.Fatal("agent model is nil")
+	}
+	if cfg.Agent.Model.Name != "llama3.1:8b" {
+		t.Errorf("model name: got %s, want llama3.1:8b", cfg.Agent.Model.Name)
+	}
+}
+
+func TestAgentDefaults(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", minimalConfig)
+	chdir(t, dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.Agent.Name != "default-agent" {
+		t.Errorf("agent name: got %s, want default-agent", cfg.Agent.Name)
+	}
+	if cfg.Agent.Provider == nil {
+		t.Fatal("agent provider is nil")
+	}
+	if cfg.Agent.Provider.Name != "ollama" {
+		t.Errorf("provider name: got %s, want ollama", cfg.Agent.Provider.Name)
+	}
+	if cfg.Agent.Provider.BaseURL != "http://localhost:11434" {
+		t.Errorf("provider base_url: got %s, want http://localhost:11434", cfg.Agent.Provider.BaseURL)
+	}
+}
+
+func TestAgentEnvOverrides(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	t.Setenv("HERALD_AGENT_PROVIDER_NAME", "azure")
+	t.Setenv("HERALD_AGENT_BASE_URL", "https://myendpoint.openai.azure.com")
+	t.Setenv("HERALD_AGENT_MODEL_NAME", "gpt-5-mini")
+	t.Setenv("HERALD_AGENT_TOKEN", "test-token")
+	t.Setenv("HERALD_AGENT_DEPLOYMENT", "gpt-5-mini")
+	t.Setenv("HERALD_AGENT_API_VERSION", "2024-12-01-preview")
+	t.Setenv("HERALD_AGENT_AUTH_TYPE", "api_key")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.Agent.Provider.Name != "azure" {
+		t.Errorf("provider name: got %s, want azure", cfg.Agent.Provider.Name)
+	}
+	if cfg.Agent.Provider.BaseURL != "https://myendpoint.openai.azure.com" {
+		t.Errorf("provider base_url: got %s, want https://myendpoint.openai.azure.com", cfg.Agent.Provider.BaseURL)
+	}
+	if cfg.Agent.Model.Name != "gpt-5-mini" {
+		t.Errorf("model name: got %s, want gpt-5-mini", cfg.Agent.Model.Name)
+	}
+
+	opts := cfg.Agent.Provider.Options
+	if opts["token"] != "test-token" {
+		t.Errorf("token: got %v, want test-token", opts["token"])
+	}
+	if opts["deployment"] != "gpt-5-mini" {
+		t.Errorf("deployment: got %v, want gpt-5-mini", opts["deployment"])
+	}
+	if opts["api_version"] != "2024-12-01-preview" {
+		t.Errorf("api_version: got %v, want 2024-12-01-preview", opts["api_version"])
+	}
+	if opts["auth_type"] != "api_key" {
+		t.Errorf("auth_type: got %v, want api_key", opts["auth_type"])
+	}
+}
+
+func TestAgentOverlay(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	writeConfig(t, dir, "config.staging.json", `{
+		"agent": {
+			"name": "staging-agent",
+			"provider": {
+				"name": "azure",
+				"base_url": "https://staging.openai.azure.com"
+			},
+			"model": {
+				"name": "gpt-5-mini"
+			}
+		}
+	}`)
+	chdir(t, dir)
+
+	t.Setenv("HERALD_ENV", "staging")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.Agent.Name != "staging-agent" {
+		t.Errorf("agent name: got %s, want staging-agent", cfg.Agent.Name)
+	}
+	if cfg.Agent.Provider.Name != "azure" {
+		t.Errorf("provider name: got %s, want azure", cfg.Agent.Provider.Name)
+	}
+	if cfg.Agent.Provider.BaseURL != "https://staging.openai.azure.com" {
+		t.Errorf("provider base_url: got %s, want https://staging.openai.azure.com", cfg.Agent.Provider.BaseURL)
+	}
+	if cfg.Agent.Model.Name != "gpt-5-mini" {
+		t.Errorf("model name: got %s, want gpt-5-mini", cfg.Agent.Model.Name)
+	}
+	// Base config values should be preserved for non-agent fields
+	if cfg.Server.Port != 8080 {
+		t.Errorf("server port: got %d, want 8080 (from base)", cfg.Server.Port)
+	}
+}
+
+func TestAgentTokenNotRequired(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	// No HERALD_AGENT_TOKEN set — should succeed for ollama provider
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if _, ok := cfg.Agent.Provider.Options["token"]; ok {
+		t.Error("token should not be set when env var is absent")
 	}
 }
