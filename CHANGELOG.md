@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.0-dev.3.21
+
+- Add read-only blob storage query endpoints (list, find, download) with marker-based pagination, configurable max list size, and wildcard path parameter routing (#21)
+
 ## v0.1.0-dev.3.17
 
 - Add document HTTP handlers (List, Find, Search, Upload, Delete), multipart upload with pdfcpu page count extraction, configurable max upload size, and API route wiring (#17)

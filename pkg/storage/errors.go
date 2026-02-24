@@ -1,6 +1,9 @@
 package storage
 
-import "errors"
+import (
+	"errors"
+	"net/http"
+)
 
 var (
 	// ErrNotFound indicates the requested blob does not exist.
@@ -10,3 +13,14 @@ var (
 	// ErrInvalidKey indicates the storage key contains a path traversal segment.
 	ErrInvalidKey = errors.New("storage key contains invalid path segment")
 )
+
+// MapHTTPStatus maps storage errors to HTTP status codes.
+func MapHTTPStatus(err error) int {
+	if errors.Is(err, ErrNotFound) {
+		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrEmptyKey) || errors.Is(err, ErrInvalidKey) {
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
+}

@@ -16,7 +16,7 @@ func NewModule(cfg *config.Config, infra *infrastructure.Infrastructure) (*modul
 	domain := NewDomain(runtime)
 
 	mux := http.NewServeMux()
-	registerRoutes(mux, domain, cfg)
+	registerRoutes(mux, domain, cfg, runtime)
 
 	m := module.New(cfg.API.BasePath, mux)
 	m.Use(middleware.CORS(&cfg.API.CORS))
