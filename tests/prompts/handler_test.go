@@ -17,13 +17,15 @@ import (
 )
 
 type mockSystem struct {
-	listFn       func(ctx context.Context, page pagination.PageRequest, filters prompts.Filters) (*pagination.PageResult[prompts.Prompt], error)
-	findFn       func(ctx context.Context, id uuid.UUID) (*prompts.Prompt, error)
-	createFn     func(ctx context.Context, cmd prompts.CreateCommand) (*prompts.Prompt, error)
-	updateFn     func(ctx context.Context, id uuid.UUID, cmd prompts.UpdateCommand) (*prompts.Prompt, error)
-	deleteFn     func(ctx context.Context, id uuid.UUID) error
-	activateFn   func(ctx context.Context, id uuid.UUID) (*prompts.Prompt, error)
-	deactivateFn func(ctx context.Context, id uuid.UUID) (*prompts.Prompt, error)
+	listFn         func(ctx context.Context, page pagination.PageRequest, filters prompts.Filters) (*pagination.PageResult[prompts.Prompt], error)
+	findFn         func(ctx context.Context, id uuid.UUID) (*prompts.Prompt, error)
+	instructionsFn func(ctx context.Context, stage prompts.Stage) (string, error)
+	specFn         func(ctx context.Context, stage prompts.Stage) (string, error)
+	createFn       func(ctx context.Context, cmd prompts.CreateCommand) (*prompts.Prompt, error)
+	updateFn       func(ctx context.Context, id uuid.UUID, cmd prompts.UpdateCommand) (*prompts.Prompt, error)
+	deleteFn       func(ctx context.Context, id uuid.UUID) error
+	activateFn     func(ctx context.Context, id uuid.UUID) (*prompts.Prompt, error)
+	deactivateFn   func(ctx context.Context, id uuid.UUID) (*prompts.Prompt, error)
 }
 
 func (m *mockSystem) Handler() *prompts.Handler {
@@ -36,6 +38,14 @@ func (m *mockSystem) List(ctx context.Context, page pagination.PageRequest, filt
 
 func (m *mockSystem) Find(ctx context.Context, id uuid.UUID) (*prompts.Prompt, error) {
 	return m.findFn(ctx, id)
+}
+
+func (m *mockSystem) Instructions(ctx context.Context, stage prompts.Stage) (string, error) {
+	return m.instructionsFn(ctx, stage)
+}
+
+func (m *mockSystem) Spec(ctx context.Context, stage prompts.Stage) (string, error) {
+	return m.specFn(ctx, stage)
 }
 
 func (m *mockSystem) Create(ctx context.Context, cmd prompts.CreateCommand) (*prompts.Prompt, error) {
@@ -164,11 +174,11 @@ func TestHandlerStages(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 
-	if len(stages) != 3 {
-		t.Fatalf("stages length = %d, want 3", len(stages))
+	if len(stages) != 2 {
+		t.Fatalf("stages length = %d, want 2", len(stages))
 	}
 
-	want := []prompts.Stage{prompts.StageInit, prompts.StageClassify, prompts.StageEnhance}
+	want := []prompts.Stage{prompts.StageClassify, prompts.StageEnhance}
 	for i, s := range stages {
 		if s != want[i] {
 			t.Errorf("stages[%d] = %q, want %q", i, s, want[i])
@@ -234,6 +244,109 @@ func TestHandlerFind(t *testing.T) {
 
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("status = %d, want 404", rec.Code)
+		}
+	})
+}
+
+func TestHandlerInstructions(t *testing.T) {
+	t.Run("returns stage content", func(t *testing.T) {
+		sys := &mockSystem{
+			instructionsFn: func(_ context.Context, stage prompts.Stage) (string, error) {
+				return "test instructions for " + string(stage), nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/prompts/classify/instructions", nil)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+
+		var got prompts.StageContent
+		if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if got.Stage != prompts.StageClassify {
+			t.Errorf("stage = %q, want classify", got.Stage)
+		}
+		if got.Content != "test instructions for classify" {
+			t.Errorf("content = %q, want %q", got.Content, "test instructions for classify")
+		}
+	})
+
+	t.Run("invalid stage returns 400", func(t *testing.T) {
+		sys := &mockSystem{}
+		mux := setupMux(newTestHandler(sys))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/prompts/banana/instructions", nil)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", rec.Code)
+		}
+	})
+
+	t.Run("system error maps to status", func(t *testing.T) {
+		sys := &mockSystem{
+			instructionsFn: func(_ context.Context, _ prompts.Stage) (string, error) {
+				return "", prompts.ErrInvalidStage
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/prompts/classify/instructions", nil)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", rec.Code)
+		}
+	})
+}
+
+func TestHandlerSpec(t *testing.T) {
+	t.Run("returns stage content", func(t *testing.T) {
+		sys := &mockSystem{
+			specFn: func(_ context.Context, stage prompts.Stage) (string, error) {
+				return "test spec for " + string(stage), nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/prompts/enhance/spec", nil)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+
+		var got prompts.StageContent
+		if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if got.Stage != prompts.StageEnhance {
+			t.Errorf("stage = %q, want enhance", got.Stage)
+		}
+		if got.Content != "test spec for enhance" {
+			t.Errorf("content = %q, want %q", got.Content, "test spec for enhance")
+		}
+	})
+
+	t.Run("invalid stage returns 400", func(t *testing.T) {
+		sys := &mockSystem{}
+		mux := setupMux(newTestHandler(sys))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/prompts/init/spec", nil)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", rec.Code)
 		}
 	})
 }
@@ -483,7 +596,7 @@ func TestHandlerUpdate(t *testing.T) {
 
 		body, _ := json.Marshal(prompts.UpdateCommand{
 			Name:         "test",
-			Stage:        prompts.StageInit,
+			Stage:        prompts.StageClassify,
 			Instructions: "test",
 		})
 
@@ -699,6 +812,8 @@ func TestHandlerRoutes(t *testing.T) {
 		{"GET", ""},
 		{"GET", "/stages"},
 		{"GET", "/{id}"},
+		{"GET", "/{stage}/instructions"},
+		{"GET", "/{stage}/spec"},
 		{"POST", ""},
 		{"PUT", "/{id}"},
 		{"DELETE", "/{id}"},

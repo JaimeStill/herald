@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.0-dev.26.37
+
+- Add hardcoded default instructions and specifications per workflow stage, `Instructions` and `Spec` methods on the prompts System interface, stage content API endpoints, `ParseStage` validation, and remove init as a prompt stage (#37)
+
 ## v0.2.0-dev.25.34
 
 - Add prompts domain with full CRUD, typed stage enum with JSON validation, partial unique index for single active prompt per stage, and atomic activation swap (#34)

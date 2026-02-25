@@ -2,7 +2,7 @@
 
 `/api/prompts`
 
-Named prompt instruction overrides for workflow stages. Each prompt targets a specific stage (init, classify, enhance) and provides tunable instructions. At most one prompt per stage can be active.
+Named prompt instruction overrides for workflow stages. Each prompt targets a specific stage (classify, enhance) and provides tunable instructions. At most one prompt per stage can be active.
 
 ---
 
@@ -20,7 +20,7 @@ Returns a paginated list of prompts with optional filters.
 | page_size | integer | no | Results per page |
 | search | string | no | Search across name and description |
 | sort | string | no | Comma-separated sort fields, prefix `-` for descending |
-| stage | string | no | Filter by stage (init, classify, enhance) |
+| stage | string | no | Filter by stage (classify, enhance) |
 | name | string | no | Filter by name (contains, case-insensitive) |
 | active | boolean | no | Filter by active status |
 
@@ -48,7 +48,7 @@ curl -s "$HERALD_API_BASE/api/prompts?page=1&page_size=20&search=detailed&sort=n
 
 `GET /api/prompts/stages`
 
-Returns the authoritative list of valid workflow stages.
+Returns the authoritative list of valid prompt workflow stages.
 
 ### Responses
 
@@ -107,7 +107,7 @@ Content-Type: `application/json`
 | page_size | integer | no | Results per page |
 | search | string | no | Search across name and description |
 | sort | string | no | Comma-separated sort fields, prefix `-` for descending |
-| stage | string | no | Filter by stage (init, classify, enhance) |
+| stage | string | no | Filter by stage (classify, enhance) |
 | name | string | no | Filter by name (contains) |
 | active | boolean | no | Filter by active status |
 
@@ -157,7 +157,7 @@ Content-Type: `application/json`
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | name | string | yes | Unique name for the prompt |
-| stage | string | yes | Workflow stage (init, classify, enhance) |
+| stage | string | yes | Workflow stage (classify, enhance) |
 | instructions | string | yes | Prompt instruction text |
 | description | string | no | Description of the prompt's purpose |
 
@@ -203,7 +203,7 @@ Content-Type: `application/json`
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | name | string | yes | Unique name for the prompt |
-| stage | string | yes | Workflow stage (init, classify, enhance) |
+| stage | string | yes | Workflow stage (classify, enhance) |
 | instructions | string | yes | Prompt instruction text |
 | description | string | no | Description of the prompt's purpose |
 
@@ -308,4 +308,72 @@ Deactivates a prompt. The stage falls back to hard-coded default instructions.
 
 ```bash
 curl -s -X POST "$HERALD_API_BASE/api/prompts/550e8400-e29b-41d4-a716-446655440000/deactivate" | jq .
+```
+
+---
+
+## Get Stage Instructions
+
+`GET /api/prompts/{stage}/instructions`
+
+Returns the effective instructions for a workflow stage. If an active prompt override exists for the stage, returns its instructions. Otherwise, returns the hardcoded default instructions.
+
+### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| stage | string | Workflow stage (classify, enhance) |
+
+### Responses
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stage instructions |
+| 400 | Invalid stage |
+
+### Response Body
+
+| Field | Type | Description |
+|-------|------|-------------|
+| stage | string | The requested stage |
+| content | string | The effective instruction text |
+
+### Example
+
+```bash
+curl -s "$HERALD_API_BASE/api/prompts/classify/instructions" | jq .
+```
+
+---
+
+## Get Stage Spec
+
+`GET /api/prompts/{stage}/spec`
+
+Returns the hardcoded specification for a workflow stage. Specifications define the expected output format and behavioral constraints that the workflow parser depends on. Always read-only.
+
+### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| stage | string | Workflow stage (classify, enhance) |
+
+### Responses
+
+| Status | Description |
+|--------|-------------|
+| 200 | Stage specification |
+| 400 | Invalid stage |
+
+### Response Body
+
+| Field | Type | Description |
+|-------|------|-------------|
+| stage | string | The requested stage |
+| content | string | The specification text |
+
+### Example
+
+```bash
+curl -s "$HERALD_API_BASE/api/prompts/classify/spec" | jq .
 ```

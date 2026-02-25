@@ -1,13 +1,22 @@
 ### List Blobs
-GET {{HOST}}/api/storage
+
+GET {{HOST}}/api/storage HTTP/1.1
+
 
 ### List Blobs with Filters
-GET {{HOST}}/api/storage?prefix=documents/&max_results=20
+
+GET {{HOST}}/api/storage?prefix=documents/&max_results=20 HTTP/1.1
+
 
 ### Find Blob
+
 # Replace with a valid storage key
-GET {{HOST}}/api/storage/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf
+
+GET {{HOST}}/api/storage/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf HTTP/1.1
+
 
 ### Download Blob
+
 # Replace with a valid storage key
-GET {{HOST}}/api/storage/download/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf
+
+GET {{HOST}}/api/storage/download/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf HTTP/1.1
