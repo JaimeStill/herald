@@ -19,9 +19,13 @@ type System interface {
 	) (*pagination.PageResult[Prompt], error)
 
 	Find(ctx context.Context, id uuid.UUID) (*Prompt, error)
+	Instructions(ctx context.Context, stage Stage) (string, error)
+	Spec(ctx context.Context, stage Stage) (string, error)
+
 	Create(ctx context.Context, cmd CreateCommand) (*Prompt, error)
 	Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand) (*Prompt, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+
 	Activate(ctx context.Context, id uuid.UUID) (*Prompt, error)
 	Deactivate(ctx context.Context, id uuid.UUID) (*Prompt, error)
 }

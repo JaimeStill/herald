@@ -25,6 +25,12 @@ type SearchRequest struct {
 	Filters
 }
 
+// StageContent is the response type for stage-scoped content endpoints.
+type StageContent struct {
+	Stage   Stage  `json:"stage"`
+	Content string `json:"content"`
+}
+
 // NewHandler creates a Handler with the given system, logger, and pagination config.
 func NewHandler(
 	sys System,
@@ -46,6 +52,8 @@ func (h *Handler) Routes() routes.Group {
 			{Method: "GET", Pattern: "", Handler: h.List},
 			{Method: "GET", Pattern: "/stages", Handler: h.Stages},
 			{Method: "GET", Pattern: "/{id}", Handler: h.Find},
+			{Method: "GET", Pattern: "/{stage}/instructions", Handler: h.Instructions},
+			{Method: "GET", Pattern: "/{stage}/spec", Handler: h.Spec},
 			{Method: "POST", Pattern: "", Handler: h.Create},
 			{Method: "PUT", Pattern: "/{id}", Handler: h.Update},
 			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete},
@@ -90,6 +98,41 @@ func (h *Handler) Find(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handlers.RespondJSON(w, http.StatusOK, prompt)
+}
+
+// Instructions returns the effective instructions for a workflow stage.
+// Returns the active DB override if one exists, otherwise the hardcoded default.
+func (h *Handler) Instructions(w http.ResponseWriter, r *http.Request) {
+	stage, err := ParseStage(r.PathValue("stage"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	text, err := h.sys.Instructions(r.Context(), stage)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, StageContent{Stage: stage, Content: text})
+}
+
+// Spec returns the hardcoded specification for a workflow stage.
+func (h *Handler) Spec(w http.ResponseWriter, r *http.Request) {
+	stage, err := ParseStage(r.PathValue("stage"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	text, err := h.sys.Spec(r.Context(), stage)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, StageContent{Stage: stage, Content: text})
 }
 
 // Create processes a JSON body to create a new prompt override.

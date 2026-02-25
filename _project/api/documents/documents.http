@@ -1,16 +1,25 @@
 ### List Documents
-GET {{HOST}}/api/documents
+
+GET {{HOST}}/api/documents HTTP/1.1
+
 
 ### List Documents with Filters
-GET {{HOST}}/api/documents?page=1&page_size=20&search=report&sort=-uploaded_at&status=pending&filename=quarterly&external_platform=HQ&content_type=application/pdf
+
+GET {{HOST}}/api/documents?page=1&page_size=20&search=report&sort=-uploaded_at&status=pending&filename=quarterly&external_platform=HQ&content_type=application/pdf HTTP/1.1
+
 
 ### Find Document
+
 # Replace with a valid document ID
-@documentId=550e8400-e29b-41d4-a716-446655440000
-GET {{HOST}}/api/documents/{{documentId}}
+
+@documentId = 550e8400-e29b-41d4-a716-446655440000
+
+GET {{HOST}}/api/documents/{{documentId}} HTTP/1.1
+
 
 ### Search Documents
-POST {{HOST}}/api/documents/search
+
+POST {{HOST}}/api/documents/search HTTP/1.1
 Content-Type: application/json
 
 {
@@ -18,31 +27,35 @@ Content-Type: application/json
   "page_size": 20
 }
 
+
 ### Search Documents with Filters
-POST {{HOST}}/api/documents/search
+
+POST {{HOST}}/api/documents/search HTTP/1.1
 Content-Type: application/json
 
 {
+  "content_type": "application/pdf",
+  "external_id": 12345,
+  "external_platform": "HQ",
+  "filename": "report",
   "page": 1,
   "page_size": 20,
   "search": "quarterly",
   "sort": "-uploaded_at",
-  "status": "pending",
-  "filename": "report",
-  "external_id": 12345,
-  "external_platform": "HQ",
-  "content_type": "application/pdf"
+  "status": "pending"
 }
 
+
 ### Upload Document
-POST {{HOST}}/api/documents
+
+POST {{HOST}}/api/documents HTTP/1.1
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary
 Content-Disposition: form-data; name="file"; filename="report.pdf"
 Content-Type: application/pdf
 
-< ./_project/marked-documents/secret-01.pdf
+< ../../marked-documents/single-secret.pdf
 --boundary
 Content-Disposition: form-data; name="external_id"
 
@@ -53,7 +66,11 @@ Content-Disposition: form-data; name="external_platform"
 HQ
 --boundary--
 
+
 ### Delete Document
+
 # Replace with a valid document ID
-@documentId=550e8400-e29b-41d4-a716-446655440000
-DELETE {{HOST}}/api/documents/{{documentId}}
+
+@documentId = 550e8400-e29b-41d4-a716-446655440000
+
+DELETE {{HOST}}/api/documents/{{documentId}} HTTP/1.1

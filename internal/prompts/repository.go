@@ -3,6 +3,7 @@ package prompts
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -77,6 +78,26 @@ func (r *repo) Find(ctx context.Context, id uuid.UUID) (*Prompt, error) {
 		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
 	}
 	return &p, nil
+}
+
+func (r *repo) Instructions(ctx context.Context, stage Stage) (string, error) {
+	var text string
+	err := r.db.QueryRowContext(ctx,
+		"SELECT instructions FROM prompts WHERE stage = $1 AND active = true",
+		stage,
+	).Scan(&text)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return Instructions(stage)
+	}
+	if err != nil {
+		return "", fmt.Errorf("query active instructions: %w", err)
+	}
+	return text, nil
+}
+
+func (r *repo) Spec(ctx context.Context, stage Stage) (string, error) {
+	return Spec(stage)
 }
 
 func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Prompt, error) {

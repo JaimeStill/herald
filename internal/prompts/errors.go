@@ -9,7 +9,7 @@ import (
 var (
 	ErrNotFound     = errors.New("prompt not found")
 	ErrDuplicate    = errors.New("prompt name already exists")
-	ErrInvalidStage = errors.New("stage must be init, classify, or enhance")
+	ErrInvalidStage = errors.New("stage must be classify or enhance")
 )
 
 // MapHTTPStatus maps prompt domain errors to appropriate HTTP status codes.

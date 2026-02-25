@@ -42,11 +42,11 @@ func TestMapHTTPStatus(t *testing.T) {
 func TestStages(t *testing.T) {
 	stages := prompts.Stages()
 
-	if len(stages) != 3 {
-		t.Fatalf("len(Stages()) = %d, want 3", len(stages))
+	if len(stages) != 2 {
+		t.Fatalf("len(Stages()) = %d, want 2", len(stages))
 	}
 
-	want := []prompts.Stage{prompts.StageInit, prompts.StageClassify, prompts.StageEnhance}
+	want := []prompts.Stage{prompts.StageClassify, prompts.StageEnhance}
 	for i, s := range stages {
 		if s != want[i] {
 			t.Errorf("Stages()[%d] = %q, want %q", i, s, want[i])
@@ -60,7 +60,6 @@ func TestStageUnmarshalJSON(t *testing.T) {
 			input string
 			want  prompts.Stage
 		}{
-			{`"init"`, prompts.StageInit},
 			{`"classify"`, prompts.StageClassify},
 			{`"enhance"`, prompts.StageEnhance},
 		}
@@ -75,6 +74,14 @@ func TestStageUnmarshalJSON(t *testing.T) {
 					t.Errorf("Unmarshal(%s) = %q, want %q", tt.input, s, tt.want)
 				}
 			})
+		}
+	})
+
+	t.Run("init is invalid", func(t *testing.T) {
+		var s prompts.Stage
+		err := json.Unmarshal([]byte(`"init"`), &s)
+		if !errors.Is(err, prompts.ErrInvalidStage) {
+			t.Errorf("Unmarshal(init) error = %v, want ErrInvalidStage", err)
 		}
 	})
 
@@ -125,6 +132,97 @@ func TestStageUnmarshalJSON(t *testing.T) {
 		err := json.Unmarshal([]byte(`{"stage":"invalid"}`), &p)
 		if !errors.Is(err, prompts.ErrInvalidStage) {
 			t.Errorf("Unmarshal error = %v, want ErrInvalidStage", err)
+		}
+	})
+}
+
+func TestParseStage(t *testing.T) {
+	t.Run("valid stages", func(t *testing.T) {
+		tests := []struct {
+			input string
+			want  prompts.Stage
+		}{
+			{"classify", prompts.StageClassify},
+			{"enhance", prompts.StageEnhance},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.input, func(t *testing.T) {
+				got, err := prompts.ParseStage(tt.input)
+				if err != nil {
+					t.Fatalf("ParseStage(%q) error: %v", tt.input, err)
+				}
+				if got != tt.want {
+					t.Errorf("ParseStage(%q) = %q, want %q", tt.input, got, tt.want)
+				}
+			})
+		}
+	})
+
+	t.Run("init is invalid", func(t *testing.T) {
+		_, err := prompts.ParseStage("init")
+		if !errors.Is(err, prompts.ErrInvalidStage) {
+			t.Errorf("ParseStage(init) error = %v, want ErrInvalidStage", err)
+		}
+	})
+
+	t.Run("unknown stage returns error", func(t *testing.T) {
+		_, err := prompts.ParseStage("banana")
+		if !errors.Is(err, prompts.ErrInvalidStage) {
+			t.Errorf("ParseStage(banana) error = %v, want ErrInvalidStage", err)
+		}
+	})
+
+	t.Run("empty string returns error", func(t *testing.T) {
+		_, err := prompts.ParseStage("")
+		if !errors.Is(err, prompts.ErrInvalidStage) {
+			t.Errorf("ParseStage('') error = %v, want ErrInvalidStage", err)
+		}
+	})
+}
+
+func TestInstructions(t *testing.T) {
+	t.Run("returns content for valid stages", func(t *testing.T) {
+		for _, stage := range prompts.Stages() {
+			t.Run(string(stage), func(t *testing.T) {
+				text, err := prompts.Instructions(stage)
+				if err != nil {
+					t.Fatalf("Instructions(%q) error: %v", stage, err)
+				}
+				if text == "" {
+					t.Errorf("Instructions(%q) returned empty string", stage)
+				}
+			})
+		}
+	})
+
+	t.Run("invalid stage returns error", func(t *testing.T) {
+		_, err := prompts.Instructions("banana")
+		if !errors.Is(err, prompts.ErrInvalidStage) {
+			t.Errorf("Instructions(banana) error = %v, want ErrInvalidStage", err)
+		}
+	})
+}
+
+func TestSpec(t *testing.T) {
+	t.Run("returns content for valid stages", func(t *testing.T) {
+		for _, stage := range prompts.Stages() {
+			t.Run(string(stage), func(t *testing.T) {
+				text, err := prompts.Spec(stage)
+				if err != nil {
+					t.Fatalf("Spec(%q) error: %v", stage, err)
+				}
+				if text == "" {
+					t.Errorf("Spec(%q) returned empty string", stage)
+				}
+			})
+		}
+	})
+
+	t.Run("invalid stage returns error", func(t *testing.T) {
+		_, err := prompts.Spec("banana")
+		if !errors.Is(err, prompts.ErrInvalidStage) {
+			t.Errorf("Spec(banana) error = %v, want ErrInvalidStage", err)
 		}
 	})
 }
@@ -184,14 +282,14 @@ func TestFiltersFromQuery(t *testing.T) {
 
 	t.Run("partial params", func(t *testing.T) {
 		values := url.Values{
-			"stage": {"init"},
+			"stage": {"enhance"},
 			"name":  {"verbose"},
 		}
 
 		f := prompts.FiltersFromQuery(values)
 
-		if f.Stage == nil || *f.Stage != prompts.StageInit {
-			t.Errorf("Stage = %v, want init", f.Stage)
+		if f.Stage == nil || *f.Stage != prompts.StageEnhance {
+			t.Errorf("Stage = %v, want enhance", f.Stage)
 		}
 		if f.Name == nil || *f.Name != "verbose" {
 			t.Errorf("Name = %v, want verbose", f.Name)
@@ -263,7 +361,7 @@ func TestFiltersApply(t *testing.T) {
 
 	t.Run("multiple filters combine with AND", func(t *testing.T) {
 		b := query.NewBuilder(projection)
-		stage := prompts.StageInit
+		stage := prompts.StageEnhance
 		f := prompts.Filters{
 			Stage:  &stage,
 			Name:   ptr("verbose"),

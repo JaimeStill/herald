@@ -10,13 +10,11 @@ type Stage string
 
 // Valid workflow stages.
 const (
-	StageInit     Stage = "init"
 	StageClassify Stage = "classify"
 	StageEnhance  Stage = "enhance"
 )
 
 var stages = []Stage{
-	StageInit,
 	StageClassify,
 	StageEnhance,
 }
@@ -38,4 +36,14 @@ func (s *Stage) UnmarshalJSON(data []byte) error {
 	}
 	*s = v
 	return nil
+}
+
+// ParseStage validates a string as a known workflow stage.
+// Returns ErrInvalidStage if the value is not recognized.
+func ParseStage(s string) (Stage, error) {
+	v := Stage(s)
+	if !slices.Contains(stages, v) {
+		return "", ErrInvalidStage
+	}
+	return v, nil
 }
