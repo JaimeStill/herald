@@ -22,7 +22,7 @@ Build the classification engine that reads security markings from PDF documents 
 | # | Objective | Status | Dependencies |
 |---|-----------|--------|--------------|
 | [#24](https://github.com/JaimeStill/herald/issues/24) | Agent Configuration and Database Schema | Complete | — |
-| [#25](https://github.com/JaimeStill/herald/issues/25) | Prompts Domain | Open | #24 |
+| [#25](https://github.com/JaimeStill/herald/issues/25) | Prompts Domain | Complete | #24 |
 | [#26](https://github.com/JaimeStill/herald/issues/26) | Classification Workflow | Open | #24, #25 |
 | [#27](https://github.com/JaimeStill/herald/issues/27) | Classifications Domain | Open | #24, #26 |
 | [#28](https://github.com/JaimeStill/herald/issues/28) | Classification HTTP Endpoints | Open | #25, #27 |
