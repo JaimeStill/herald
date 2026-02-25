@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.0-dev.25.34
+
+- Add prompts domain with full CRUD, typed stage enum with JSON validation, partial unique index for single active prompt per stage, and atomic activation swap (#34)
+- Restructure API Cartographer to subdirectory-per-group layout with Kulala-compatible `.http` test files (#34)
+
 ## v0.2.0-dev.24.30
 
 - Add classification engine database migration with classifications and prompts tables, CHECK constraints, and indexes (#30)

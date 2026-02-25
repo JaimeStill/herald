@@ -30,7 +30,7 @@ Markdown-based API specification with executable curl examples. Replaces OpenAPI
 
 ## Initialization
 
-On first use in a project, collect three settings before generating any files:
+On first use in a project, collect settings and create the environment file before generating any documentation:
 
 ### 1. API Base Variable
 
@@ -44,7 +44,22 @@ The root README instructs the user to export this variable before running exampl
 export HERALD_API_BASE="http://localhost:8080"
 ```
 
-### 2. Organizational Mechanism
+### 2. HTTP Client Environment
+
+On initialization, create `_project/api/http-client.env.json` with the `HOST` variable matching the base URL:
+
+```json
+{
+  "$schema": "https://getkulala.net/http-client.env.schema.json",
+  "dev": {
+    "HOST": "http://localhost:8080"
+  }
+}
+```
+
+Additional environments (staging, prod) can be added as needed. Auth tokens are added here when authentication is configured.
+
+### 3. Organizational Mechanism
 
 A description of how endpoints are grouped into files. This is recorded in the root README so future spec authors understand the grouping rationale.
 
@@ -53,7 +68,7 @@ A description of how endpoints are grouped into files. This is recorded in the r
 - "Logical tags matching domain boundaries"
 - "Feature modules aligned with internal packages"
 
-### 3. Auth Configuration
+### 4. Auth Configuration
 
 Current authentication mechanism. Can be updated as the project evolves.
 
@@ -68,13 +83,23 @@ Current authentication mechanism. Can be updated as the project evolves.
 ```
 _project/api/
 ├── README.md              # Config, setup, auth, root endpoints, group index
-├── documents.md           # Documents route group
-├── classifications.md     # Classifications route group
-└── prompts.md             # Prompts route group
+├── root.http              # Root endpoint test file (health, readiness, etc.)
+├── http-client.env.json   # Kulala environment variables (HOST, auth tokens)
+├── documents/
+│   ├── README.md          # Documents route group documentation
+│   └── documents.http     # Documents endpoint test file
+├── classifications/
+│   ├── README.md          # Classifications route group documentation
+│   └── classifications.http
+└── prompts/
+    ├── README.md          # Prompts route group documentation
+    └── prompts.http       # Prompts endpoint test file
 ```
 
-- One markdown file per organizational group
+- Each route group gets a subdirectory containing its `README.md` (documentation) and `.http` (test file)
 - Root `README.md` contains project config, setup instructions, root endpoints, and a group index table
+- `root.http` contains test requests for root-level endpoints documented in the root README (health checks, readiness, etc.)
+- `http-client.env.json` sits at the `api/` root and defines shared environment variables for all `.http` files
 
 ## Root README Structure
 
@@ -84,23 +109,39 @@ The root `_project/api/README.md` follows this structure:
 2. **Configuration table**: base variable, default value, organization, auth
 3. **Setup section**: export command for the base variable (and auth token when configured)
 4. **Auth section** (when applicable): how to include auth headers (omitted from individual examples for brevity)
-5. **Route Groups table**: links to each group file with path prefix and description
+5. **Route Groups table**: links to each group directory with path prefix and description
 6. **Root Endpoints**: endpoints that live outside any group (health checks, version, etc.)
 
-## Group File Structure
+Route group links use directory paths (e.g., `[Documents](documents/)`) so GitHub renders the directory listing.
 
-Each group markdown file follows this structure:
+## Group Directory Structure
+
+Each group directory contains two files:
+
+### README.md (API Documentation)
 
 1. **Title**: group name (e.g., `# Documents`)
 2. **Base path**: the URL prefix for all endpoints in the group
 3. **Description**: what the group covers
 4. **Endpoints**: separated by horizontal rules (`---`), each following the endpoint template
 
+### [group].http (REST Test File)
+
+Kulala-compatible HTTP test file for executing requests directly from Neovim. Uses the `{{HOST}}` variable from `http-client.env.json`.
+
+**Conventions:**
+
+- `###` separates requests with descriptive names (e.g., `### Create Prompt`)
+- `@variableName=value` defines reusable variables (e.g., `@promptId=...`) with a comment noting replacement
+- Request order follows the same CRUD ordering as the README
+- JSON bodies are formatted for readability
+- No auth headers — same brevity convention as curl examples
+
 ## Endpoint Template
 
 Every endpoint section follows this pattern:
 
-```
+````
 ## [Action Name]
 
 `[METHOD] [full path]`
@@ -128,7 +169,7 @@ curl -s ... | jq .
 ```bash
 curl -s ... | jq .
 ```
-```
+````
 
 See [references/templates.md](references/templates.md) for complete templates covering each request type (query params, path params, JSON body, multipart form, etc.).
 
@@ -158,19 +199,21 @@ See [references/templates.md](references/templates.md) for complete templates co
 
 ### When to Update
 
-- **New endpoint added**: add the endpoint section to the group file
-- **Endpoint modified**: update parameters, responses, and examples
-- **Endpoint removed**: remove the section
-- **New group created**: create the markdown file and add to root group table
-- **Auth configuration changes**: update root README auth section
+- **New endpoint added**: add the endpoint section to the group README and a request block to the `.http` file
+- **Endpoint modified**: update parameters, responses, examples in README and the corresponding `.http` request
+- **Endpoint removed**: remove the section from README and the request block from `.http`
+- **New group created**: create the group directory with `README.md` and `[group].http`, add to root group table
+- **Auth configuration changes**: update root README auth section and `http-client.env.json`
 
 ### AI Responsibility
 
 API Cartographer maintenance is an AI responsibility. When HTTP handlers are created or modified during task execution:
 
-1. Generate or update the corresponding `_project/api/<group>.md`
-2. Keep the root README route group table current
-3. Ensure all curl examples use the project's configured base variable
+1. Generate or update the corresponding `_project/api/<group>/README.md`
+2. Generate or update the corresponding `_project/api/<group>/[group].http`
+3. Keep the root README route group table current
+4. Ensure all curl examples use the project's configured base variable
+5. Ensure all `.http` files use `{{HOST}}` from `http-client.env.json`
 
 This replaces the former OpenAPI schema maintenance responsibility.
 
