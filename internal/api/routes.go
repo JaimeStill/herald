@@ -14,7 +14,16 @@ func registerRoutes(
 	runtime *Runtime,
 ) {
 
-	documentsRoutes := domain.Documents.Handler(cfg.API.MaxUploadSizeBytes()).Routes()
+	documentsRoutes := domain.
+		Documents.
+		Handler(cfg.API.MaxUploadSizeBytes()).
+		Routes()
+
+	promptsRoutes := domain.
+		Prompts.
+		Handler().
+		Routes()
+
 	storageRoutes := newStorageHandler(
 		runtime.Storage,
 		runtime.Logger,
@@ -24,6 +33,7 @@ func registerRoutes(
 	routes.Register(
 		mux,
 		documentsRoutes,
+		promptsRoutes,
 		storageRoutes,
 	)
 }

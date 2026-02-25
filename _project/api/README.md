@@ -19,8 +19,9 @@ export HERALD_API_BASE="http://localhost:8080"
 
 | Group | Path Prefix | Description |
 |-------|-------------|-------------|
-| [Documents](documents.md) | `/api/documents` | Document upload and management |
-| [Storage](storage.md) | `/api/storage` | Read-only blob storage queries |
+| [Documents](documents/) | `/api/documents` | Document upload and management |
+| [Prompts](prompts/) | `/api/prompts` | Prompt instruction overrides per workflow stage |
+| [Storage](storage/) | `/api/storage` | Read-only blob storage queries |
 
 ## Root Endpoints
 

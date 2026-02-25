@@ -1,0 +1,62 @@
+### Create Prompt
+POST {{HOST}}/api/prompts
+Content-Type: application/json
+
+{
+  "name": "detailed-classify",
+  "stage": "classify",
+  "instructions": "Analyze each page thoroughly, noting all security markings including portion markings, banner lines, and classification authority blocks.",
+  "description": "Detailed classification instructions with emphasis on portion markings"
+}
+
+### List Prompts
+GET {{HOST}}/api/prompts
+
+### List Prompts with Filters
+GET {{HOST}}/api/prompts?stage=classify&active=false
+
+### List Stages
+GET {{HOST}}/api/prompts/stages
+
+### Find Prompt
+# Replace with a valid prompt ID
+@promptId=550e8400-e29b-41d4-a716-446655440000
+GET {{HOST}}/api/prompts/{{promptId}}
+
+### Search Prompts
+POST {{HOST}}/api/prompts/search
+Content-Type: application/json
+
+{
+  "page": 1,
+  "page_size": 20,
+  "stage": "classify"
+}
+
+### Update Prompt
+# Replace with a valid prompt ID
+@promptId=550e8400-e29b-41d4-a716-446655440000
+PUT {{HOST}}/api/prompts/{{promptId}}
+Content-Type: application/json
+
+{
+  "name": "detailed-classify-v2",
+  "stage": "classify",
+  "instructions": "Analyze each page thoroughly. Pay special attention to banner lines, portion markings, and classification authority blocks. Note any discrepancies between portion and banner markings.",
+  "description": "Enhanced classification instructions v2"
+}
+
+### Activate Prompt
+# Replace with a valid prompt ID
+@promptId=550e8400-e29b-41d4-a716-446655440000
+POST {{HOST}}/api/prompts/{{promptId}}/activate
+
+### Deactivate Prompt
+# Replace with a valid prompt ID
+@promptId=550e8400-e29b-41d4-a716-446655440000
+POST {{HOST}}/api/prompts/{{promptId}}/deactivate
+
+### Delete Prompt
+# Replace with a valid prompt ID
+@promptId=550e8400-e29b-41d4-a716-446655440000
+DELETE {{HOST}}/api/prompts/{{promptId}}
