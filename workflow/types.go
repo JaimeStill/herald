@@ -7,6 +7,14 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	KeyDocumentID = "document_id"
+	KeyTempDir    = "temp_dir"
+	KeyFilename   = "filename"
+	KeyPageCount  = "page_count"
+	KeyClassState = "classification_state"
+)
+
 // Confidence represents a categorical assessment of classification certainty.
 type Confidence string
 
