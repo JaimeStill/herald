@@ -42,11 +42,11 @@ func TestMapHTTPStatus(t *testing.T) {
 func TestStages(t *testing.T) {
 	stages := prompts.Stages()
 
-	if len(stages) != 2 {
-		t.Fatalf("len(Stages()) = %d, want 2", len(stages))
+	if len(stages) != 3 {
+		t.Fatalf("len(Stages()) = %d, want 3", len(stages))
 	}
 
-	want := []prompts.Stage{prompts.StageClassify, prompts.StageEnhance}
+	want := []prompts.Stage{prompts.StageClassify, prompts.StageEnhance, prompts.StageFinalize}
 	for i, s := range stages {
 		if s != want[i] {
 			t.Errorf("Stages()[%d] = %q, want %q", i, s, want[i])
@@ -62,6 +62,7 @@ func TestStageUnmarshalJSON(t *testing.T) {
 		}{
 			{`"classify"`, prompts.StageClassify},
 			{`"enhance"`, prompts.StageEnhance},
+			{`"finalize"`, prompts.StageFinalize},
 		}
 
 		for _, tt := range tests {
@@ -144,6 +145,7 @@ func TestParseStage(t *testing.T) {
 		}{
 			{"classify", prompts.StageClassify},
 			{"enhance", prompts.StageEnhance},
+			{"finalize", prompts.StageFinalize},
 		}
 
 		for _, tt := range tests {

@@ -46,13 +46,13 @@ herald/
 │   ├── classifications/  # Classification result domain (store, query, validate, adjust)
 │   └── prompts/          # Named prompt override domain (CRUD, per-stage loading)
 ├── workflow/             # Classification workflow definition
-│   ├── workflow.go       # State graph assembly: init -> classify -> enhance?
+│   ├── workflow.go       # State graph assembly: init -> classify -> enhance? -> finalize
 │   ├── init.go           # Init node: open PDF, extract pages, render images
-│   ├── classify.go       # Classify node: sequential page-by-page context accumulation
-│   ├── enhance.go        # Enhance node: conditional final stage, re-render + reassess
-│   ├── types.go          # Shared types: PageImage, ClassificationState, QualityAssessment
-│   ├── prompts.go        # Template-based prompt generation with running state
-│   └── parse.go          # JSON response parsing with markdown code fence fallback
+│   ├── classify.go       # Classify node: sequential per-page analysis with context accumulation
+│   ├── enhance.go        # Enhance node: conditional re-render of flagged pages
+│   ├── finalize.go       # Finalize node: document-level classification synthesis
+│   ├── types.go          # Shared types: ClassificationState, ClassificationPage, WorkflowResult
+│   └── prompts.go        # Prompt composition with instructions, specs, and running state
 ├── pkg/
 │   ├── database/         # PostgreSQL connection management (pgx driver)
 │   ├── lifecycle/        # Startup/shutdown coordination
@@ -134,22 +134,24 @@ Each domain follows the handler pattern: a System interface, repository with que
 
 ### Classification Workflow
 
-A simplified 3-node state graph using go-agents-orchestration:
+A 4-node state graph using go-agents-orchestration:
 
 ```
-init --> classify --> [confidence != HIGH && image quality factor?] --> enhance --> exit
+init --> classify --> [needs enhancement?] --> enhance --> finalize --> exit
                               |
-                              v (confidence == HIGH or no quality improvement possible)
-                             exit
+                              v (no enhancement needed)
+                          finalize --> exit
 ```
 
-**init node**: Opens PDF via document-context, extracts pages, renders to images in parallel. Images are encoded as base64 data URIs and held in memory (no caching). Cache parameter is nil: `page.ToImage(renderer, nil)`. This node purely handles image preparation.
+**init node**: Opens PDF via document-context, extracts pages, renders to images concurrently via ImageMagick with bounded concurrency. Images are written to a request-scoped temp directory as PNG files. This node purely handles image preparation.
 
-**classify node**: Sequential page-by-page classification inspired by classify-docs' `ProcessWithContext[TContext]` pattern. Each page is sent to the vision-capable GPT model with the running classification state as context. The model returns an updated `ClassificationState` that accumulates across pages. Reports whether image quality was a limiting factor in the confidence assessment.
+**classify node**: Sequential page-by-page analysis inspired by classify-docs' `ProcessWithContext[TContext]` pattern. Each page is sent to the vision-capable GPT model with accumulated prior page findings as context. The model populates per-page `ClassificationPage` data (markings found, rationale, enhancement flags) but does not produce document-level classification — that is deferred to the finalize node. Pages flagged with `Enhance: true` include an `Enhancements` description of what adjustments are needed.
 
-**enhance node** (conditional final stage): Triggered only when classify reports confidence != HIGH AND image adjustments could improve visibility. Re-renders affected pages with adjusted ImageMagick settings (brightness, contrast, saturation) and performs its own classification reassessment on the enhanced images to produce the final result. Does not loop back to classify — enhance is the terminal node when triggered, even if the result is still not HIGH confidence. Trigger conditions TBD through experimentation during Phase 2.
+**enhance node** (conditional): Triggered when any page's `Enhance` flag is true (evaluated via `ClassificationState.NeedsEnhance()`). Re-renders flagged pages with adjusted ImageMagick settings based on each page's `Enhancements` description and reclassifies them. Trigger conditions TBD through experimentation during Phase 2; initially, classify never sets `Enhance: true`.
 
-This collapses agent-lab's 5-node graph (init, detect, enhance, classify, score) into 3 nodes by merging detection, classification, and confidence scoring into the classify node, with enhance as an optional remediation stage. This reduces LLM round-trips per page from potentially 3 to 1.
+**finalize node**: Always runs as the terminal node. Performs a single inference that reviews all per-page analysis results (including any enhanced pages) and produces the authoritative document-level `ClassificationState` fields: classification, confidence, and rationale. Sees all evidence holistically rather than incrementally.
+
+This collapses agent-lab's 5-node graph (init, detect, enhance, classify, score) into 4 nodes by merging detection into the classify node, separating document-level synthesis into a dedicated finalize node, and keeping enhance as optional remediation. The classify node runs one LLM call per page; finalize runs one LLM call total.
 
 ### Agent Configuration
 
@@ -225,8 +227,8 @@ Key views: document upload/management, classification results with PDF viewer, b
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Workflow topology | 3-node (init -> classify -> enhance?) | Reduces LLM round-trips from 3 to 1 per page. Detection, classification, and confidence scoring collapsed into single sequential classify pass. Enhance runs as optional final remediation stage when image quality limits confidence. |
-| Classification approach | Sequential page-by-page with context accumulation | Validated at 96.3% accuracy in classify-docs. Each page updates running classification state. |
+| Workflow topology | 4-node (init -> classify -> enhance? -> finalize) | Classify handles per-page analysis (one LLM call per page), finalize synthesizes document-level classification from all page findings (one LLM call total). Separating per-page analysis from document-level synthesis eliminates incremental anchoring bias and ensures finalize sees all evidence (including enhanced pages) holistically. |
+| Classification approach | Sequential page-by-page with context accumulation, finalize synthesis | Classify passes accumulated page findings as context (inspired by classify-docs' 96.3% accuracy pattern). Finalize produces the authoritative document classification from complete page data. |
 | Image lifecycle | Ephemeral (render, encode, discard) | 1M documents would generate enormous image storage. Images serve only as Vision API input. |
 | Classification result model | 1:1 with document, overwritten on re-classification | Simpler than run/stage/decision tracking. Flattened workflow metadata columns preserve provenance. |
 | Agent configuration | Single externally-configured agent | Herald serves one purpose with one or two GPT models. External config matches deployment patterns. |

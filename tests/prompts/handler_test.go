@@ -174,11 +174,11 @@ func TestHandlerStages(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 
-	if len(stages) != 2 {
-		t.Fatalf("stages length = %d, want 2", len(stages))
+	if len(stages) != 3 {
+		t.Fatalf("stages length = %d, want 3", len(stages))
 	}
 
-	want := []prompts.Stage{prompts.StageClassify, prompts.StageEnhance}
+	want := []prompts.Stage{prompts.StageClassify, prompts.StageEnhance, prompts.StageFinalize}
 	for i, s := range stages {
 		if s != want[i] {
 			t.Errorf("stages[%d] = %q, want %q", i, s, want[i])

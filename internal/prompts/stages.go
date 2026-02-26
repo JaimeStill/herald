@@ -12,11 +12,13 @@ type Stage string
 const (
 	StageClassify Stage = "classify"
 	StageEnhance  Stage = "enhance"
+	StageFinalize Stage = "finalize"
 )
 
 var stages = []Stage{
 	StageClassify,
 	StageEnhance,
+	StageFinalize,
 }
 
 // Stages returns the list of valid workflow stages.
