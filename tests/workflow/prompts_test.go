@@ -53,10 +53,12 @@ func newMockPrompts() *mockPrompts {
 		instructions: map[prompts.Stage]string{
 			prompts.StageClassify: "classify instructions",
 			prompts.StageEnhance:  "enhance instructions",
+			prompts.StageFinalize: "finalize instructions",
 		},
 		specs: map[prompts.Stage]string{
 			prompts.StageClassify: "classify spec",
 			prompts.StageEnhance:  "enhance spec",
+			prompts.StageFinalize: "finalize spec",
 		},
 	}
 }
@@ -126,6 +128,29 @@ func TestComposePrompt(t *testing.T) {
 		}
 		if !strings.Contains(got, "enhance spec") {
 			t.Error("missing enhance spec in prompt")
+		}
+	})
+
+	t.Run("finalize stage uses finalize instructions and spec", func(t *testing.T) {
+		state := &workflow.ClassificationState{
+			Pages: []workflow.ClassificationPage{
+				{PageNumber: 1, MarkingsFound: []string{"SECRET"}, Rationale: "banner visible"},
+			},
+		}
+
+		got, err := workflow.ComposePrompt(ctx, mock, prompts.StageFinalize, state)
+		if err != nil {
+			t.Fatalf("ComposePrompt error: %v", err)
+		}
+
+		if !strings.Contains(got, "finalize instructions") {
+			t.Error("missing finalize instructions in prompt")
+		}
+		if !strings.Contains(got, "finalize spec") {
+			t.Error("missing finalize spec in prompt")
+		}
+		if !strings.Contains(got, "Current classification state") {
+			t.Error("finalize prompt should include state")
 		}
 	})
 

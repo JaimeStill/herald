@@ -5,8 +5,7 @@ const classifySpec = `Respond with a JSON object matching this exact structure:
 {
   "markings_found": ["<marking1>", "<marking2>"],
   "rationale": "<explanation>",
-  "enhance": false,
-  "enhancements": ""
+  "enhancements": null
 }
 
 Field constraints:
@@ -16,12 +15,16 @@ Field constraints:
 - rationale: Brief explanation of what security markings were found on
   this page and their significance. Note any conflicts or ambiguities
   with prior page findings if a classification state is provided.
-- enhance: Whether image quality prevented confident reading of any
-  markings on this page. Set true only when markings are visibly present
-  but cannot be read with certainty due to image quality.
-- enhancements: When enhance is true, describe the specific image quality
-  issues and what adjustments might help (e.g., "faded banner markings —
-  increase brightness and contrast"). Empty string when enhance is false.
+- enhancements: Set to null when the image is clear enough to read all
+  markings confidently. When image quality prevents confident reading of
+  any markings, provide an object with rendering adjustments:
+  {
+    "brightness": <80-200, 100=neutral, increase for faded/dark pages>,
+    "contrast": <-50 to 50, 0=neutral, increase to sharpen faded markings>,
+    "saturation": <80-200, 100=neutral, adjust for color-related issues>
+  }
+  Only include fields that need adjustment; omit fields that should stay
+  at their neutral values.
 
 Behavioral constraints:
 - Always respond with valid JSON, no markdown fencing
@@ -35,9 +38,7 @@ const enhanceSpec = `Respond with a JSON object matching this exact structure:
 
 {
   "markings_found": ["<marking1>", "<marking2>"],
-  "rationale": "<explanation>",
-  "enhance": false,
-  "enhancements": ""
+  "rationale": "<explanation>"
 }
 
 Field constraints:
@@ -45,12 +46,8 @@ Field constraints:
   enhanced page, exactly as they appear. Include the full marking text
   with any caveats.
 - rationale: Brief explanation of what the enhanced image reveals compared
-  to the original. Note any new markings discovered or prior findings
-  confirmed by the improved image quality.
-- enhance: Whether image quality still prevents confident reading after
-  enhancement. Should typically be false after enhancement processing.
-- enhancements: Description of remaining quality issues if enhance is
-  still true. Empty string when enhance is false.
+  to the original assessment. Note any new markings discovered or prior
+  findings confirmed by the improved image quality.
 
 Behavioral constraints:
 - Always respond with valid JSON, no markdown fencing

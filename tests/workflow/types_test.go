@@ -7,6 +7,38 @@ import (
 	"github.com/JaimeStill/herald/workflow"
 )
 
+func intPtr(v int) *int { return &v }
+
+func TestEnhance(t *testing.T) {
+	tests := []struct {
+		name string
+		page workflow.ClassificationPage
+		want bool
+	}{
+		{
+			"nil enhancements",
+			workflow.ClassificationPage{PageNumber: 1},
+			false,
+		},
+		{
+			"with enhancements",
+			workflow.ClassificationPage{
+				PageNumber:   1,
+				Enhancements: &workflow.EnhanceSettings{Brightness: intPtr(130)},
+			},
+			true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.page.Enhance(); got != tt.want {
+				t.Errorf("Enhance() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNeedsEnhance(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -21,24 +53,24 @@ func TestNeedsEnhance(t *testing.T) {
 		{
 			"no enhancement needed",
 			[]workflow.ClassificationPage{
-				{PageNumber: 1, Enhance: false},
-				{PageNumber: 2, Enhance: false},
+				{PageNumber: 1},
+				{PageNumber: 2},
 			},
 			false,
 		},
 		{
 			"one page needs enhancement",
 			[]workflow.ClassificationPage{
-				{PageNumber: 1, Enhance: false},
-				{PageNumber: 2, Enhance: true},
+				{PageNumber: 1},
+				{PageNumber: 2, Enhancements: &workflow.EnhanceSettings{Contrast: intPtr(30)}},
 			},
 			true,
 		},
 		{
 			"all pages need enhancement",
 			[]workflow.ClassificationPage{
-				{PageNumber: 1, Enhance: true},
-				{PageNumber: 2, Enhance: true},
+				{PageNumber: 1, Enhancements: &workflow.EnhanceSettings{Brightness: intPtr(120)}},
+				{PageNumber: 2, Enhancements: &workflow.EnhanceSettings{Saturation: intPtr(80)}},
 			},
 			true,
 		},
@@ -68,26 +100,26 @@ func TestEnhancePages(t *testing.T) {
 		{
 			"no enhancement needed",
 			[]workflow.ClassificationPage{
-				{PageNumber: 1, Enhance: false},
-				{PageNumber: 2, Enhance: false},
+				{PageNumber: 1},
+				{PageNumber: 2},
 			},
 			nil,
 		},
 		{
 			"mixed enhancement",
 			[]workflow.ClassificationPage{
-				{PageNumber: 1, Enhance: false},
-				{PageNumber: 2, Enhance: true},
-				{PageNumber: 3, Enhance: false},
-				{PageNumber: 4, Enhance: true},
+				{PageNumber: 1},
+				{PageNumber: 2, Enhancements: &workflow.EnhanceSettings{Brightness: intPtr(130)}},
+				{PageNumber: 3},
+				{PageNumber: 4, Enhancements: &workflow.EnhanceSettings{Contrast: intPtr(20)}},
 			},
 			[]int{1, 3},
 		},
 		{
 			"all pages need enhancement",
 			[]workflow.ClassificationPage{
-				{PageNumber: 1, Enhance: true},
-				{PageNumber: 2, Enhance: true},
+				{PageNumber: 1, Enhancements: &workflow.EnhanceSettings{Brightness: intPtr(120)}},
+				{PageNumber: 2, Enhancements: &workflow.EnhanceSettings{Saturation: intPtr(80)}},
 			},
 			[]int{0, 1},
 		},
@@ -128,15 +160,13 @@ func TestClassificationStateJSON(t *testing.T) {
 				ImagePath:     "/tmp/doc/page-1.png",
 				MarkingsFound: []string{"SECRET", "NOFORN"},
 				Rationale:     "banner and portion markings visible",
-				Enhance:       false,
 			},
 			{
 				PageNumber:    2,
 				ImagePath:     "/tmp/doc/page-2.png",
 				MarkingsFound: []string{"SECRET"},
 				Rationale:     "banner partially obscured",
-				Enhance:       true,
-				Enhancements:  "brightness +20%",
+				Enhancements:  &workflow.EnhanceSettings{Brightness: intPtr(120), Contrast: intPtr(20)},
 			},
 		},
 	}
@@ -163,12 +193,57 @@ func TestClassificationStateJSON(t *testing.T) {
 	if len(got.Pages) != 2 {
 		t.Fatalf("Pages length = %d, want 2", len(got.Pages))
 	}
-	if got.Pages[1].Enhance != true {
-		t.Errorf("Pages[1].Enhance = %v, want true", got.Pages[1].Enhance)
+	if got.Pages[0].Enhancements != nil {
+		t.Error("Pages[0].Enhancements should be nil")
 	}
-	if got.Pages[1].Enhancements != "brightness +20%" {
-		t.Errorf("Pages[1].Enhancements = %q, want %q", got.Pages[1].Enhancements, "brightness +20%")
+	if got.Pages[1].Enhancements == nil {
+		t.Fatal("Pages[1].Enhancements should not be nil")
 	}
+	if *got.Pages[1].Enhancements.Brightness != 120 {
+		t.Errorf("Pages[1].Enhancements.Brightness = %d, want 120", *got.Pages[1].Enhancements.Brightness)
+	}
+	if *got.Pages[1].Enhancements.Contrast != 20 {
+		t.Errorf("Pages[1].Enhancements.Contrast = %d, want 20", *got.Pages[1].Enhancements.Contrast)
+	}
+	if got.Pages[1].Enhancements.Saturation != nil {
+		t.Error("Pages[1].Enhancements.Saturation should be nil (omitted)")
+	}
+}
+
+func TestEnhanceSettingsJSON(t *testing.T) {
+	t.Run("null round-trips as nil", func(t *testing.T) {
+		input := `{"page_number":1,"image_path":"/tmp/p.png","markings_found":null,"rationale":""}`
+		var page workflow.ClassificationPage
+		if err := json.Unmarshal([]byte(input), &page); err != nil {
+			t.Fatalf("Unmarshal error: %v", err)
+		}
+		if page.Enhancements != nil {
+			t.Error("expected nil Enhancements")
+		}
+	})
+
+	t.Run("partial fields round-trip", func(t *testing.T) {
+		settings := &workflow.EnhanceSettings{Brightness: intPtr(140)}
+		data, err := json.Marshal(settings)
+		if err != nil {
+			t.Fatalf("Marshal error: %v", err)
+		}
+
+		var got workflow.EnhanceSettings
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatalf("Unmarshal error: %v", err)
+		}
+
+		if got.Brightness == nil || *got.Brightness != 140 {
+			t.Errorf("Brightness = %v, want 140", got.Brightness)
+		}
+		if got.Contrast != nil {
+			t.Errorf("Contrast = %v, want nil", got.Contrast)
+		}
+		if got.Saturation != nil {
+			t.Errorf("Saturation = %v, want nil", got.Saturation)
+		}
+	})
 }
 
 func TestConfidenceConstants(t *testing.T) {
