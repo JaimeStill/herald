@@ -63,6 +63,9 @@
     "model": {
       "name": "gpt-5-mini",
       "capabilities": {
+        "chat": {
+          "max_completion_tokens": 4096
+        },
         "vision": {
           "max_tokens": 4096,
           "temperature": 0.1

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.0-dev.26.41
+
+- Add enhance node (re-render flagged pages with structured ImageMagick settings, reclassify via vision), finalize node (document-level classification synthesis via Chat), state graph assembly with conditional enhancement edge, and top-level Execute function with temp directory lifecycle (#41)
+- Replace `Enhance bool` + `Enhancements string` with `EnhanceSettings` struct carrying typed rendering parameters (brightness, contrast, saturation), enabling programmatic re-rendering without LLM interpretation (#41)
+
 ## v0.2.0-dev.26.40
 
 - Add classify node with sequential page-by-page context accumulation, per-page-only analysis, and just-in-time image encoding (#40)

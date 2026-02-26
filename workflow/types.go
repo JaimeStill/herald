@@ -25,6 +25,16 @@ const (
 	ConfidenceLow    Confidence = "LOW"
 )
 
+// EnhanceSettings carries rendering adjustment parameters that map to
+// document-context's ImageMagickConfig filter fields. Pointer fields
+// distinguish "not set" from "explicitly set to neutral" — only non-nil
+// fields are applied during re-rendering.
+type EnhanceSettings struct {
+	Brightness *int `json:"brightness,omitempty"`
+	Contrast   *int `json:"contrast,omitempty"`
+	Saturation *int `json:"saturation,omitempty"`
+}
+
 // WorkflowResult is the final output from a classification workflow execution.
 type WorkflowResult struct {
 	DocumentID  uuid.UUID           `json:"document_id"`
@@ -38,12 +48,16 @@ type WorkflowResult struct {
 // ImagePath references the rendered page image in a temp directory.
 // Enhance signals that this page should be re-rendered with adjusted settings.
 type ClassificationPage struct {
-	PageNumber    int      `json:"page_number"`
-	ImagePath     string   `json:"image_path"`
-	MarkingsFound []string `json:"markings_found"`
-	Rationale     string   `json:"rationale"`
-	Enhance       bool     `json:"enhance"`
-	Enhancements  string   `json:"enhancements"`
+	PageNumber    int              `json:"page_number"`
+	ImagePath     string           `json:"image_path"`
+	MarkingsFound []string         `json:"markings_found"`
+	Rationale     string           `json:"rationale"`
+	Enhancements  *EnhanceSettings `json:"enhancements,omitempty"`
+}
+
+// Enhance reports whether this page is flagged for enhancement.
+func (p *ClassificationPage) Enhance() bool {
+	return p.Enhancements != nil
 }
 
 // ClassificationState holds the running document classification accumulated across pages.
@@ -57,7 +71,7 @@ type ClassificationState struct {
 // NeedsEnhance reports whether any page is flagged for enhancement.
 func (s *ClassificationState) NeedsEnhance() bool {
 	return slices.ContainsFunc(s.Pages, func(p ClassificationPage) bool {
-		return p.Enhance
+		return p.Enhance()
 	})
 }
 
@@ -65,7 +79,7 @@ func (s *ClassificationState) NeedsEnhance() bool {
 func (s *ClassificationState) EnhancePages() []int {
 	var indices []int
 	for i, p := range s.Pages {
-		if p.Enhance {
+		if p.Enhance() {
 			indices = append(indices, i)
 		}
 	}
