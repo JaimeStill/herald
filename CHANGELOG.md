@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.0-dev.27.47
+
+- Move `workflow/` to `internal/workflow/` to formalize internal dependency graph (#47)
+- Add classifications domain — types, system interface, sentinel errors with HTTP mapping, query projection with JSONB handling, and repository with workflow integration, upsert semantics, and transactional document status transitions (#47)
+
 ## v0.2.0-dev.26.41
 
 - Add enhance node (re-render flagged pages with structured ImageMagick settings, reclassify via vision), finalize node (document-level classification synthesis via Chat), state graph assembly with conditional enhancement edge, and top-level Execute function with temp directory lifecycle (#41)

@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/JaimeStill/herald/internal/prompts"
+	"github.com/JaimeStill/herald/internal/workflow"
 	"github.com/JaimeStill/herald/pkg/pagination"
-	"github.com/JaimeStill/herald/workflow"
 )
 
 type mockPrompts struct {
@@ -17,7 +17,7 @@ type mockPrompts struct {
 	specs        map[prompts.Stage]string
 }
 
-func (m *mockPrompts) Handler() *prompts.Handler                          { return nil }
+func (m *mockPrompts) Handler() *prompts.Handler { return nil }
 func (m *mockPrompts) List(context.Context, pagination.PageRequest, prompts.Filters) (*pagination.PageResult[prompts.Prompt], error) {
 	return nil, nil
 }
@@ -28,9 +28,11 @@ func (m *mockPrompts) Create(context.Context, prompts.CreateCommand) (*prompts.P
 func (m *mockPrompts) Update(context.Context, uuid.UUID, prompts.UpdateCommand) (*prompts.Prompt, error) {
 	return nil, nil
 }
-func (m *mockPrompts) Delete(context.Context, uuid.UUID) error                    { return nil }
-func (m *mockPrompts) Activate(context.Context, uuid.UUID) (*prompts.Prompt, error)   { return nil, nil }
-func (m *mockPrompts) Deactivate(context.Context, uuid.UUID) (*prompts.Prompt, error) { return nil, nil }
+func (m *mockPrompts) Delete(context.Context, uuid.UUID) error                      { return nil }
+func (m *mockPrompts) Activate(context.Context, uuid.UUID) (*prompts.Prompt, error) { return nil, nil }
+func (m *mockPrompts) Deactivate(context.Context, uuid.UUID) (*prompts.Prompt, error) {
+	return nil, nil
+}
 
 func (m *mockPrompts) Instructions(_ context.Context, stage prompts.Stage) (string, error) {
 	text, ok := m.instructions[stage]

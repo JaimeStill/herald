@@ -15,7 +15,6 @@ Herald follows the Layered Composition Architecture (LCA) from agent-lab: cold s
 - `cmd/` — Entry points (`package main`)
 - `internal/` — Private application packages (config, infrastructure, domain systems)
 - `pkg/` — Reusable library packages (database, lifecycle, middleware, module, etc.)
-- `workflow/` — Classification workflow definition (Phase 2)
 - `web/` — Web client
 
 ### Configuration Pattern

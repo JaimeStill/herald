@@ -44,15 +44,15 @@ herald/
 │   ├── infrastructure/   # Infrastructure assembly (lifecycle, logger, database, storage, agent)
 │   ├── documents/        # Document domain (upload, registration, metadata, blob management)
 │   ├── classifications/  # Classification result domain (store, query, validate, adjust)
-│   └── prompts/          # Named prompt override domain (CRUD, per-stage loading)
-├── workflow/             # Classification workflow definition
-│   ├── workflow.go       # State graph assembly: init -> classify -> enhance? -> finalize
-│   ├── init.go           # Init node: open PDF, extract pages, render images
-│   ├── classify.go       # Classify node: sequential per-page analysis with context accumulation
-│   ├── enhance.go        # Enhance node: conditional re-render of flagged pages
-│   ├── finalize.go       # Finalize node: document-level classification synthesis
-│   ├── types.go          # Shared types: ClassificationState, ClassificationPage, WorkflowResult
-│   └── prompts.go        # Prompt composition with instructions, specs, and running state
+│   ├── prompts/          # Named prompt override domain (CRUD, per-stage loading)
+│   └── workflow/          # Classification workflow definition
+│       ├── workflow.go    # State graph assembly: init -> classify -> enhance? -> finalize
+│       ├── init.go        # Init node: open PDF, extract pages, render images
+│       ├── classify.go    # Classify node: sequential per-page analysis with context accumulation
+│       ├── enhance.go     # Enhance node: conditional re-render of flagged pages
+│       ├── finalize.go    # Finalize node: document-level classification synthesis
+│       ├── types.go       # Shared types: ClassificationState, ClassificationPage, WorkflowResult
+│       └── prompts.go     # Prompt composition with instructions, specs, and running state
 ├── pkg/
 │   ├── database/         # PostgreSQL connection management (pgx driver)
 │   ├── lifecycle/        # Startup/shutdown coordination
