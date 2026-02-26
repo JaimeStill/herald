@@ -202,13 +202,12 @@ Azure PostgreSQL with golang-migrate. Core tables:
 **documents** -- Registration records with metadata and blob reference. Status tracks a document's position in the classification lifecycle, not operational concerns. `pending` means inference hasn't completed; `review` means inference produced a result awaiting human validation; `complete` means the classification has been validated or adjusted. Errors during inference leave the document in `pending` — error handling and observability are separate concerns.
 - id, external_id, external_platform, filename, content_type, size_bytes, page_count, storage_key, status (pending/review/complete), uploaded_at, updated_at
 
-**classifications** -- 1:1 with documents, overwritten on re-classification. Workflow metadata is stored as flattened columns rather than JSONB.
-- id, document_id (unique FK), classification, confidence, markings_found (JSONB), rationale, agent_config, classified_at
-- Flattened workflow metadata columns (exact schema TBD during Phase 2 when workflow output shape is concrete)
-- validated_by, validated_at, adjusted_classification, adjustment_rationale
+**classifications** -- 1:1 with documents, overwritten on re-classification. Workflow metadata is stored as flattened columns rather than JSONB. Human review is either validate (agree with AI) or update (overwrite classification and rationale). Both transition the document to `complete`.
+- id, document_id (unique FK), classification, confidence, markings_found (JSONB), rationale, classified_at, model_name, provider_name
+- validated_by, validated_at
 
 **prompts** -- Named instruction overrides per workflow stage. Stores the tunable instruction layer; the output format layer is hard-coded in `workflow/prompts.go` and composed at execution time.
-- id, name (unique), stage (init/classify/enhance), instructions, description
+- id, name (unique), stage (classify/enhance/finalize), instructions, description, active
 
 ### Web Client
 
