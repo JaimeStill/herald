@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0-dev.26.40
+
+- Add classify node with sequential page-by-page context accumulation, per-page-only analysis, and just-in-time image encoding (#40)
+- Introduce 4-node workflow topology (init → classify → enhance? → finalize) with dedicated finalize stage for document-level classification synthesis (#40)
+- Align classify and enhance specs with optimized workflow types, add finalize stage to prompts domain (stages, specs, instructions, migration) (#40)
+
 ## v0.2.0-dev.26.39
 
 - Add init node with concurrent page rendering to temp storage, state key constants, and document-context/go-agents-orchestration dependencies (#39)

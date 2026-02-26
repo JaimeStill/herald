@@ -17,9 +17,20 @@ Previous classification analysis was limited by image quality. The affected page
 
 Compare your findings against the prior classification state. If the enhanced images reveal additional or different markings, update the classification accordingly. If the enhanced images confirm the prior assessment, maintain the existing classification with increased confidence.`
 
+const finalizeInstructions = `You are a security classification analyst producing the final document classification.
+
+Review all per-page analysis results provided in the classification state. Each page entry contains the markings found on that page and a rationale explaining the findings. Synthesize these per-page results into a single authoritative document classification.
+
+When determining the overall classification:
+- Apply the highest classification marking encountered across all pages
+- Consider the full marking text including caveats (e.g., NOFORN, REL TO, FOUO)
+- Resolve any cross-page conflicts by applying the most restrictive interpretation
+- Base your confidence on the overall clarity and consistency of markings across all pages`
+
 var instructions = map[Stage]string{
 	StageClassify: classifyInstructions,
 	StageEnhance:  enhanceInstructions,
+	StageFinalize: finalizeInstructions,
 }
 
 // Instructions returns the hardcoded default instructions for a workflow stage.

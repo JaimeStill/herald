@@ -6,7 +6,7 @@
 
 ## Scope
 
-Implement the `workflow/` package containing the 3-node state graph (init → classify → enhance?), all node implementations, prompt composition, and response parsing. The workflow adapts classify-docs' sequential page-by-page context accumulation pattern (96.3% accuracy) into a go-agents-orchestration state graph.
+Implement the `workflow/` package containing the 4-node state graph (init → classify → enhance? → finalize), all node implementations, prompt composition, and response parsing. The workflow adapts classify-docs' sequential page-by-page context accumulation pattern (96.3% accuracy) into a go-agents-orchestration state graph. The classify node handles per-page analysis; a dedicated finalize node synthesizes the document-level classification from all page findings.
 
 **Out of scope**: Database persistence of classification results, HTTP endpoints, document status transitions.
 
@@ -18,7 +18,7 @@ Implement the `workflow/` package containing the 3-node state graph (init → cl
 | [#38](https://github.com/JaimeStill/herald/issues/38) | Workflow foundation — types, runtime, errors, and parsing | Open | #37 |
 | [#39](https://github.com/JaimeStill/herald/issues/39) | Init node — concurrent page rendering with temp storage | Open | #38 |
 | [#40](https://github.com/JaimeStill/herald/issues/40) | Classify node — sequential page-by-page context accumulation | Open | #38 |
-| [#41](https://github.com/JaimeStill/herald/issues/41) | Enhance node, graph assembly, and Execute function | Open | #39, #40 |
+| [#41](https://github.com/JaimeStill/herald/issues/41) | Enhance node, finalize node, graph assembly, and Execute function | Open | #39, #40 |
 
 ## Architecture Decisions
 
@@ -28,10 +28,12 @@ Implement the `workflow/` package containing the 3-node state graph (init → cl
 
 3. **Request-bound temp storage**: Page images are rendered to a temp directory (created by `Execute`, cleaned up via defer) rather than held as base64 data URIs in memory. `PageImage` stores a file path. Classify/enhance nodes encode to data URI just-in-time per page, keeping memory usage proportional to one page at a time.
 
-4. **Concurrent rendering, sequential classification**: The init node renders pages concurrently (ImageMagick is CPU-heavy, bounded concurrency via `errgroup.SetLimit`). The classify node processes pages sequentially for context accumulation — each page's classification feeds the next page's prompt. Preserves the 96.3% accuracy pattern from classify-docs while optimizing the rendering bottleneck.
+4. **Concurrent rendering, sequential classification**: The init node renders pages concurrently (ImageMagick is CPU-heavy, bounded concurrency via `errgroup.SetLimit`). The classify node processes pages sequentially for context accumulation — each page's findings feed the next page's prompt. Preserves the 96.3% accuracy pattern from classify-docs while optimizing the rendering bottleneck.
 
 5. **Inline sequential processing**: Herald implements the classify-docs `ProcessWithContext` pattern inline. A simple `for range pages` loop with state accumulation is clearer for a single workflow.
 
-6. **Graph exit points**: Two exit points — classify (no enhancement needed) and enhance (enhancement ran). The conditional edge on `needs_enhancement` determines which path executes. Initially, classify always sets `needs_enhancement = false`, so enhance never runs.
+6. **Per-page analysis, document-level synthesis**: The classify node only populates `ClassificationPage` fields per page. A dedicated finalize node performs a single inference to synthesize the document-level `ClassificationState` (classification, confidence, rationale) from all page findings. This eliminates incremental anchoring bias and ensures finalize sees all evidence — including any enhanced pages — holistically.
 
-7. **Per-request agent creation**: Each `Execute` call creates a fresh `agent.Agent` from the config. Stateless agent design — no lifecycle management.
+7. **Single exit point**: Finalize is always the terminal node. The conditional edge on `ClassificationState.NeedsEnhance()` determines whether enhance runs before finalize, but both paths converge to finalize. Initially, classify never sets `Enhance: true`, so enhance is skipped.
+
+8. **Per-request agent creation**: Each `Execute` call creates a fresh `agent.Agent` from the config. Stateless agent design — no lifecycle management.
