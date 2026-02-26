@@ -12,8 +12,12 @@ github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/AzureAD/microsoft-authentication-library-for-go v1.6.0 h1:XRzhVemXdgvJqCH0sFfrBUTnUJSBrBf7++ypk+twtRs=
 github.com/AzureAD/microsoft-authentication-library-for-go v1.6.0/go.mod h1:HKpQxkWaGLJ+D/5H8QRpyQXA1eKjxkFlOMwck5+33Jk=
+github.com/JaimeStill/document-context v0.1.1 h1:JuxHfv83T6nF5Lu1ID9m6f1yaVxbweBxJBnEuO4QYDY=
+github.com/JaimeStill/document-context v0.1.1/go.mod h1:QYynVYa7NfYEIMF3G3MPSQPnEfIK2tddlJrQnAQhOhI=
 github.com/JaimeStill/go-agents v0.3.0 h1:MBPbuIipP3Rue1JpinuTcTrkRkl2p1TSAvh95WbE514=
 github.com/JaimeStill/go-agents v0.3.0/go.mod h1:Ui+Ea0YrnI37MbWXP7VxqX3IcIppkQRSO4/DEl4/4B4=
+github.com/JaimeStill/go-agents-orchestration v0.3.2 h1:/KmPPTlfTvLNUJ5y9Kuw1gDXZL5wzSSstIJouox9WZ8=
+github.com/JaimeStill/go-agents-orchestration v0.3.2/go.mod h1:wmGCjN1wgSdjf83gATj63h1HNyELHQNzmYTX8TRzoS4=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/clipperhouse/uax29/v2 v2.2.0 h1:ChwIKnQN3kcZteTXMgb1wztSgaU+ZemkgWdohwgs8tY=

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.0-dev.26.39
+
+- Add init node with concurrent page rendering to temp storage, state key constants, and document-context/go-agents-orchestration dependencies (#39)
+
 ## v0.2.0-dev.26.38
 
 - Add workflow foundation — classification types, runtime dependency struct, sentinel errors, generic JSON parser with markdown code fence fallback, and prompt composition (#38)
