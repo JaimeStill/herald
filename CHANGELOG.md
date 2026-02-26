@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.0-dev.26.38
+
+- Add workflow foundation — classification types, runtime dependency struct, sentinel errors, generic JSON parser with markdown code fence fallback, and prompt composition (#38)
+
 ## v0.2.0-dev.26.37
 
 - Add hardcoded default instructions and specifications per workflow stage, `Instructions` and `Spec` methods on the prompts System interface, stage content API endpoints, `ParseStage` validation, and remove init as a prompt stage (#37)
