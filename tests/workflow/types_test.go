@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/JaimeStill/herald/workflow"
+	"github.com/JaimeStill/herald/internal/workflow"
 )
 
 func intPtr(v int) *int { return &v }
