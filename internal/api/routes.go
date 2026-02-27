@@ -13,6 +13,10 @@ func registerRoutes(
 	cfg *config.Config,
 	runtime *Runtime,
 ) {
+	classificationsRoutes := domain.
+		Classifications.
+		Handler().
+		Routes()
 
 	documentsRoutes := domain.
 		Documents.
@@ -32,6 +36,7 @@ func registerRoutes(
 
 	routes.Register(
 		mux,
+		classificationsRoutes,
 		documentsRoutes,
 		promptsRoutes,
 		storageRoutes,

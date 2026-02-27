@@ -20,6 +20,9 @@
       "Skill(tau:go-patterns)",
       "Skill(tau:project-management)",
       "Skill(tau:skill-creator)"
+    ],
+    "deny": [
+      "Read(secrets.json)"
     ]
   }
 }
