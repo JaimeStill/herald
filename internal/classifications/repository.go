@@ -10,10 +10,15 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/JaimeStill/herald/internal/documents"
+	"github.com/JaimeStill/herald/internal/prompts"
 	"github.com/JaimeStill/herald/internal/workflow"
 	"github.com/JaimeStill/herald/pkg/pagination"
 	"github.com/JaimeStill/herald/pkg/query"
 	"github.com/JaimeStill/herald/pkg/repository"
+	"github.com/JaimeStill/herald/pkg/storage"
+
+	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
 )
 
 type repo struct {
@@ -24,18 +29,33 @@ type repo struct {
 }
 
 // New creates a classification repository implementing the System interface.
+// It internally constructs the workflow runtime from the provided dependencies.
 func New(
 	db *sql.DB,
-	rt *workflow.Runtime,
+	agent gaconfig.AgentConfig,
 	logger *slog.Logger,
 	pagination pagination.Config,
+	storage storage.System,
+	docs documents.System,
+	prompts prompts.System,
 ) System {
+	rt := &workflow.Runtime{
+		Agent:     agent,
+		Storage:   storage,
+		Documents: docs,
+		Prompts:   prompts,
+		Logger:    logger.With("workflow", "classify"),
+	}
 	return &repo{
 		db:         db,
 		rt:         rt,
 		logger:     logger.With("system", "classifications"),
 		pagination: pagination,
 	}
+}
+
+func (r *repo) Handler() *Handler {
+	return NewHandler(r, r.logger, r.pagination)
 }
 
 func (r *repo) List(
@@ -275,4 +295,3 @@ func collectMarkings(pages []workflow.ClassificationPage) []string {
 
 	return all
 }
-

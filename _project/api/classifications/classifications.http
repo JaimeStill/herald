@@ -1,0 +1,101 @@
+### List Classifications
+
+GET {{HOST}}/api/classifications HTTP/1.1
+
+
+### List Classifications with Filters
+
+GET {{HOST}}/api/classifications?page=1&page_size=20&search=SECRET&sort=-classified_at&classification=SECRET&confidence=HIGH&validated_by=admin HTTP/1.1
+
+
+### Find Classification
+
+# Replace with a valid classification ID
+
+@classificationId = 550e8400-e29b-41d4-a716-446655440000
+
+GET {{HOST}}/api/classifications/{{classificationId}} HTTP/1.1
+
+
+### Find Classification by Document
+
+# Replace with a valid document ID
+
+@documentId = 660e8400-e29b-41d4-a716-446655440000
+
+GET {{HOST}}/api/classifications/document/{{documentId}} HTTP/1.1
+
+
+### Search Classifications
+
+POST {{HOST}}/api/classifications/search HTTP/1.1
+Content-Type: application/json
+
+{
+  "page": 1,
+  "page_size": 20
+}
+
+
+### Search Classifications with Filters
+
+POST {{HOST}}/api/classifications/search HTTP/1.1
+Content-Type: application/json
+
+{
+  "classification": "SECRET",
+  "confidence": "HIGH",
+  "page": 1,
+  "page_size": 20,
+  "search": "SECRET",
+  "sort": "-classified_at",
+  "validated_by": "admin"
+}
+
+
+### Classify Document
+
+# Replace with a valid document ID
+
+@documentId = 660e8400-e29b-41d4-a716-446655440000
+
+POST {{HOST}}/api/classifications/{{documentId}} HTTP/1.1
+
+
+### Validate Classification
+
+# Replace with a valid classification ID
+
+@classificationId = 550e8400-e29b-41d4-a716-446655440000
+
+POST {{HOST}}/api/classifications/{{classificationId}}/validate HTTP/1.1
+Content-Type: application/json
+
+{
+  "validated_by": "admin"
+}
+
+
+### Update Classification
+
+# Replace with a valid classification ID
+
+@classificationId = 550e8400-e29b-41d4-a716-446655440000
+
+PUT {{HOST}}/api/classifications/{{classificationId}} HTTP/1.1
+Content-Type: application/json
+
+{
+  "classification": "TOP SECRET",
+  "rationale": "Banner markings on pages 1 and 3 indicate TOP SECRET//SCI.",
+  "updated_by": "reviewer"
+}
+
+
+### Delete Classification
+
+# Replace with a valid classification ID
+
+@classificationId = 550e8400-e29b-41d4-a716-446655440000
+
+DELETE {{HOST}}/api/classifications/{{classificationId}} HTTP/1.1

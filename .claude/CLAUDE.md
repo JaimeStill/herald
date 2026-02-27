@@ -64,7 +64,7 @@ docker compose down     # Stop and remove containers
 
 ### Environment Overlays
 
-Config loading: `config.json` (base) → `config.<HERALD_ENV>.json` (overlay) → `HERALD_*` env vars (overrides).
+Config loading: `config.json` (base) → `config.<HERALD_ENV>.json` (overlay) → `secrets.json` (gitignored secrets) → `HERALD_*` env vars (overrides).
 
 All env vars use the `HERALD_` prefix (e.g., `HERALD_SERVER_PORT`, `HERALD_DB_HOST`).
 

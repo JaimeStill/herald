@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.0-dev.27.48
+
+- Add classifications handler with 8 HTTP endpoints (list, find, find-by-document, search, classify, validate, update, delete), API module wiring, and route registration (#48)
+- Internalize workflow runtime construction in `classifications.New` — API composition root passes raw infrastructure deps, no longer imports workflow (#48)
+- Add `secrets.json` config pipeline stage for local secret storage, merged after overlay and before env vars (#48)
+- Fix missing `Agent` field in `api.NewRuntime` that caused nil pointer dereference on classify (#48)
+- Add Azure AI Foundry provisioning scripts for resource group, cognitive services, and model deployment (#48)
+- Add API Cartographer documentation for classifications endpoints (#48)
+
 ## v0.2.0-dev.27.47
 
 - Move `workflow/` to `internal/workflow/` to formalize internal dependency graph (#47)

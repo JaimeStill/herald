@@ -10,6 +10,8 @@ import (
 
 // System defines the public contract for classification domain operations.
 type System interface {
+	Handler() *Handler
+
 	List(
 		ctx context.Context,
 		page pagination.PageRequest,

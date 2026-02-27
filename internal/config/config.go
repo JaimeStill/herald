@@ -15,6 +15,7 @@ import (
 const (
 	BaseConfigFile       = "config.json"
 	OverlayConfigPattern = "config.%s.json"
+	SecretsConfigFile    = "secrets.json"
 
 	EnvHeraldEnv             = "HERALD_ENV"
 	EnvHeraldShutdownTimeout = "HERALD_SHUTDOWN_TIMEOUT"
@@ -86,6 +87,14 @@ func Load() (*Config, error) {
 			return nil, fmt.Errorf("load overlay %s: %w", path, err)
 		}
 		cfg.Merge(overlay)
+	}
+
+	if _, err := os.Stat(SecretsConfigFile); err == nil {
+		secrets, err := load(SecretsConfigFile)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Merge(secrets)
 	}
 
 	if err := cfg.finalize(); err != nil {

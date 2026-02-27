@@ -18,6 +18,7 @@ This objective merges the scope originally split across #27 (Classifications Dom
 |---|-----------|--------|--------------|
 | [#47](https://github.com/JaimeStill/herald/issues/47) | Classifications domain — types, system, and repository | Open | — |
 | [#48](https://github.com/JaimeStill/herald/issues/48) | Classifications handler, API wiring, and API Cartographer docs | Open | #47 |
+| [#51](https://github.com/JaimeStill/herald/issues/51) | Parallelize classify and enhance workflow nodes | Open | — |
 
 ## Architecture Decisions
 
@@ -27,6 +28,6 @@ This objective merges the scope originally split across #27 (Classifications Dom
 
 3. **No additional migration**: Update overwrites the existing `classification` and `rationale` columns directly — no separate adjustment columns needed.
 
-4. **Workflow runtime assembly in `api.NewDomain`**: Construction order is `documents.System → prompts.System → workflow.Runtime → classifications.System → Domain`. The `workflow.Runtime` is an ephemeral construction dependency, not stored on Domain.
+4. **Layered runtime convention**: `classifications.New` receives raw infrastructure deps and peer systems, constructs `workflow.Runtime` internally. The API composition root (`api.NewDomain`) does not import workflow — it passes `AgentConfig`, `storage.System`, `documents.System`, and `prompts.System` through. This keeps workflow composition encapsulated within the classifications domain.
 
 5. **Upsert semantics on Classify**: `ON CONFLICT (document_id) DO UPDATE` overwrites all inference fields and resets `validated_by`/`validated_at` to NULL.
