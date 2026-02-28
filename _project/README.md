@@ -48,7 +48,7 @@ herald/
 │   └── workflow/          # Classification workflow definition
 │       ├── workflow.go    # State graph assembly: init -> classify -> enhance? -> finalize
 │       ├── init.go        # Init node: open PDF, extract pages, render images
-│       ├── classify.go    # Classify node: sequential per-page analysis with context accumulation
+│       ├── classify.go    # Classify node: parallel per-page analysis with bounded concurrency
 │       ├── enhance.go     # Enhance node: conditional re-render of flagged pages
 │       ├── finalize.go    # Finalize node: document-level classification synthesis
 │       ├── types.go       # Shared types: ClassificationState, ClassificationPage, WorkflowResult
@@ -145,9 +145,9 @@ init --> classify --> [needs enhancement?] --> enhance --> finalize --> exit
 
 **init node**: Opens PDF via document-context, extracts pages, renders to images concurrently via ImageMagick with bounded concurrency. Images are written to a request-scoped temp directory as PNG files. This node purely handles image preparation.
 
-**classify node**: Sequential page-by-page analysis inspired by classify-docs' `ProcessWithContext[TContext]` pattern. Each page is sent to the vision-capable GPT model with accumulated prior page findings as context. The model populates per-page `ClassificationPage` data (markings found, rationale, enhancement flags) but does not produce document-level classification — that is deferred to the finalize node. Pages flagged with `Enhance: true` include an `Enhancements` description of what adjustments are needed.
+**classify node**: Parallel per-page analysis using bounded errgroup concurrency. Each page is sent to the vision-capable GPT model independently (no accumulated context between pages). The model populates per-page `ClassificationPage` data (markings found, rationale, enhancement flags) but does not produce document-level classification — that is deferred to the finalize node. Pages flagged with `Enhance: true` include an `Enhancements` description of what adjustments are needed.
 
-**enhance node** (conditional): Triggered when any page's `Enhance` flag is true (evaluated via `ClassificationState.NeedsEnhance()`). Re-renders flagged pages with adjusted ImageMagick settings based on each page's `Enhancements` description and reclassifies them. Trigger conditions TBD through experimentation during Phase 2; initially, classify never sets `Enhance: true`.
+**enhance node** (conditional): Triggered when any page's `Enhance` flag is true (evaluated via `ClassificationState.NeedsEnhance()`). Re-renders flagged pages in parallel with bounded errgroup concurrency, using adjusted ImageMagick settings based on each page's `Enhancements` and reclassifying via vision. Trigger conditions TBD through experimentation during Phase 2; initially, classify never sets `Enhance: true`.
 
 **finalize node**: Always runs as the terminal node. Performs a single inference that reviews all per-page analysis results (including any enhanced pages) and produces the authoritative document-level `ClassificationState` fields: classification, confidence, and rationale. Sees all evidence holistically rather than incrementally.
 
@@ -227,7 +227,7 @@ Key views: document upload/management, classification results with PDF viewer, b
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Workflow topology | 4-node (init -> classify -> enhance? -> finalize) | Classify handles per-page analysis (one LLM call per page), finalize synthesizes document-level classification from all page findings (one LLM call total). Separating per-page analysis from document-level synthesis eliminates incremental anchoring bias and ensures finalize sees all evidence (including enhanced pages) holistically. |
-| Classification approach | Sequential page-by-page with context accumulation, finalize synthesis | Classify passes accumulated page findings as context (inspired by classify-docs' 96.3% accuracy pattern). Finalize produces the authoritative document classification from complete page data. |
+| Classification approach | Parallel per-page analysis, finalize synthesis | Classify processes all pages concurrently with bounded errgroup concurrency (no accumulated context). Finalize produces the authoritative document classification from complete page data. |
 | Image lifecycle | Ephemeral (render, encode, discard) | 1M documents would generate enormous image storage. Images serve only as Vision API input. |
 | Classification result model | 1:1 with document, overwritten on re-classification | Simpler than run/stage/decision tracking. Flattened workflow metadata columns preserve provenance. |
 | Agent configuration | Single externally-configured agent | Herald serves one purpose with one or two GPT models. External config matches deployment patterns. |

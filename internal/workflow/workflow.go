@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/google/uuid"
@@ -158,4 +159,8 @@ func needsEnhance(s state.State) bool {
 	}
 
 	return cs.NeedsEnhance()
+}
+
+func workerCount(pageCount int) int {
+	return max(min(runtime.NumCPU(), pageCount), 1)
 }

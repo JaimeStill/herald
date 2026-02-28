@@ -9,6 +9,7 @@ import (
 	"github.com/JaimeStill/document-context/pkg/config"
 	"github.com/JaimeStill/document-context/pkg/document"
 	"github.com/JaimeStill/document-context/pkg/image"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/JaimeStill/go-agents/pkg/agent"
 
@@ -81,77 +82,66 @@ func buildEnhanceConfig(settings *EnhanceSettings) config.ImageConfig {
 	}
 }
 
-func enhancePage(
-	ctx context.Context,
-	a agent.Agent,
-	rt *Runtime,
-	pdfDoc document.Document,
-	cs *ClassificationState,
-	pageIdx int,
-	tempDir string,
-) error {
-	page := &cs.Pages[pageIdx]
-
-	// Re-render with adjusted settings
-	imgPath, err := rerender(pdfDoc, page, tempDir)
-	if err != nil {
-		return err
-	}
-	page.ImagePath = imgPath
-
-	// Encode enhanced image for vision call
-	dataURI, err := encodePageImage(imgPath)
-	if err != nil {
-		return err
-	}
-
-	// Compose prompt with current classification state as context
-	prompt, err := ComposePrompt(ctx, rt.Prompts, prompts.StageEnhance, cs)
-	if err != nil {
-		return err
-	}
-
-	resp, err := a.Vision(ctx, prompt, []string{dataURI})
-	if err != nil {
-		return fmt.Errorf("vision call: %w", err)
-	}
-
-	parsed, err := formatting.Parse[enhanceResponse](resp.Content())
-	if err != nil {
-		return fmt.Errorf("parse response: %w", err)
-	}
-
-	// Update page findings and clear enhancement flag
-	page.MarkingsFound = parsed.MarkingsFound
-	page.Rationale = parsed.Rationale
-	page.Enhancements = nil
-
-	return nil
-}
-
 func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tempDir string) error {
 	pdfPath := filepath.Join(tempDir, sourcePDF)
-	pdfDoc, err := document.OpenPDF(pdfPath)
-	if err != nil {
-		return fmt.Errorf("%w: open pdf: %w", ErrEnhanceFailed, err)
-	}
-	defer pdfDoc.Close()
+	enhanced := cs.EnhancePages()
 
-	a, err := agent.New(&rt.Agent)
+	prompt, err := ComposePrompt(ctx, rt.Prompts, prompts.StageEnhance, cs)
 	if err != nil {
-		return fmt.Errorf("%w: create agent: %w", ErrEnhanceFailed, err)
+		return fmt.Errorf("%w: %w", ErrEnhanceFailed, err)
 	}
 
-	for _, i := range cs.EnhancePages() {
-		if err := enhancePage(ctx, a, rt, pdfDoc, cs, i, tempDir); err != nil {
-			return fmt.Errorf("%w: page %d: %w", ErrEnhanceFailed, cs.Pages[i].PageNumber, err)
-		}
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(workerCount(len(enhanced)))
 
-		rt.Logger.InfoContext(
-			ctx, "page enhanced",
-			"page", cs.Pages[i].PageNumber,
-			"markings", cs.Pages[i].MarkingsFound,
-		)
+	for _, i := range enhanced {
+		g.Go(func() error {
+			if gctx.Err() != nil {
+				return gctx.Err()
+			}
+
+			pdfDoc, err := document.OpenPDF(pdfPath)
+			if err != nil {
+				return fmt.Errorf("page %d: open pdf: %w", cs.Pages[i].PageNumber, err)
+			}
+			defer pdfDoc.Close()
+
+			a, err := agent.New(&rt.Agent)
+			if err != nil {
+				return fmt.Errorf("page %d: create agent: %w", cs.Pages[i].PageNumber, err)
+			}
+
+			imgPath, err := rerender(pdfDoc, &cs.Pages[i], tempDir)
+			if err != nil {
+				return fmt.Errorf("page %d: %w", cs.Pages[i].PageNumber, err)
+			}
+			cs.Pages[i].ImagePath = imgPath
+
+			dataURI, err := encodePageImage(imgPath)
+			if err != nil {
+				return fmt.Errorf("page %d: %w", cs.Pages[i].PageNumber, err)
+			}
+
+			resp, err := a.Vision(gctx, prompt, []string{dataURI})
+			if err != nil {
+				return fmt.Errorf("page %d: vision call: %w", cs.Pages[i].PageNumber, err)
+			}
+
+			parsed, err := formatting.Parse[enhanceResponse](resp.Content())
+			if err != nil {
+				return fmt.Errorf("page %d: parse response: %w", cs.Pages[i].PageNumber, err)
+			}
+
+			cs.Pages[i].MarkingsFound = parsed.MarkingsFound
+			cs.Pages[i].Rationale = parsed.Rationale
+			cs.Pages[i].Enhancements = nil
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("%w: %w", ErrEnhanceFailed, err)
 	}
 
 	return nil
