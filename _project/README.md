@@ -26,7 +26,7 @@ The architecture deliberately excludes: image caching (images are ephemeral duri
 |-------|-----------|----------------|--------|
 | Phase 1 - Service Foundation | Go project scaffolding, Azure PostgreSQL schema/migrations, Azure Blob Storage integration, configuration system, module/routing infrastructure, document domain (upload single + batch, registration, metadata), storage abstraction, lifecycle coordination | v0.1.0 | Complete |
 | Phase 2 - Classification Engine | Agent configuration from external config, classification workflow state graph (init -> classify -> enhance? -> finalize), parallel per-page analysis with bounded concurrency, named prompt overrides (DB + API), single document classification endpoint, classification result schema with flattened workflow metadata | v0.2.0 | Complete |
-| Phase 3 - Web Client | Lit 3.x SPA with Bun + Vite embedded in Go binary, document management UI (upload single + batch, browse, search, filter), classification result viewing/validation/manual adjustment, PDF viewer alongside classification result, SSE streaming observer for classification progress, prompt modification management, batch processing controls | v0.3.0 | |
+| Phase 3 - Web Client | Lit 3.x SPA with native Bun builds embedded in Go binary, Air hot reload for development, document management UI (upload single + batch, browse, search, filter, bulk classify), SSE streaming observer for classification progress, classification result viewing/validation/manual adjustment with PDF viewer, prompt modification management | v0.3.0 | |
 | Phase 4 - Security and Deployment | Azure Entra authentication (service + OBO for web client), AI Foundry token management (Key Vault or container secrets), Docker containerization with ImageMagick 7.0+, Azure deployment configuration, IL4/IL6 environment configuration | v0.4.0 | |
 
 ## Architecture
@@ -68,10 +68,13 @@ herald/
 ├── web/
 │   └── app/              # Lit 3.x SPA
 │       ├── app.go        # Go module: embed dist/*, shell template, NewModule()
-│       ├── client/       # TypeScript source (Bun + Vite build)
-│       └── server/       # Go HTML templates (shell.html)
+│       ├── package.json  # Bun project (no Vite)
+│       ├── scripts/      # Bun build scripts (build.ts, watch.ts)
+│       ├── client/       # TypeScript source (native Bun build)
+│       ├── dist/         # Build output (app.js, app.css)
+│       └── server/       # Go HTML templates (layouts/app.html)
 ├── config.json           # Base configuration
-├── Makefile
+├── .air.toml             # Air hot reload configuration
 ├── Dockerfile
 └── _project/
     └── README.md         # This document
@@ -213,14 +216,15 @@ Azure PostgreSQL with golang-migrate. Core tables:
 
 Lit 3.x SPA following agent-lab patterns:
 
-- **Build**: Bun + Vite + TypeScript (CI only)
+- **Build**: Native Bun builds with TypeScript (`Bun.build()` API, no Vite). Component CSS via ES import attributes (`with { type: 'text' }`), global CSS extracted automatically.
+- **Development**: Air hot reload for Go + Bun watch for TypeScript/CSS. Two-terminal workflow: `bun run watch` rebuilds assets, `air` rebuilds and restarts the Go server on dist/ changes.
 - **Embedding**: `go:embed dist/*`, shell template pattern
 - **Routing**: Client-side History API router, component prefix `hd-`
 - **Styling**: CSS cascade layers with design tokens
 - **State**: Signal-based reactivity via `@lit-labs/signals`
 - **Services**: `@lit/context` for dependency injection
 
-Key views: document upload/management, classification results with PDF viewer, batch processing controls, prompt modification editor, processing status dashboard.
+Key views: document management (upload, browse, classify, bulk operations), prompt management (CRUD), document review (PDF viewer alongside classification for validation/adjustment).
 
 ## Key Decisions
 
@@ -258,8 +262,8 @@ Key views: document upload/management, classification results with PDF viewer, b
 ### Frontend
 
 - **Lit 3.x** (lit, @lit/context, @lit-labs/signals)
-- **Bun**: JavaScript runtime and package manager (build-time)
-- **Vite**: Build tool with TypeScript support (build-time)
+- **Bun**: JavaScript runtime, package manager, and bundler (build-time)
+- **Air**: Go live reload for development (github.com/air-verse/air)
 
 ### Runtime
 
