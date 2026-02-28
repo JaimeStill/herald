@@ -16,9 +16,10 @@ This objective merges the scope originally split across #27 (Classifications Dom
 
 | # | Sub-Issue | Status | Dependencies |
 |---|-----------|--------|--------------|
-| [#47](https://github.com/JaimeStill/herald/issues/47) | Classifications domain — types, system, and repository | Open | — |
-| [#48](https://github.com/JaimeStill/herald/issues/48) | Classifications handler, API wiring, and API Cartographer docs | Open | #47 |
+| [#47](https://github.com/JaimeStill/herald/issues/47) | Classifications domain — types, system, and repository | Complete | — |
+| [#48](https://github.com/JaimeStill/herald/issues/48) | Classifications handler, API wiring, and API Cartographer docs | Complete | #47 |
 | [#51](https://github.com/JaimeStill/herald/issues/51) | Parallelize classify and enhance workflow nodes | Open | — |
+| [#53](https://github.com/JaimeStill/herald/issues/53) | Query builder JOIN support and document classification view | Open | — |
 
 ## Architecture Decisions
 
