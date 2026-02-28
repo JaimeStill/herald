@@ -7,6 +7,7 @@ import (
 
 	"github.com/JaimeStill/document-context/pkg/document"
 	"github.com/JaimeStill/document-context/pkg/encoding"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/JaimeStill/go-agents/pkg/agent"
 
@@ -23,11 +24,11 @@ type pageResponse struct {
 	Enhancements  *EnhanceSettings `json:"enhancements,omitempty"`
 }
 
-// ClassifyNode returns a state node that performs sequential page-by-page
-// analysis. Each page image is encoded to a data URI just-in-time and sent
-// to the vision model with accumulated prior page findings as context. The
-// node populates per-page ClassificationPage fields only; document-level
-// classification synthesis is deferred to the finalize node.
+// ClassifyNode returns a state node that performs parallel page-by-page
+// analysis using bounded errgroup concurrency. Each goroutine creates its
+// own agent, encodes the page image to a data URI, and sends it to the
+// vision model. Pages are classified independently (no accumulated context);
+// document-level classification synthesis is deferred to the finalize node.
 func ClassifyNode(rt *Runtime) state.StateNode {
 	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
 		classState, err := extractClassState(s)
@@ -64,55 +65,49 @@ func extractClassState(s state.State) (*ClassificationState, error) {
 }
 
 func classifyPages(ctx context.Context, rt *Runtime, cs *ClassificationState) error {
-	a, err := agent.New(&rt.Agent)
+	prompt, err := ComposePrompt(ctx, rt.Prompts, prompts.StageClassify, nil)
 	if err != nil {
-		return fmt.Errorf("%w: create agent: %w", ErrClassifyFailed, err)
+		return fmt.Errorf("%w: %w", ErrClassifyFailed, err)
 	}
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(workerCount(len(cs.Pages)))
 
 	for i := range cs.Pages {
-		if err := classifyPage(ctx, a, rt, cs, i); err != nil {
-			return fmt.Errorf("%w: page %d: %w", ErrClassifyFailed, i+1, err)
-		}
+		g.Go(func() error {
+			if gctx.Err() != nil {
+				return gctx.Err()
+			}
 
-		rt.Logger.InfoContext(
-			ctx, "page classified",
-			"page", i+1,
-			"total", len(cs.Pages),
-			"markings", cs.Pages[i].MarkingsFound,
-			"enhance", cs.Pages[i].Enhance(),
-		)
+			a, err := agent.New(&rt.Agent)
+			if err != nil {
+				return fmt.Errorf("page %d: create agent: %w", i+1, err)
+			}
+
+			dataURI, err := encodePageImage(cs.Pages[i].ImagePath)
+			if err != nil {
+				return fmt.Errorf("page %d: %w", i+1, err)
+			}
+
+			resp, err := a.Vision(gctx, prompt, []string{dataURI})
+			if err != nil {
+				return fmt.Errorf("page %d: vision call: %w", i+1, err)
+			}
+
+			parsed, err := formatting.Parse[pageResponse](resp.Content())
+			if err != nil {
+				return fmt.Errorf("page %d: parse response: %w", i+1, err)
+			}
+
+			applyPageResponse(&cs.Pages[i], parsed)
+			return nil
+		})
 	}
 
-	return nil
-}
-
-func classifyPage(ctx context.Context, a agent.Agent, rt *Runtime, cs *ClassificationState, pageIdx int) error {
-	dataURI, err := encodePageImage(cs.Pages[pageIdx].ImagePath)
-	if err != nil {
-		return err
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("%w: %w", ErrClassifyFailed, err)
 	}
 
-	var promptState *ClassificationState
-	if pageIdx > 0 {
-		promptState = cs
-	}
-
-	prompt, err := ComposePrompt(ctx, rt.Prompts, prompts.StageClassify, promptState)
-	if err != nil {
-		return err
-	}
-
-	resp, err := a.Vision(ctx, prompt, []string{dataURI})
-	if err != nil {
-		return fmt.Errorf("vision call: %w", err)
-	}
-
-	parsed, err := formatting.Parse[pageResponse](resp.Content())
-	if err != nil {
-		return fmt.Errorf("parse response: %w", err)
-	}
-
-	applyPageResponse(&cs.Pages[pageIdx], parsed)
 	return nil
 }
 

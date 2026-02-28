@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/google/uuid"
 
@@ -135,7 +134,7 @@ func renderPages(ctx context.Context, tempDir string) ([]ClassificationPage, err
 	pages := make([]ClassificationPage, pageCount)
 
 	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(renderWorkerCount(pageCount))
+	g.SetLimit(workerCount(pageCount))
 
 	for i, page := range allPages {
 		pageNum := i + 1
@@ -168,8 +167,4 @@ func renderPages(ctx context.Context, tempDir string) ([]ClassificationPage, err
 	}
 
 	return pages, nil
-}
-
-func renderWorkerCount(pageCount int) int {
-	return max(min(runtime.NumCPU(), pageCount), 1)
 }

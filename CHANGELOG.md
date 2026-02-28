@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.0-dev.27.51
+
+- Parallelize classify and enhance workflow nodes with bounded errgroup concurrency, removing sequential context accumulation in favor of independent per-page analysis (#51)
+
 ## v0.2.0-dev.27.48
 
 - Add classifications handler with 8 HTTP endpoints (list, find, find-by-document, search, classify, validate, update, delete), API module wiring, and route registration (#48)
