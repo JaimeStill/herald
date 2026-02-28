@@ -16,18 +16,18 @@ Herald occupies a deliberate middle ground between two existing implementations:
 
 - **agent-lab**: A full workflow experimentation platform with 5-node classification graphs, parallel detection, observer infrastructure, profile management, and image caching. Powerful but far more infrastructure than Herald needs.
 
-Herald takes the sequential context accumulation pattern from classify-docs (proven for accuracy), wraps it in a simplified 3-node state graph from go-agents-orchestration (init, classify, conditional enhance), and hosts it in a streamlined Go web service adapted from agent-lab's infrastructure patterns. Documents flow in through the service API to Azure Blob Storage, classification results flow out through PostgreSQL, and humans validate results through an embedded Lit web client.
+Herald takes the per-page vision analysis approach from classify-docs, wraps it in a 4-node state graph from go-agents-orchestration (init, classify, conditional enhance, finalize), and hosts it in a streamlined Go web service adapted from agent-lab's infrastructure patterns. Pages are classified in parallel with bounded concurrency, and a dedicated finalize node synthesizes the document-level classification from all page findings. Documents flow in through the service API to Azure Blob Storage, classification results flow out through PostgreSQL, and humans validate results through an embedded Lit web client.
 
 The architecture deliberately excludes: image caching (images are ephemeral during classification), observer/checkpoint infrastructure (results self-contain context), multi-workflow registries (single classification workflow), provider/agent CRUD (single externally-configured agent), and OpenAPI/Scalar documentation (deferred for velocity).
 
 ## Phases
 
-| Phase | Focus Area | Version Target |
-|-------|-----------|----------------|
-| Phase 1 - Service Foundation | Go project scaffolding, Azure PostgreSQL schema/migrations, Azure Blob Storage integration, configuration system, module/routing infrastructure, document domain (upload single + batch, registration, metadata), storage abstraction, lifecycle coordination | v0.1.0 |
-| Phase 2 - Classification Engine | Agent configuration from external config, classification workflow state graph (init -> classify -> enhance?), sequential page-by-page processing with context accumulation, named prompt overrides (DB + API), single document classification endpoint, classification result schema with flattened workflow metadata | v0.2.0 |
-| Phase 3 - Web Client | Lit 3.x SPA with Bun + Vite embedded in Go binary, document management UI (upload single + batch, browse, search, filter), classification result viewing/validation/manual adjustment, PDF viewer alongside classification result, SSE streaming observer for classification progress, prompt modification management, batch processing controls | v0.3.0 |
-| Phase 4 - Security and Deployment | Azure Entra authentication (service + OBO for web client), AI Foundry token management (Key Vault or container secrets), Docker containerization with ImageMagick 7.0+, Azure deployment configuration, IL4/IL6 environment configuration | v0.4.0 |
+| Phase | Focus Area | Version Target | Status |
+|-------|-----------|----------------|--------|
+| Phase 1 - Service Foundation | Go project scaffolding, Azure PostgreSQL schema/migrations, Azure Blob Storage integration, configuration system, module/routing infrastructure, document domain (upload single + batch, registration, metadata), storage abstraction, lifecycle coordination | v0.1.0 | Complete |
+| Phase 2 - Classification Engine | Agent configuration from external config, classification workflow state graph (init -> classify -> enhance? -> finalize), parallel per-page analysis with bounded concurrency, named prompt overrides (DB + API), single document classification endpoint, classification result schema with flattened workflow metadata | v0.2.0 | Complete |
+| Phase 3 - Web Client | Lit 3.x SPA with Bun + Vite embedded in Go binary, document management UI (upload single + batch, browse, search, filter), classification result viewing/validation/manual adjustment, PDF viewer alongside classification result, SSE streaming observer for classification progress, prompt modification management, batch processing controls | v0.3.0 | |
+| Phase 4 - Security and Deployment | Azure Entra authentication (service + OBO for web client), AI Foundry token management (Key Vault or container secrets), Docker containerization with ImageMagick 7.0+, Azure deployment configuration, IL4/IL6 environment configuration | v0.4.0 | |
 
 ## Architecture
 
