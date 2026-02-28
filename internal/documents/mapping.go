@@ -20,7 +20,11 @@ var projection = query.
 	Project("storage_key", "StorageKey").
 	Project("status", "Status").
 	Project("uploaded_at", "UploadedAt").
-	Project("updated_at", "UpdatedAt")
+	Project("updated_at", "UpdatedAt").
+	Join("public", "classifications", "c", "LEFT JOIN", "d.id = c.document_id").
+	Project("classification", "Classification").
+	Project("confidence", "Confidence").
+	Project("classified_at", "ClassifiedAt")
 
 var defaultSort = query.SortField{
 	Field:      "UploadedAt",
@@ -37,6 +41,8 @@ type Filters struct {
 	ExternalPlatform *string `json:"external_platform,omitempty"`
 	ContentType      *string `json:"content_type,omitempty"`
 	StorageKey       *string `json:"storage_key,omitempty"`
+	Classification   *string `json:"classification,omitempty"`
+	Confidence       *string `json:"confidence,omitempty"`
 }
 
 // Apply adds filter conditions to a query builder.
@@ -47,7 +53,9 @@ func (f Filters) Apply(b *query.Builder) *query.Builder {
 		WhereEquals("ExternalID", f.ExternalID).
 		WhereEquals("ExternalPlatform", f.ExternalPlatform).
 		WhereEquals("ContentType", f.ContentType).
-		WhereContains("StorageKey", f.StorageKey)
+		WhereContains("StorageKey", f.StorageKey).
+		WhereEquals("Classification", f.Classification).
+		WhereEquals("Confidence", f.Confidence)
 }
 
 // FiltersFromQuery extracts filter values from URL query parameters.
@@ -80,6 +88,14 @@ func FiltersFromQuery(values url.Values) Filters {
 		f.StorageKey = &sk
 	}
 
+	if cl := values.Get("classification"); cl != "" {
+		f.Classification = &cl
+	}
+
+	if co := values.Get("confidence"); co != "" {
+		f.Confidence = &co
+	}
+
 	return f
 }
 
@@ -97,6 +113,9 @@ func scanDocument(s repository.Scanner) (Document, error) {
 		&d.Status,
 		&d.UploadedAt,
 		&d.UpdatedAt,
+		&d.Classification,
+		&d.Confidence,
+		&d.ClassifiedAt,
 	)
 	return d, err
 }

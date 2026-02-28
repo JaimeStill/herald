@@ -25,6 +25,8 @@ Returns a paginated list of documents with optional filters.
 | external_id | integer | no | Filter by external ID (exact match) |
 | external_platform | string | no | Filter by external platform (exact match) |
 | content_type | string | no | Filter by content type (exact match) |
+| classification | string | no | Filter by classification level (exact match) |
+| confidence | string | no | Filter by confidence (exact match: HIGH, MEDIUM, LOW) |
 
 ### Responses
 
@@ -41,7 +43,7 @@ curl -s "$HERALD_API_BASE/api/documents" | jq .
 ### Full Example
 
 ```bash
-curl -s "$HERALD_API_BASE/api/documents?page=1&page_size=20&search=report&sort=-uploaded_at&status=pending&filename=quarterly&external_platform=HQ&content_type=application/pdf" | jq .
+curl -s "$HERALD_API_BASE/api/documents?page=1&page_size=20&search=report&sort=-uploaded_at&status=pending&filename=quarterly&external_platform=HQ&content_type=application/pdf&classification=SECRET&confidence=HIGH" | jq .
 ```
 
 ---
@@ -95,6 +97,8 @@ Content-Type: `application/json`
 | external_platform | string | no | Filter by external platform |
 | content_type | string | no | Filter by content type |
 | storage_key | string | no | Filter by storage key (contains) |
+| classification | string | no | Filter by classification level |
+| confidence | string | no | Filter by confidence (HIGH, MEDIUM, LOW) |
 
 ### Responses
 
@@ -126,7 +130,9 @@ curl -s -X POST "$HERALD_API_BASE/api/documents/search" \
     "external_id": 12345,
     "external_platform": "HQ",
     "content_type": "application/pdf",
-    "storage_key": "documents/"
+    "storage_key": "documents/",
+    "classification": "SECRET",
+    "confidence": "HIGH"
   }' | jq .
 ```
 

@@ -443,3 +443,163 @@ func TestBuilderBuildPageWithConditions(t *testing.T) {
 		t.Errorf("args = %v, want [%%report%%]", args)
 	}
 }
+
+// --- JOIN tests ---
+
+func testJoinedProjection() *query.ProjectionMap {
+	return query.NewProjectionMap("public", "documents", "d").
+		Project("id", "ID").
+		Project("filename", "Filename").
+		Join("public", "classifications", "c", "LEFT JOIN", "d.id = c.document_id").
+		Project("classification", "Classification").
+		Project("confidence", "Confidence")
+}
+
+func TestProjectionMapFromNoJoins(t *testing.T) {
+	p := testProjection()
+	got := p.From()
+	want := "public.documents d"
+	if got != want {
+		t.Errorf("From() = %q, want %q", got, want)
+	}
+}
+
+func TestProjectionMapFromWithJoin(t *testing.T) {
+	p := testJoinedProjection()
+	got := p.From()
+	want := "public.documents d LEFT JOIN public.classifications c ON d.id = c.document_id"
+	if got != want {
+		t.Errorf("From() = %q, want %q", got, want)
+	}
+}
+
+func TestProjectionMapJoinContextSwitching(t *testing.T) {
+	p := testJoinedProjection()
+
+	tests := []struct {
+		name     string
+		viewName string
+		want     string
+	}{
+		{"base table column", "Filename", "d.filename"},
+		{"joined table column", "Classification", "c.classification"},
+		{"joined table column 2", "Confidence", "c.confidence"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := p.Column(tt.viewName); got != tt.want {
+				t.Errorf("Column(%q) = %q, want %q", tt.viewName, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestProjectionMapJoinedColumns(t *testing.T) {
+	p := testJoinedProjection()
+	got := p.Columns()
+	want := "d.id, d.filename, c.classification, c.confidence"
+	if got != want {
+		t.Errorf("Columns() = %q, want %q", got, want)
+	}
+}
+
+func TestProjectionMapJoins(t *testing.T) {
+	p := testJoinedProjection()
+	joins := p.Joins()
+	if len(joins) != 1 {
+		t.Fatalf("Joins() length = %d, want 1", len(joins))
+	}
+	j := joins[0]
+	if j.Alias != "c" {
+		t.Errorf("Joins()[0].Alias = %q, want %q", j.Alias, "c")
+	}
+	if j.JoinType != "LEFT JOIN" {
+		t.Errorf("Joins()[0].JoinType = %q, want %q", j.JoinType, "LEFT JOIN")
+	}
+}
+
+func TestProjectionMapJoinsOrder(t *testing.T) {
+	p := query.NewProjectionMap("public", "documents", "d").
+		Project("id", "ID").
+		Join("public", "classifications", "c", "LEFT JOIN", "d.id = c.document_id").
+		Project("classification", "Classification").
+		Join("public", "users", "u", "LEFT JOIN", "c.validated_by = u.id").
+		Project("name", "ValidatedByName")
+
+	joins := p.Joins()
+	if len(joins) != 2 {
+		t.Fatalf("Joins() length = %d, want 2", len(joins))
+	}
+	if joins[0].Alias != "c" {
+		t.Errorf("Joins()[0].Alias = %q, want %q", joins[0].Alias, "c")
+	}
+	if joins[1].Alias != "u" {
+		t.Errorf("Joins()[1].Alias = %q, want %q", joins[1].Alias, "u")
+	}
+}
+
+func TestBuilderBuildWithJoin(t *testing.T) {
+	p := testJoinedProjection()
+	b := query.NewBuilder(p)
+	sql, args := b.Build()
+
+	wantSQL := "SELECT d.id, d.filename, c.classification, c.confidence FROM public.documents d LEFT JOIN public.classifications c ON d.id = c.document_id"
+	if sql != wantSQL {
+		t.Errorf("Build() sql = %q, want %q", sql, wantSQL)
+	}
+	if len(args) != 0 {
+		t.Errorf("Build() args = %v, want empty", args)
+	}
+}
+
+func TestBuilderBuildCountWithJoin(t *testing.T) {
+	p := testJoinedProjection()
+	b := query.NewBuilder(p)
+	sql, _ := b.BuildCount()
+
+	wantSQL := "SELECT COUNT(*) FROM public.documents d LEFT JOIN public.classifications c ON d.id = c.document_id"
+	if sql != wantSQL {
+		t.Errorf("BuildCount() sql = %q, want %q", sql, wantSQL)
+	}
+}
+
+func TestBuilderBuildPageWithJoin(t *testing.T) {
+	p := testJoinedProjection()
+	b := query.NewBuilder(p, query.SortField{Field: "Filename"})
+	sql, _ := b.BuildPage(1, 20)
+
+	wantSQL := "SELECT d.id, d.filename, c.classification, c.confidence FROM public.documents d LEFT JOIN public.classifications c ON d.id = c.document_id ORDER BY d.filename ASC LIMIT 20 OFFSET 0"
+	if sql != wantSQL {
+		t.Errorf("BuildPage() sql = %q, want %q", sql, wantSQL)
+	}
+}
+
+func TestBuilderBuildSingleWithJoin(t *testing.T) {
+	p := testJoinedProjection()
+	b := query.NewBuilder(p)
+	sql, args := b.BuildSingle("ID", "abc-123")
+
+	wantSQL := "SELECT d.id, d.filename, c.classification, c.confidence FROM public.documents d LEFT JOIN public.classifications c ON d.id = c.document_id WHERE d.id = $1"
+	if sql != wantSQL {
+		t.Errorf("BuildSingle() sql = %q, want %q", sql, wantSQL)
+	}
+	if len(args) != 1 || args[0] != "abc-123" {
+		t.Errorf("BuildSingle() args = %v, want [abc-123]", args)
+	}
+}
+
+func TestBuilderWhereOnJoinedColumn(t *testing.T) {
+	p := testJoinedProjection()
+	b := query.NewBuilder(p)
+	b.WhereEquals("Classification", "SECRET")
+	sql, args := b.Build()
+
+	wantSQL := "SELECT d.id, d.filename, c.classification, c.confidence FROM public.documents d LEFT JOIN public.classifications c ON d.id = c.document_id WHERE c.classification = $1"
+	if sql != wantSQL {
+		t.Errorf("sql = %q, want %q", sql, wantSQL)
+	}
+	if len(args) != 1 || args[0] != "SECRET" {
+		t.Errorf("args = %v, want [SECRET]", args)
+	}
+}

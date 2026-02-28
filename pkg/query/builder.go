@@ -77,7 +77,7 @@ func (b *Builder) Build() (string, []any) {
 	sql := fmt.Sprintf(
 		"SELECT %s FROM %s%s%s",
 		b.projection.Columns(),
-		b.projection.Table(),
+		b.projection.From(),
 		where,
 		orderBy,
 	)
@@ -88,7 +88,7 @@ func (b *Builder) Build() (string, []any) {
 // BuildCount returns a COUNT(*) query with the current conditions.
 func (b *Builder) BuildCount() (string, []any) {
 	where, args, _ := b.buildWhere(1)
-	sql := fmt.Sprintf("SELECT COUNT(*) FROM %s%s", b.projection.Table(), where)
+	sql := fmt.Sprintf("SELECT COUNT(*) FROM %s%s", b.projection.From(), where)
 	return sql, args
 }
 
@@ -101,7 +101,7 @@ func (b *Builder) BuildPage(page, pageSize int) (string, []any) {
 	sql := fmt.Sprintf(
 		"SELECT %s FROM %s%s%s LIMIT %d OFFSET %d",
 		b.projection.Columns(),
-		b.projection.Table(),
+		b.projection.From(),
 		where,
 		orderBy,
 		pageSize,
@@ -117,7 +117,7 @@ func (b *Builder) BuildSingle(idField string, id any) (string, []any) {
 	sql := fmt.Sprintf(
 		"SELECT %s FROM %s WHERE %s = $1",
 		b.projection.Columns(),
-		b.projection.Table(),
+		b.projection.From(),
 		col,
 	)
 	return sql, []any{id}
@@ -129,7 +129,7 @@ func (b *Builder) BuildSingleOrNull() (string, []any) {
 	sql := fmt.Sprintf(
 		"SELECT %s FROM %s%s LIMIT 1",
 		b.projection.Columns(),
-		b.projection.Table(),
+		b.projection.From(),
 		where,
 	)
 	return sql, args

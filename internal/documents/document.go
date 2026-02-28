@@ -10,18 +10,23 @@ import (
 )
 
 // Document represents a registered document with its metadata and blob storage reference.
+// Classification, Confidence, and ClassifiedAt are populated via LEFT JOIN from the
+// classifications table and are nil for unclassified documents.
 type Document struct {
-	ID               uuid.UUID `json:"id"`
-	ExternalID       int       `json:"external_id"`
-	ExternalPlatform string    `json:"external_platform"`
-	Filename         string    `json:"filename"`
-	ContentType      string    `json:"content_type"`
-	SizeBytes        int64     `json:"size_bytes"`
-	PageCount        *int      `json:"page_count"`
-	StorageKey       string    `json:"storage_key"`
-	Status           string    `json:"status"`
-	UploadedAt       time.Time `json:"uploaded_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               uuid.UUID  `json:"id"`
+	ExternalID       int        `json:"external_id"`
+	ExternalPlatform string     `json:"external_platform"`
+	Filename         string     `json:"filename"`
+	ContentType      string     `json:"content_type"`
+	SizeBytes        int64      `json:"size_bytes"`
+	PageCount        *int       `json:"page_count"`
+	StorageKey       string     `json:"storage_key"`
+	Status           string     `json:"status"`
+	UploadedAt       time.Time  `json:"uploaded_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	Classification   *string    `json:"classification,omitempty"`
+	Confidence       *string    `json:"confidence,omitempty"`
+	ClassifiedAt     *time.Time `json:"classified_at,omitempty"`
 }
 
 // CreateCommand carries the data needed to upload and register a new document.

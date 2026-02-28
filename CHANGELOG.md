@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0-dev.27.53
+
+- Add query builder JOIN support with context-switching ProjectionMap pattern, ordered JoinClause map, and From() method for multi-table queries (#53)
+- Extend Document struct with classification metadata (classification, confidence, classified_at) via LEFT JOIN on classifications table (#53)
+- Add classification and confidence filters to document queries (#53)
+
 ## v0.2.0-dev.27.51
 
 - Parallelize classify and enhance workflow nodes with bounded errgroup concurrency, removing sequential context accumulation in favor of independent per-page analysis (#51)
