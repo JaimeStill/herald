@@ -5,7 +5,7 @@ GET {{HOST}}/api/documents HTTP/1.1
 
 ### List Documents with Filters
 
-GET {{HOST}}/api/documents?page=1&page_size=20&search=report&sort=-uploaded_at&status=pending&filename=quarterly&external_platform=HQ&content_type=application/pdf HTTP/1.1
+GET {{HOST}}/api/documents?page=1&page_size=20&search=report&sort=-uploaded_at&status=pending&filename=quarterly&external_platform=HQ&content_type=application/pdf&classification=SECRET&confidence=HIGH HTTP/1.1
 
 
 ### Find Document
@@ -42,7 +42,9 @@ Content-Type: application/json
   "page_size": 20,
   "search": "quarterly",
   "sort": "-uploaded_at",
-  "status": "pending"
+  "status": "pending",
+  "classification": "SECRET",
+  "confidence": "HIGH"
 }
 
 
