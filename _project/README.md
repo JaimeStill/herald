@@ -216,7 +216,7 @@ Azure PostgreSQL with golang-migrate. Core tables:
 
 Lit 3.x SPA following agent-lab patterns:
 
-- **Build**: Native Bun builds with TypeScript (`Bun.build()` API, no Vite). Component CSS via ES import attributes (`with { type: 'text' }`), global CSS extracted automatically.
+- **Build**: Native Bun builds with TypeScript (`Bun.build()` API, no Vite). Component CSS via `{ type: 'css' }` import attribute — Bun plugin emits `CSSStyleSheet` (Lit 3+ accepts directly). Global CSS extracted automatically.
 - **Development**: Air hot reload for Go + Bun watch for TypeScript/CSS. Two-terminal workflow: `bun run watch` rebuilds assets, `air` rebuilds and restarts the Go server on dist/ changes.
 - **Embedding**: `go:embed dist/*`, shell template pattern
 - **Routing**: Client-side History API router, component prefix `hd-`

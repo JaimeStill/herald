@@ -9,7 +9,7 @@ Deliver a Lit 3.x web client embedded in the Go binary with three views (documen
 
 ## Goals
 
-- Establish Bun-native build infrastructure with ES import attributes for CSS text imports (no Vite dependency)
+- Establish Bun-native build infrastructure with CSS module plugin (`{ type: 'css' }` → `CSSStyleSheet`) and global CSS extraction (no Vite dependency)
 - Integrate Air for Go hot reload coordinated with Bun watch for TypeScript/CSS — two-terminal dev workflow
 - Implement SSE streaming observer for classification workflow progress via `GET /api/classifications/{documentId}/stream`
 - Build document management interface with upload (single + batch), classify (single + bulk via `Promise.allSettled`), search, filter, and real-time SSE progress
@@ -47,7 +47,7 @@ Objectives 1 and 2 can proceed in parallel. Objective 4 can start after 1. Objec
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Build tool | Native Bun (no Vite) | `Bun.build()` API handles bundling natively. CSS text imports via `with { type: 'text' }` replace Vite's `?inline`. Eliminates a dependency and simplifies the toolchain. |
+| Build tool | Native Bun (no Vite) | `Bun.build()` API handles bundling natively. CSS module plugin intercepts `{ type: 'css' }` imports and emits `CSSStyleSheet` modules — Lit 3+ accepts directly, no `unsafeCSS()`. Eliminates Vite dependency and simplifies the toolchain. |
 | Dev experience | Air + Bun watch (two terminals) | Air watches Go + dist/ for server rebuild. Bun watches client/ for asset rebuild. Clean separation of concerns. |
 | SSE endpoint | Separate `GET` endpoint | EventSource requires GET. Existing `POST /classify` remains for non-streaming callers. Backward compatible. |
 | Component prefix | `hd-` | Herald-specific, avoids collision with agent-lab's `lab-` prefix. |
@@ -55,7 +55,7 @@ Objectives 1 and 2 can proceed in parallel. Objective 4 can start after 1. Objec
 
 ## Constraints
 
-- Component CSS uses `import styles from './x.css' with { type: 'text' }` — not Vite's `?inline` query
+- Component CSS uses `import styles from './x.css' with { type: 'css' }` — Bun plugin emits `CSSStyleSheet`, accepted directly by Lit `static styles`
 - Global CSS uses side-effect import (`import './design/index.css'`) — Bun extracts to dist/app.css
 - All views follow the three-tier hierarchy: View (@provide) → Stateful Component (@consume) → Pure Element (props/events)
 - Services use Signal.State + @lit/context for reactive state management

@@ -14,12 +14,14 @@
       "Bash(go run*)",
       "Bash(go test*)",
       "Bash(go vet*)",
+      "Bash(ls:*)",
       "Skill(api-cartographer)",
       "Skill(tau:dev-workflow)",
       "Skill(tau:github-cli)",
       "Skill(tau:go-patterns)",
       "Skill(tau:project-management)",
-      "Skill(tau:skill-creator)"
+      "Skill(tau:skill-creator)",
+      "WebSearch"
     ],
     "deny": [
       "Read(secrets.json)"
