@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.57.62
+- Add `pkg/web/` template and static file infrastructure — TemplateSet with layout inheritance, embedded filesystem serving, and SPA-compatible router with fallback (#62)
+
 ## v0.2.0
 
 ### Agent Configuration
