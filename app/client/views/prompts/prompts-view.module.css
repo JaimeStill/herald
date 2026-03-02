@@ -1,0 +1,17 @@
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  text-align: center;
+}
+
+h1 {
+  margin-bottom: var(--space-4);
+}
+
+p {
+  color: var(--color-1);
+}
