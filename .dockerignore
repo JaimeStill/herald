@@ -1,5 +1,7 @@
 bin/
+dist/
 node_modules/
+tmp/
 .claude/
 .github/
 .git/
