@@ -36,6 +36,14 @@ Lower-level packages (`pkg/`) define contracts (interfaces). Higher-level packag
 
 API Cartographer maintenance is an AI responsibility. After an implementation plan is accepted, the AI generates or updates the corresponding `_project/api/<group>/README.md` and `.http` file before transitioning control to the developer. See `.claude/skills/api-cartographer/SKILL.md` for conventions.
 
+### Web Development Skill Maintenance
+
+After implementing changes that revise or enhance the web development architecture (new component patterns, service infrastructure changes, design system updates, build system modifications), update `.claude/skills/web-development/SKILL.md` and its `references/` to reflect current conventions. The skill is the source of truth for all subsequent web client work.
+
+### Frontend Design
+
+Use the `frontend-design` skill (Anthropic built-in) when planning web client view interfaces. This applies to any objective focused on building out view UIs (documents view, prompts view, review view, etc.). The frontend-design skill provides design quality guidance that complements the web-development skill's architectural patterns.
+
 ### Testing
 
 All test authorship is an AI responsibility. Tests live in `tests/` mirroring the source structure. Black-box only (`package <name>_test`). Table-driven for parameterized cases. No test code in implementation guides.
