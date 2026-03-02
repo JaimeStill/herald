@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.57.64
+- Add Go web app module with embedded client assets, SPA shell template, server integration alongside API module, Air hot reload configuration, and mise dev workflow tasks (#64)
+
 ## v0.3.0-dev.57.63
 - Add client-side web application foundation — Bun build pipeline with CSS module plugin (`*.module.css` → `CSSStyleSheet`), CSS cascade layer design system with dark/light theme, History API router, `Result<T>` API layer with SSE streaming, and placeholder views for all routes (#63)
 

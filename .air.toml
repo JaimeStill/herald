@@ -1,0 +1,23 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+bin = "./bin/server"
+cmd = "go build -o ./bin/server ./cmd/server"
+delay = 1000
+exclude_dir = [
+  "app/client",
+  "app/scripts",
+  "app/plugins",
+  "app/node_modules"
+]
+include_dir = ["cmd", "internal", "pkg", "app"]
+include_ext = ["go", "html", "js", "css"]
+kill_delay = 500
+send_interrupt = true
+
+[log]
+time = false
+
+[misc]
+clean_on_exit = true

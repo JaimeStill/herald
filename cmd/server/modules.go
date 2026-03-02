@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/JaimeStill/herald/app"
 	"github.com/JaimeStill/herald/internal/api"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/internal/infrastructure"
@@ -12,6 +13,7 @@ import (
 
 type Modules struct {
 	API *module.Module
+	App *module.Module
 }
 
 func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modules, error) {
@@ -20,13 +22,20 @@ func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modu
 		return nil, err
 	}
 
+	appModule, err := app.NewModule("/app")
+	if err != nil {
+		return nil, err
+	}
+
 	return &Modules{
 		API: apiModule,
+		App: appModule,
 	}, nil
 }
 
 func (m *Modules) Mount(router *module.Router) {
 	router.Mount(m.API)
+	router.Mount(m.App)
 }
 
 func buildRouter(infra *infrastructure.Infrastructure) *module.Router {
