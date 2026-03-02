@@ -21,7 +21,7 @@ Deliver a Lit 3.x web client embedded in the Go binary with three views (documen
 
 | # | Objective | Issue | Status | Depends On |
 |---|-----------|-------|--------|------------|
-| 1 | Web Client Foundation and Build System | #57 | Open | — |
+| 1 | Web Client Foundation and Build System | #57 | Complete | — |
 | 2 | SSE Classification Streaming | #58 | Open | — |
 | 3 | Document Management View | #59 | Open | #57, #58 |
 | 4 | Prompt Management View | #60 | Open | #57 |
