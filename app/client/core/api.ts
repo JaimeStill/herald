@@ -1,9 +1,27 @@
 const BASE = '/api';
 
+/**
+ * Discriminated union for API call results.
+ * Check `result.ok` before accessing `result.data` — TypeScript narrows automatically.
+ */
 export type Result<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
+/** Structured SSE event from the classification workflow. */
+export interface ExecutionEvent {
+  type: string;
+  timestamp: string;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Generic fetch wrapper. Prepends `/api` to the path.
+ *
+ * Non-2xx responses return the body as the error message.
+ * 204 responses return `undefined` as data.
+ * Override `parse` for non-JSON responses (default: `res.json()`).
+ */
 export async function request<T>(
   path: string,
   init?: RequestInit,
@@ -24,21 +42,35 @@ export async function request<T>(
   }
 }
 
+/**
+ * Callbacks for SSE stream consumption.
+ *
+ * `onEvent` receives the event type (from `event:` lines, default `'message'`)
+ * paired with the raw `data:` line content.
+ */
 export interface StreamOptions {
-  onMessage: (data: string) => void;
+  onEvent: (type: string, data: string) => void;
   onError?: (error: string) => void;
   onComplete?: () => void;
   signal?: AbortSignal;
 }
 
+/**
+ * SSE client that returns an {@link AbortController} for cancellation.
+ *
+ * Parses `event:` and `data:` line pairs from the response stream.
+ * Accepts optional `init` for non-GET requests (e.g., POST for classification).
+ * Calls `onComplete` when the reader reports done; ignores `AbortError`.
+ */
 export function stream(
   path: string,
-  options: StreamOptions
+  options: StreamOptions,
+  init?: RequestInit,
 ): AbortController {
   const controller = new AbortController();
   const signal = options.signal ?? controller.signal;
 
-  fetch(`${BASE}${path}`, { signal })
+  fetch(`${BASE}${path}`, { ...init, signal })
     .then(async (res) => {
       if (!res.ok) {
         const text = await res.text();
@@ -54,6 +86,7 @@ export function stream(
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let currentEvent = 'message';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -64,13 +97,12 @@ export function stream(
         buffer = lines.pop() ?? '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
             const data = line.slice(6).trim();
-            if (data === '[DONE]') {
-              options.onComplete?.();
-              return;
-            }
-            options.onMessage(data);
+            options.onEvent(currentEvent, data);
+            currentEvent = 'message';
           }
         }
       }
@@ -86,6 +118,7 @@ export function stream(
   return controller;
 }
 
+/** Paginated response from the server. */
 export interface PageResult<T> {
   data: T[];
   total: number;
@@ -94,6 +127,7 @@ export interface PageResult<T> {
   total_pages: number;
 }
 
+/** Pagination and filtering parameters for list endpoints. */
 export interface PageRequest {
   page?: number;
   page_size?: number;
@@ -101,6 +135,7 @@ export interface PageRequest {
   sort?: string;
 }
 
+/** Converts pagination params to a query string (e.g., `?page=1&page_size=20`). */
 export function toQueryString(params: PageRequest): string {
   const entries = Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')

@@ -3,10 +3,16 @@ import type { RouteMatch } from './types';
 
 let routerInstance: Router | null = null;
 
+/** Programmatic navigation from anywhere in the app. */
 export function navigate(path: string): void {
   routerInstance?.navigate(path);
 }
 
+/**
+ * History API router. Matches URL paths against the route table,
+ * mounts the corresponding component into a container element,
+ * and sets path/query params as HTML attributes on the mounted component.
+ */
 export class Router {
   private container: HTMLElement;
   private basePath: string;
@@ -25,6 +31,7 @@ export class Router {
     routerInstance = this;
   }
 
+  /** Navigate to a path, optionally pushing to browser history. */
   navigate(path: string, pushState: boolean = true): void {
     const [pathPart, queryPart] = path.split('?');
     const normalized = this.normalizePath(pathPart);
@@ -41,6 +48,7 @@ export class Router {
     this.mount(match);
   }
 
+  /** Initialize the router: mount the current URL and listen for popstate. */
   start(): void {
     this.navigate(this.currentPath(), false);
 

@@ -1,95 +1,88 @@
-# Service Infrastructure
+# Services
 
-Each domain has a single `service.ts` that exports three things: a context key, an interface, and a factory function. This co-location keeps the service contract, creation, and dependency injection in one place.
+Stateless API wrappers that mirror Go domain handlers. Each domain has a PascalCase service object with a `base` path constant. Methods return `Result<T>` for request-response and `AbortController` for streaming. No signals, no context, no state.
 
-## Consolidated Service File
+## Service Pattern
 
 ```typescript
 // documents/service.ts
-import { createContext } from '@lit/context';
-import { Signal } from '@lit-labs/signals';
-import { request, type PageResult, toQueryString, type PageRequest } from '@app/core';
+import {
+  request, toQueryString,
+  type Result, type PageResult, type PageRequest,
+} from '@app/core';
+import type { Document } from './document';
 
-export interface DocumentService {
-  documents: Signal.State<Document[]>;
-  loading: Signal.State<boolean>;
-  error: Signal.State<string | null>;
+const base = '/documents';
 
-  list(params?: PageRequest): void;
-  find(id: string): void;
-  upload(file: File): void;
-  delete(id: string): void;
-}
+export const DocumentService = {
+  async list(params?: PageRequest): Promise<Result<PageResult<Document>>> {
+    return await request<PageResult<Document>>(
+      `${base}${params ? toQueryString(params) : ''}`
+    );
+  },
 
-export const documentServiceContext = createContext<DocumentService>('document-service');
+  async find(id: string): Promise<Result<Document>> {
+    return await request<Document>(`${base}/${id}`);
+  },
 
-export function createDocumentService(): DocumentService {
-  const documents = new Signal.State<Document[]>([]);
-  const loading = new Signal.State<boolean>(false);
-  const error = new Signal.State<string | null>(null);
+  async upload(
+    file: File,
+    externalId: number,
+    platform: string,
+  ): Promise<Result<Document>> {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('external_id', String(externalId));
+    form.append('external_platform', platform);
 
-  return {
-    documents,
-    loading,
-    error,
+    return await request<Document>(base, {
+      method: 'POST',
+      body: form,
+    });
+  },
 
-    async list(params) {
-      loading.set(true);
-      const qs = params ? toQueryString(params) : '';
-      const result = await request<PageResult<Document>>(`/documents${qs}`);
-      if (result.ok) {
-        documents.set(result.data.data);
-      } else {
-        error.set(result.error);
-      }
-      loading.set(false);
-    },
-
-    async find(id) { /* ... */ },
-    async upload(file) { /* ... */ },
-    async delete(id) { /* ... */ },
-  };
-}
+  async delete(id: string): Promise<Result<void>> {
+    return await request<void>(`${base}/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
 ```
 
-## How Services Flow Through the Hierarchy
+## Streaming Endpoints
 
-1. **View creates** the service via factory and `@provide`s it:
+SSE endpoints return `AbortController`. The caller provides `StreamOptions` callbacks, giving the state layer full control over event processing.
 
 ```typescript
-@provide({ context: documentServiceContext })
-private documentService: DocumentService = createDocumentService();
+// classifications/service.ts
+import { stream, type StreamOptions } from '@app/core';
+
+const base = '/classifications';
+
+export const ClassificationService = {
+  classify(documentId: string, options: StreamOptions): AbortController {
+    return stream(`${base}/${documentId}`, options, { method: 'POST' });
+  },
+  // ...other methods
+};
 ```
 
-2. **Stateful components** `@consume` the service from context:
+## Conventions
 
-```typescript
-@consume({ context: documentServiceContext })
-private documentService!: DocumentService;
-```
+- **PascalCase names**: `DocumentService`, `ClassificationService`, `PromptService`, `StorageService`
+- **`base` constant**: Each service captures its API prefix once — methods use `${base}/...`
+- **Mirror Go handlers**: Every handler method has a corresponding service method with matching semantics
+- **`Result<T>` returns**: Request-response methods return `Result<T>` directly from `request()`
+- **`AbortController` returns**: Streaming methods return the controller from `stream()`
+- **No state**: Services never import `Signal`, `createContext`, or `@lit/context`
+- **Domain directories**: Services live in `app/client/<domain>/service.ts`, not in view directories
+- **Barrel exports**: `export { DocumentService } from './service'` — named export, not `export *`
 
-3. **Pure elements** never touch services — they receive data via `@property` and emit events upward.
+## Available Services
 
-## Signal Reactivity
-
-`Signal.State` values are read with `.get()` and written with `.set()`. The `SignalWatcher` mixin on view and stateful components ensures Lit re-renders when any signal read during `render()` changes.
-
-Without `SignalWatcher`, signal changes will not trigger re-renders — this is a common mistake.
-
-```typescript
-// Reading in templates (inside SignalWatcher component)
-${this.service.loading.get() ? html`<p>Loading...</p>` : nothing}
-
-// Writing in service methods
-loading.set(true);
-documents.set(result.data.data);
-```
-
-## Service Conventions
-
-- One `service.ts` per domain (documents, prompts, classifications)
-- Context string keys are kebab-case: `'document-service'`, `'prompt-service'`
-- Factory functions are `createXxxService()` — pure functions, no side effects until called
-- Signals expose `.get()` for reading and `.set()` for writing
-- Error state is `Signal.State<string | null>` — `null` means no error
-- Loading state gates UI to prevent stale data display
+| Service | Domain | Import |
+|---------|--------|--------|
+| `DocumentService` | `documents/` | `import { DocumentService } from '@app/documents'` |
+| `ClassificationService` | `classifications/` | `import { ClassificationService } from '@app/classifications'` |
+| `PromptService` | `prompts/` | `import { PromptService } from '@app/prompts'` |
+| `StorageService` | `storage/` | `import { StorageService } from '@app/storage'` |

@@ -50,7 +50,7 @@ All test authorship is an AI responsibility. Tests live in `tests/` mirroring th
 
 ### Documentation
 
-Godoc comments on exported types, functions, and methods are an AI responsibility. Added after implementation, not in guides.
+Godoc comments on exported Go types, functions, and methods are an AI responsibility. JSDoc comments on exported TypeScript types, interfaces, service objects, and public functions are an AI responsibility. Both are added after implementation, not in guides.
 
 ## Development
 
