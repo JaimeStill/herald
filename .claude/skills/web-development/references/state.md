@@ -114,71 +114,121 @@ private async handleDelete(id: string) {
 }
 ```
 
-## Encapsulated Streaming
+## Streaming Orchestration
 
-SSE operations are owned by the component closest to the concern. A document component that supports classification manages its own stream lifecycle using `@state()` — no shared signal needed.
+SSE operations are owned by the **stateful component** closest to the collection concern — not the pure element that triggered the action. The stateful component calls the streaming service, tracks per-item progress via `@state()`, and passes progress data to pure elements as properties.
+
+This keeps pure elements context-free and reusable. The parent dispatches a single completion event when the operation finishes — the view never sees intermediate progress events.
 
 ```typescript
-@customElement('hd-document-card')
-export class DocumentCard extends SignalWatcher(LitElement) {
-  @property({ type: Object }) document!: Document;
-  @state() private classifyStatus?: string;
-  @state() private classifyNode?: string;
-  @state() private classifyError?: string;
+// Stateful component — owns SSE lifecycle for the collection
+@customElement('hd-document-list')
+export class DocumentList extends SignalWatcher(LitElement) {
+  @consume({ context: documentsContext })
+  private documents!: Signal.State<PageResult<Document> | null>;
 
-  classify() {
-    this.classifyStatus = 'running';
-    this.classifyNode = 'init';
+  @state() private classifying = new Map<string, ClassifyProgress>();
 
-    ClassificationService.classify(this.document.id, {
+  private handleClassify(e: CustomEvent<{ id: string }>) {
+    const docId = e.detail.id;
+    this.classifying.set(docId, { currentNode: 'init', completedNodes: [] });
+    this.requestUpdate();
+
+    ClassificationService.classify(docId, {
       onEvent: (type, data) => {
         const event = JSON.parse(data);
+        const progress = this.classifying.get(docId);
+        if (!progress) return;
+
         switch (type) {
           case 'node.start':
-            this.classifyNode = event.data.node;
+            progress.currentNode = event.data.node;
             break;
           case 'node.complete':
-            if (event.data.error) {
-              this.classifyStatus = 'error';
-              this.classifyError = event.data.error_message;
-            }
+            progress.completedNodes = [...progress.completedNodes, event.data.node];
             break;
           case 'complete':
-            this.classifyStatus = 'complete';
+            this.classifying.delete(docId);
             this.dispatchEvent(new CustomEvent('classify-complete', {
-              detail: { id: this.document.id },
-              bubbles: true,
-              composed: true,
+              bubbles: true, composed: true,
             }));
             break;
           case 'error':
-            this.classifyStatus = 'error';
-            this.classifyError = event.data.message;
+            this.classifying.delete(docId);
             break;
         }
+        this.requestUpdate();
       },
-      onError: (err) => {
-        this.classifyStatus = 'error';
-        this.classifyError = err;
-      },
-      onComplete: () => {
-        if (this.classifyStatus === 'running') {
-          this.classifyStatus = 'error';
-          this.classifyError = 'stream disconnected unexpectedly';
-        }
+      onError: () => {
+        this.classifying.delete(docId);
+        this.requestUpdate();
       },
     });
+  }
+
+  render() {
+    const page = this.documents.get();
+    if (!page) return html`<p>Loading...</p>`;
+
+    return html`
+      ${page.data.map((doc) => {
+        const progress = this.classifying.get(doc.id);
+        return html`
+          <hd-document-card
+            .document=${doc}
+            ?classifying=${progress !== undefined}
+            .currentNode=${progress?.currentNode ?? null}
+            .completedNodes=${progress?.completedNodes ?? []}
+            @classify=${this.handleClassify}
+          ></hd-document-card>
+        `;
+      })}
+    `;
   }
 }
 ```
 
-The parent view listens for `@classify-complete` and refreshes its document list — it never sees intermediate progress events.
+The pure element receives all streaming state as properties and dispatches intent events upward. It has no knowledge of services, SSE, or `AbortController`.
+
+```typescript
+// Pure element — props in, events out
+@customElement('hd-document-card')
+export class DocumentCard extends LitElement {
+  @property({ type: Object }) document!: Document;
+  @property({ type: Boolean }) classifying = false;
+  @property() currentNode: WorkflowStage | null = null;
+  @property({ type: Array }) completedNodes: WorkflowStage[] = [];
+
+  private handleClassify() {
+    this.dispatchEvent(new CustomEvent('classify', {
+      detail: { id: this.document.id },
+      bubbles: true, composed: true,
+    }));
+  }
+
+  render() {
+    return html`
+      <button
+        ?disabled=${this.document.status === 'complete' || this.classifying}
+        @click=${this.handleClassify}
+      >Classify</button>
+      ${this.classifying
+        ? html`<hd-classify-progress
+            .currentNode=${this.currentNode}
+            .completedNodes=${this.completedNodes}
+          ></hd-classify-progress>`
+        : nothing}
+    `;
+  }
+}
+```
 
 ## Conventions
 
-- **Context for shared data only**: Use `@provide`/`@consume` when multiple descendants need the same reactive data
+- **Context for shared data only**: Use `@provide`/`@consume` when multiple descendants need the same reactive data. Pure elements never use context — only views and stateful components.
+- **Streaming in stateful components**: The component managing the collection (list/grid) owns SSE lifecycle. Pure elements receive progress as properties and dispatch intent events.
 - **`@state()` for local concerns**: Classification progress, form errors, UI toggles — use Lit's built-in reactive state
-- **Components call services directly**: No orchestration middleman between services and components
+- **Views and stateful components call services directly**: No orchestration middleman between services and components. Pure elements dispatch events instead.
 - **Events up, data down**: Children dispatch `CustomEvent` to notify parents of outcomes
 - **Signal reads**: `.get()` in templates inside `SignalWatcher` components
 - **Signal writes**: `.set()` in the component that owns the signal

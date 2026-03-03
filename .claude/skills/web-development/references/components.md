@@ -64,7 +64,7 @@ declare global {
 
 ## Stateful Component (consumes state, calls services)
 
-Stateful components receive shared state via `@consume` and call services directly for their own concerns. They bridge shared state with pure elements and manage local UI state with `@state()`.
+Stateful components receive shared state via `@consume` and call services directly for their own concerns. They bridge shared state with pure elements, manage local UI state with `@state()`, and own streaming orchestration for their subtree.
 
 ```typescript
 import { LitElement, html } from 'lit';
@@ -75,8 +75,14 @@ import { DocumentService } from '@app/documents';
 import { ClassificationService } from '@app/classifications';
 import { documentsContext } from '../views/documents/documents-view';
 import type { Document } from '@app/documents';
+import type { WorkflowStage } from '@app/classifications';
 import type { PageResult } from '@app/core';
 import styles from './document-list.module.css';
+
+interface ClassifyProgress {
+  currentNode: WorkflowStage | null;
+  completedNodes: WorkflowStage[];
+}
 
 @customElement('hd-document-list')
 export class DocumentList extends SignalWatcher(LitElement) {
@@ -85,12 +91,50 @@ export class DocumentList extends SignalWatcher(LitElement) {
   @consume({ context: documentsContext })
   private documents!: Signal.State<PageResult<Document> | null>;
 
+  @state() private classifying = new Map<string, ClassifyProgress>();
+
+  private handleClassify(e: CustomEvent<{ id: string }>) {
+    const docId = e.detail.id;
+    this.classifying.set(docId, { currentNode: 'init', completedNodes: [] });
+    this.requestUpdate();
+
+    ClassificationService.classify(docId, {
+      onEvent: (type, data) => {
+        const event = JSON.parse(data);
+        const progress = this.classifying.get(docId);
+        if (!progress) return;
+
+        switch (type) {
+          case 'node.start':
+            progress.currentNode = event.data.node;
+            break;
+          case 'node.complete':
+            progress.completedNodes = [...progress.completedNodes, event.data.node];
+            break;
+          case 'complete':
+            this.classifying.delete(docId);
+            this.dispatchEvent(new CustomEvent('classify-complete', {
+              bubbles: true, composed: true,
+            }));
+            break;
+          case 'error':
+            this.classifying.delete(docId);
+            break;
+        }
+        this.requestUpdate();
+      },
+      onError: () => {
+        this.classifying.delete(docId);
+        this.requestUpdate();
+      },
+    });
+  }
+
   private async handleDelete(e: CustomEvent<{ id: string }>) {
     const result = await DocumentService.delete(e.detail.id);
     if (result.ok) {
       this.dispatchEvent(new CustomEvent('document-deleted', {
-        bubbles: true,
-        composed: true,
+        bubbles: true, composed: true,
       }));
     }
   }
@@ -100,14 +144,19 @@ export class DocumentList extends SignalWatcher(LitElement) {
     if (!page) return html`<p>Loading...</p>`;
     if (page.data.length === 0) return html`<p>No documents</p>`;
 
-    return page.data.map(
-      (doc) => html`
+    return page.data.map((doc) => {
+      const progress = this.classifying.get(doc.id);
+      return html`
         <hd-document-card
           .document=${doc}
+          ?classifying=${progress !== undefined}
+          .currentNode=${progress?.currentNode ?? null}
+          .completedNodes=${progress?.completedNodes ?? []}
+          @classify=${this.handleClassify}
           @delete=${this.handleDelete}
         ></hd-document-card>
-      `
-    );
+      `;
+    });
   }
 
   render() {
@@ -118,12 +167,14 @@ export class DocumentList extends SignalWatcher(LitElement) {
 
 ## Pure Element (stateless)
 
-Pure elements receive data via properties and communicate upward through events. They have no knowledge of services or application state.
+Pure elements receive data via properties and communicate upward through events. They can import immutable domain infrastructure (types, constants, formatters) but never anything that holds or mutates state (services, signals, context, router).
 
 ```typescript
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { formatBytes, formatDate } from '@app/formatting';
 import type { Document } from '@app/documents';
+import type { WorkflowStage } from '@app/classifications';
 import styles from './document-card.module.css';
 
 @customElement('hd-document-card')
@@ -131,9 +182,20 @@ export class DocumentCard extends LitElement {
   static styles = styles;
 
   @property({ type: Object }) document!: Document;
+  @property({ type: Boolean }) classifying = false;
+  @property() currentNode: WorkflowStage | null = null;
+  @property({ type: Array }) completedNodes: WorkflowStage[] = [];
 
-  private handleDelete() {
-    this.dispatchEvent(new CustomEvent('delete', {
+  private handleClassify() {
+    this.dispatchEvent(new CustomEvent('classify', {
+      detail: { id: this.document.id },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  private handleReview() {
+    this.dispatchEvent(new CustomEvent('review', {
       detail: { id: this.document.id },
       bubbles: true,
       composed: true,
@@ -141,11 +203,24 @@ export class DocumentCard extends LitElement {
   }
 
   render() {
+    const doc = this.document;
     return html`
       <div class="card">
-        <h3>${this.document.filename}</h3>
-        <p>${this.document.status}</p>
-        <button @click=${this.handleDelete}>Delete</button>
+        <span class="filename">${doc.filename}</span>
+        <span class="badge ${doc.status}">${doc.status}</span>
+        <span>${formatBytes(doc.size_bytes)}</span>
+        <span>${formatDate(doc.uploaded_at)}</span>
+        ${this.classifying
+          ? html`<hd-classify-progress
+              .currentNode=${this.currentNode}
+              .completedNodes=${this.completedNodes}
+            ></hd-classify-progress>`
+          : nothing}
+        <button
+          ?disabled=${doc.status === 'complete' || this.classifying}
+          @click=${this.handleClassify}
+        >Classify</button>
+        <button @click=${this.handleReview}>Review</button>
       </div>
     `;
   }
