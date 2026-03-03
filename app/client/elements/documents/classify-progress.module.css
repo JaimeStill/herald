@@ -1,0 +1,75 @@
+:host {
+  display: block;
+}
+
+.pipeline {
+  display: flex;
+  position: relative;
+  padding: 0 var(--space-2);
+}
+
+.pipeline::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: calc(var(--space-2) + 5px);
+  right: calc(var(--space-2) + 5px);
+  height: 2px;
+  background: var(--divider);
+}
+
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-2);
+  border: 2px solid var(--divider);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.stage.completed .indicator {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.stage.active .indicator {
+  background: var(--blue);
+  border-color: var(--blue);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.label {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-2);
+  text-transform: capitalize;
+}
+
+.stage.completed .label {
+  color: var(--green);
+}
+
+.stage.active .label {
+  color: var(--blue);
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}

@@ -1,3 +1,11 @@
+/** A stage in the classification workflow pipeline. */
+export type WorkflowStage = 'init' | 'classify' | 'enhance' | 'finalize';
+
+/** Ordered list of all classification workflow stages. */
+export const WORKFLOW_STAGES: readonly WorkflowStage[] = [
+  'init', 'classify', 'enhance', 'finalize'
+];
+
 /**
  * Classification result for a document.
  * Mirrors Go `classifications.Classification` struct.

@@ -33,7 +33,7 @@ description: >
 
 | Concern | Location | Purpose |
 |---------|----------|---------|
-| Services | `app/client/<domain>/service.ts` | Stateless API wrappers mirroring Go handlers |
+| Services | `app/client/<domain>/service.ts` | Stateless API wrappers mirroring Go handlers. Called by views and stateful components only. |
 | Shared state | View/component class fields | `Signal.State` signals shared via `@lit/context` |
 | Local state | `@state()` decorator | Per-component reactive state (progress, errors, UI toggles) |
 
@@ -47,7 +47,7 @@ Each tier has a specific role. Violating the boundaries (e.g., a pure element di
 |------|------|-------|---------|
 | View | Call services, provide shared signals, route-level | `@provide`, `SignalWatcher`, services | `hd-documents-view` |
 | Stateful Component | Consume shared state, call services for own concerns | `@consume`, `@state()`, services, events | `hd-document-list` |
-| Pure Element | Props in, events out | `@property`, `CustomEvent` | `hd-document-card` |
+| Pure Element | Props in, events out | `@property`, `CustomEvent`. Imports `lit`, own CSS module, and immutable domain infrastructure (types, constants). | `hd-document-card` |
 
 ## Reference Guide
 
@@ -116,12 +116,13 @@ Domain infrastructure (types, services) lives in domain directories. Views, comp
 ```
 app/client/
 ├── core/                            # API layer (request, stream, types)
+├── formatting/                      # shared formatting utilities (formatBytes, formatDate)
 ├── documents/                       # domain: types + service
 │   ├── document.ts                  # Document, DocumentStatus
 │   ├── service.ts                   # DocumentService (stateless)
 │   └── index.ts                     # barrel
-├── classifications/                 # domain: types + service
-│   ├── classification.ts            # Classification
+├── classifications/                 # domain: types + service + constants
+│   ├── classification.ts            # Classification, WorkflowStage, WORKFLOW_STAGES
 │   ├── service.ts                   # ClassificationService (stateless)
 │   └── index.ts                     # barrel
 ├── prompts/                         # domain: types + service
@@ -131,13 +132,20 @@ app/client/
 │       ├── index.ts                 # barrel (view component only)
 │       ├── documents-view.ts        # @customElement('hd-documents-view')
 │       └── documents-view.module.css
-├── components/                      # stateful components (@consume)
+├── components/                      # stateful components (@consume, service calls)
+│   └── documents/                   # domain-scoped components
 ├── elements/                        # pure elements (props/events)
+│   └── documents/                   # domain-scoped elements
+│       ├── document-card.ts         # @customElement('hd-document-card')
+│       ├── document-card.module.css
+│       ├── classify-progress.ts     # @customElement('hd-classify-progress')
+│       ├── classify-progress.module.css
+│       └── index.ts                 # barrel
 ├── router/
 └── design/
 ```
 
-**Domain directories** export types and stateless services. **View directories** export view components. **Components** and **elements** are shared across views.
+**Domain directories** export types, constants, and stateless services. **Component type directories** (`views/`, `components/`, `elements/`) each use domain subdirectories mirroring the domain infrastructure layout. Elements and components are registered via side-effect imports in `app.ts`.
 
 ### Path Alias
 
@@ -169,7 +177,7 @@ declare global {
 - Skipping `SignalWatcher` mixin when consuming signal-based state (reactivity won't work)
 - Putting signals or context in service files — services are stateless API wrappers
 - Creating state orchestration layers between services and components — components call services directly
-- Pure elements calling services — only views and stateful components should import services
+- Pure elements importing stateful infrastructure — services, signals, context (`@provide`/`@consume`), `SignalWatcher`, or router utilities. Elements can import immutable domain infrastructure (types, constants, formatters) but never anything that holds or mutates state.
 - Using `height: 100%` in flex containers — use `flex: 1` with `min-height: 0`
 - Forgetting `min-height: 0` on flex children that need scroll boundaries
 - Using inline `style` attributes — use CSS classes and custom properties
@@ -188,3 +196,4 @@ declare global {
 - FormData extraction over controlled inputs for form handling
 - `disconnectedCallback` cleanup for blob URLs and event listeners
 - Event delegation at the list level over individual handlers on each item
+- Domain types and constants in pure elements — immutable domain knowledge is fine, stateful behavior is not

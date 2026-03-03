@@ -1,4 +1,5 @@
 import './design/index.css';
+import './elements';
 import './views';
 
 import { Router } from '@app/router';
