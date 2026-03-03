@@ -35,3 +35,15 @@ func Parse[T any](content string) (T, error) {
 
 	return result, fmt.Errorf("%w: %s", ErrParseFailed, content)
 }
+
+// FromMap decodes a map[string]any into a typed struct via JSON round-trip.
+// Useful for converting observability event data into domain-specific types.
+func FromMap[T any](data map[string]any) (T, error) {
+	var result T
+	b, err := json.Marshal(data)
+	if err != nil {
+		return result, err
+	}
+	err = json.Unmarshal(b, &result)
+	return result, err
+}

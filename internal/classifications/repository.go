@@ -112,7 +112,7 @@ func (r *repo) FindByDocument(ctx context.Context, documentID uuid.UUID) (*Class
 }
 
 func (r *repo) Classify(ctx context.Context, documentID uuid.UUID) (*Classification, error) {
-	result, err := workflow.Execute(ctx, r.rt, documentID)
+	result, err := workflow.Execute(ctx, r.rt, documentID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("classify document %s: %w", documentID, err)
 	}
