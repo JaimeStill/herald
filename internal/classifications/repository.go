@@ -21,6 +21,8 @@ import (
 	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
 )
 
+const streamBufferSize = 32
+
 type repo struct {
 	db         *sql.DB
 	rt         *workflow.Runtime
@@ -111,19 +113,30 @@ func (r *repo) FindByDocument(ctx context.Context, documentID uuid.UUID) (*Class
 	return &c, nil
 }
 
-func (r *repo) Classify(ctx context.Context, documentID uuid.UUID) (*Classification, error) {
-	result, err := workflow.Execute(ctx, r.rt, documentID, nil)
-	if err != nil {
-		return nil, fmt.Errorf("classify document %s: %w", documentID, err)
+func (r *repo) Classify(ctx context.Context, documentID uuid.UUID) (<-chan workflow.ExecutionEvent, error) {
+	if _, err := r.rt.Documents.Find(ctx, documentID); err != nil {
+		return nil, fmt.Errorf("document %s: %w", documentID, err)
 	}
 
-	markings := collectMarkings(result.State.Pages)
-	markingsJSON, err := json.Marshal(markings)
-	if err != nil {
-		return nil, fmt.Errorf("marshal markings: %w", err)
-	}
+	observer := workflow.NewStreamingObserver(streamBufferSize)
 
-	upsertQ := `
+	go func() {
+		defer observer.Close()
+
+		result, err := workflow.Execute(ctx, r.rt, documentID, observer)
+		if err != nil {
+			observer.SendError(fmt.Errorf("classify document: %s: %w", documentID, err), "")
+			return
+		}
+
+		markings := collectMarkings(result.State.Pages)
+		markingsJSON, err := json.Marshal(markings)
+		if err != nil {
+			observer.SendError(fmt.Errorf("marshal markings: %w", err), "")
+			return
+		}
+
+		upsertQ := `
 		INSERT INTO classifications(
 			document_id, classification, confidence, markings_found,
 			rationale, model_name, provider_name
@@ -143,44 +156,61 @@ func (r *repo) Classify(ctx context.Context, documentID uuid.UUID) (*Classificat
 				  rationale, classified_at, model_name, provider_name,
 				  validated_by, validated_at`
 
-	upsertArgs := []any{
-		documentID,
-		result.State.Classification,
-		string(result.State.Confidence),
-		markingsJSON,
-		result.State.Rationale,
-		r.rt.Agent.Model.Name,
-		r.rt.Agent.Provider.Name,
-	}
-
-	c, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (Classification, error) {
-		cl, err := repository.QueryOne(ctx, tx, upsertQ, upsertArgs, scanClassification)
-		if err != nil {
-			return Classification{}, fmt.Errorf("upsert classification: %w", err)
-		}
-
-		if err := repository.ExecExpectOne(
-			ctx, tx,
-			"UPDATE documents SET status = 'review', updated_at = NOW() WHERE id = $1",
+		upsertArgs := []any{
 			documentID,
-		); err != nil {
-			return Classification{}, fmt.Errorf("update document status: %w", err)
+			result.State.Classification,
+			string(result.State.Confidence),
+			markingsJSON,
+			result.State.Rationale,
+			r.rt.Agent.Model.Name,
+			r.rt.Agent.Provider.Name,
 		}
 
-		return cl, nil
-	})
+		c, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (Classification, error) {
+			cl, err := repository.QueryOne(ctx, tx, upsertQ, upsertArgs, scanClassification)
+			if err != nil {
+				return Classification{}, fmt.Errorf("upsert classification: %w", err)
+			}
 
-	if err != nil {
-		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
-	}
+			if err := repository.ExecExpectOne(
+				ctx, tx,
+				"UPDATE documents SET status = 'review', updated_at = NOW() WHERE id = $1",
+				documentID,
+			); err != nil {
+				return Classification{}, fmt.Errorf("update document status: %w", err)
+			}
 
-	r.logger.Info("document classified",
-		"id", c.ID,
-		"document_id", documentID,
-		"classification", c.Classification,
-		"confidence", c.Confidence,
-	)
-	return &c, nil
+			return cl, nil
+		})
+
+		if err != nil {
+			observer.SendError(err, "")
+			return
+		}
+
+		r.logger.Info("document classified",
+			"id", c.ID,
+			"document_id", documentID,
+			"classification", c.Classification,
+			"confidence", c.Confidence,
+		)
+
+		classBytes, err := json.Marshal(c)
+		if err != nil {
+			observer.SendError(fmt.Errorf("marshal classification: %w", err), "")
+			return
+		}
+
+		var classMap map[string]any
+		if err := json.Unmarshal(classBytes, &classMap); err != nil {
+			observer.SendError(fmt.Errorf("unmarshal classification map: %w", err), "")
+			return
+		}
+
+		observer.SendComplete(classMap)
+	}()
+
+	return observer.Events(), nil
 }
 
 func (r *repo) Validate(ctx context.Context, id uuid.UUID, cmd ValidateCommand) (*Classification, error) {
