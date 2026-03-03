@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.59.74
+- Add web client data layer — enhance SSE `stream()` with event type parsing and POST support, TypeScript domain types mirroring Go API shapes, and stateless service objects mapping all handler endpoints across documents, classifications, prompts, and storage domains (#74)
+
 ## v0.3.0-dev.58.71
 - Add SSE classification streaming — modify `POST /api/classifications/{documentId}` to return an SSE event stream with real-time workflow progress (node.start, node.complete, complete, error events) and persisted classification result on completion (#71)
 

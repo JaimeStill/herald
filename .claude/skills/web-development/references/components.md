@@ -2,32 +2,56 @@
 
 Herald uses a three-tier component hierarchy. Each tier has a distinct responsibility, and crossing boundaries (e.g., a pure element calling an API) creates hidden coupling that makes components harder to test and reuse.
 
-## View Component (provides services)
+## View Component (provides shared state)
 
-Views are route-level components. They create services and make them available to their subtree via `@provide`. `SignalWatcher` ensures the view re-renders when signal state changes.
+Views are route-level components. They call services, manage shared reactive state via `Signal.State`, and `@provide` it to their subtree. `SignalWatcher` ensures the view re-renders when signal state changes.
 
 ```typescript
 import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import { provide } from '@lit/context';
-import { SignalWatcher } from '@lit-labs/signals';
-import { documentServiceContext, createDocumentService, DocumentService } from './service';
+import { createContext } from '@lit/context';
+import { SignalWatcher, Signal } from '@lit-labs/signals';
+import { DocumentService } from '@app/documents';
+import type { Document } from '@app/documents';
+import type { PageResult, PageRequest } from '@app/core';
 import styles from './documents-view.module.css';
+
+export const documentsContext =
+  createContext<Signal.State<PageResult<Document> | null>>('documents');
 
 @customElement('hd-documents-view')
 export class DocumentsView extends SignalWatcher(LitElement) {
   static styles = styles;
 
-  @provide({ context: documentServiceContext })
-  private documentService: DocumentService = createDocumentService();
+  @provide({ context: documentsContext })
+  private documents = new Signal.State<PageResult<Document> | null>(null);
 
-  connectedCallback() {
+  async connectedCallback() {
     super.connectedCallback();
-    this.documentService.list();
+    await this.refresh();
+  }
+
+  private async refresh(params?: PageRequest) {
+    const result = await DocumentService.list(params);
+    if (result.ok) this.documents.set(result.data);
+  }
+
+  private handleDocumentDeleted() {
+    this.refresh();
+  }
+
+  private handleClassifyComplete() {
+    this.refresh();
   }
 
   render() {
-    return html`<hd-document-list></hd-document-list>`;
+    return html`
+      <hd-document-list
+        @document-deleted=${this.handleDocumentDeleted}
+        @classify-complete=${this.handleClassifyComplete}
+      ></hd-document-list>
+    `;
   }
 }
 
@@ -38,31 +62,45 @@ declare global {
 }
 ```
 
-## Stateful Component (consumes services)
+## Stateful Component (consumes state, calls services)
 
-Stateful components receive services via `@consume` and coordinate UI interactions. They bridge the service layer with pure elements.
+Stateful components receive shared state via `@consume` and call services directly for their own concerns. They bridge shared state with pure elements and manage local UI state with `@state()`.
 
 ```typescript
 import { LitElement, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { consume } from '@lit/context';
-import { SignalWatcher } from '@lit-labs/signals';
-import { documentServiceContext, DocumentService } from './service';
+import { SignalWatcher, Signal } from '@lit-labs/signals';
+import { DocumentService } from '@app/documents';
+import { ClassificationService } from '@app/classifications';
+import { documentsContext } from '../views/documents/documents-view';
+import type { Document } from '@app/documents';
+import type { PageResult } from '@app/core';
 import styles from './document-list.module.css';
 
 @customElement('hd-document-list')
 export class DocumentList extends SignalWatcher(LitElement) {
   static styles = styles;
 
-  @consume({ context: documentServiceContext })
-  private documentService!: DocumentService;
+  @consume({ context: documentsContext })
+  private documents!: Signal.State<PageResult<Document> | null>;
 
-  private handleDelete(e: CustomEvent<{ id: string }>) {
-    this.documentService.delete(e.detail.id);
+  private async handleDelete(e: CustomEvent<{ id: string }>) {
+    const result = await DocumentService.delete(e.detail.id);
+    if (result.ok) {
+      this.dispatchEvent(new CustomEvent('document-deleted', {
+        bubbles: true,
+        composed: true,
+      }));
+    }
   }
 
   private renderDocuments() {
-    return this.documentService.documents.get().map(
+    const page = this.documents.get();
+    if (!page) return html`<p>Loading...</p>`;
+    if (page.data.length === 0) return html`<p>No documents</p>`;
+
+    return page.data.map(
       (doc) => html`
         <hd-document-card
           .document=${doc}
@@ -85,7 +123,7 @@ Pure elements receive data via properties and communicate upward through events.
 ```typescript
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { Document } from '../types';
+import type { Document } from '@app/documents';
 import styles from './document-card.module.css';
 
 @customElement('hd-document-card')
@@ -124,9 +162,8 @@ Extract complex template logic into private `renderXxx()` methods. Use `nothing`
 import { nothing } from 'lit';
 
 private renderError() {
-  const error = this.service.error.get();
-  if (!error) return nothing;
-  return html`<div class="error">${error}</div>`;
+  if (!this.error) return nothing;
+  return html`<div class="error">${this.error}</div>`;
 }
 
 render() {
@@ -142,19 +179,28 @@ render() {
 Extract values via FormData on submit rather than tracking controlled inputs:
 
 ```typescript
-private handleSubmit(e: Event) {
+private async handleSubmit(e: Event) {
   e.preventDefault();
   const form = e.target as HTMLFormElement;
   const data = new FormData(form);
-  this.service.save({
+
+  const result = await PromptService.create({
     name: data.get('name') as string,
+    stage: data.get('stage') as PromptStage,
+    instructions: data.get('instructions') as string,
   });
+
+  if (result.ok) {
+    this.dispatchEvent(new CustomEvent('prompt-created', {
+      bubbles: true, composed: true,
+    }));
+  }
 }
 
 render() {
   return html`
     <form @submit=${this.handleSubmit}>
-      <input name="name" .value=${this.item.name} required />
+      <input name="name" required />
       <button type="submit">Save</button>
     </form>
   `;

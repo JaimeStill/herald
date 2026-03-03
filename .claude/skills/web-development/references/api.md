@@ -55,48 +55,126 @@ const result = await request<Document>('/documents', {
 
 // DELETE
 const result = await request<void>(`/documents/${id}`, { method: 'DELETE' });
+
+// Custom parse (non-JSON response)
+const result = await request<Blob>(
+  `/storage/download/${key}`,
+  undefined,
+  (res) => res.blob(),
+);
 ```
 
 ## stream()
 
-SSE client for classification progress. Returns an `AbortController` for cancellation.
+SSE client for server-sent event streams. Returns an `AbortController` for cancellation. Accepts an optional `RequestInit` for non-GET requests (e.g., POST for classification).
 
 ```typescript
 function stream(
   path: string,
-  callbacks: {
-    onMessage: (data: string) => void;
-    onError?: (err: string) => void;
-    onComplete?: () => void;
-  }
+  options: StreamOptions,
+  init?: RequestInit,
 ): AbortController
 ```
 
-Behavior:
-- Parses SSE `data:` lines
-- Recognizes `[DONE]` as the completion signal
-- Calls `onComplete` when the stream ends normally
-- Calls `onError` on fetch failure or stream errors
+### StreamOptions
+
+```typescript
+interface StreamOptions {
+  onEvent: (type: string, data: string) => void;
+  onError?: (error: string) => void;
+  onComplete?: () => void;
+  signal?: AbortSignal;
+}
+```
+
+### Behavior
+
+- Merges `init` with the abort signal: `fetch(\`${BASE}${path}\`, { ...init, signal })`
+- Parses SSE `event:` lines to track the current event type (defaults to `'message'`)
+- Pairs each `data:` line with the current event type, then dispatches via `onEvent(type, data)`
+- Resets event type to `'message'` after each `data:` dispatch
+- Calls `onComplete()` when the reader reports `done`
+- Calls `onError()` on fetch failure or non-ok response (ignores `AbortError`)
+
+### Event Parsing
+
+The SSE format uses `event:` and `data:` line pairs:
+
+```
+event: node.start
+data: {"type":"node.start","timestamp":"...","data":{"node":"classify"}}
+
+event: node.complete
+data: {"type":"node.complete","timestamp":"...","data":{"node":"classify"}}
+
+event: complete
+data: {"type":"complete","timestamp":"...","data":{}}
+```
+
+The parser tracks the current event type from `event:` lines and pairs it with the next `data:` line:
+
+```typescript
+let currentEvent = 'message';
+
+for (const line of lines) {
+  if (line.startsWith('event: ')) {
+    currentEvent = line.slice(7).trim();
+  } else if (line.startsWith('data: ')) {
+    const data = line.slice(6).trim();
+    options.onEvent(currentEvent, data);
+    currentEvent = 'message';
+  }
+}
+```
 
 ### Usage Example
 
 ```typescript
-const controller = stream(`/classifications/${documentId}/stream`, {
-  onMessage(data) {
+const controller = ClassificationService.classify(documentId, {
+  onEvent(type, data) {
     const event = JSON.parse(data);
-    // Update progress UI
+    switch (type) {
+      case 'node.start':
+        // Update progress UI with event.data.node
+        break;
+      case 'node.complete':
+        if (event.data.error) {
+          // Handle node-level error
+        }
+        break;
+      case 'complete':
+        // Classification finished
+        break;
+      case 'error':
+        // Workflow-level error
+        break;
+    }
   },
   onError(err) {
-    console.error('Stream error:', err);
+    // Fetch/network failure
   },
   onComplete() {
-    // Classification finished, refresh data
+    // Stream ended (reader done)
   },
 });
 
 // Cancel if needed
 controller.abort();
 ```
+
+## ExecutionEvent
+
+Typed structure for SSE events from the classification workflow:
+
+```typescript
+interface ExecutionEvent {
+  type: string;
+  timestamp: string;
+  data: Record<string, unknown>;
+}
+```
+
+Lives in `core/api.ts` as SSE streaming infrastructure. The `data` field in `onEvent` callbacks is the raw JSON string — parse it to get the `ExecutionEvent` shape.
 
 ## Pagination Helpers
 
