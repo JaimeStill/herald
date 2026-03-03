@@ -12,6 +12,51 @@ type sample struct {
 	Value int    `json:"value"`
 }
 
+func TestFromMap(t *testing.T) {
+	t.Run("decodes matching struct", func(t *testing.T) {
+		data := map[string]any{"name": "test", "value": float64(42)}
+		got, err := formatting.FromMap[sample](data)
+		if err != nil {
+			t.Fatalf("FromMap error: %v", err)
+		}
+		if got.Name != "test" || got.Value != 42 {
+			t.Errorf("FromMap = %+v, want {Name:test Value:42}", got)
+		}
+	})
+
+	t.Run("decodes into map type", func(t *testing.T) {
+		data := map[string]any{"key": "value", "count": float64(3)}
+		got, err := formatting.FromMap[map[string]any](data)
+		if err != nil {
+			t.Fatalf("FromMap error: %v", err)
+		}
+		if got["key"] != "value" {
+			t.Errorf("got[key] = %v, want value", got["key"])
+		}
+	})
+
+	t.Run("nil map returns zero value", func(t *testing.T) {
+		got, err := formatting.FromMap[sample](nil)
+		if err != nil {
+			t.Fatalf("FromMap error: %v", err)
+		}
+		if got.Name != "" || got.Value != 0 {
+			t.Errorf("FromMap = %+v, want zero value", got)
+		}
+	})
+
+	t.Run("ignores unknown fields", func(t *testing.T) {
+		data := map[string]any{"name": "test", "value": float64(1), "extra": "ignored"}
+		got, err := formatting.FromMap[sample](data)
+		if err != nil {
+			t.Fatalf("FromMap error: %v", err)
+		}
+		if got.Name != "test" || got.Value != 1 {
+			t.Errorf("FromMap = %+v, want {Name:test Value:1}", got)
+		}
+	})
+}
+
 func TestParse(t *testing.T) {
 	t.Run("direct JSON", func(t *testing.T) {
 		got, err := formatting.Parse[sample](`{"name":"test","value":42}`)

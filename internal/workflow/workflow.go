@@ -17,14 +17,14 @@ import (
 // a temp directory for page images (cleaned up via defer), builds the state
 // graph (init → classify → enhance? → finalize), executes it, and extracts
 // the WorkflowResult from the final state.
-func Execute(ctx context.Context, rt *Runtime, documentID uuid.UUID) (*WorkflowResult, error) {
+func Execute(ctx context.Context, rt *Runtime, documentID uuid.UUID, observer *StreamingObserver) (*WorkflowResult, error) {
 	tempDir, err := os.MkdirTemp("", "herald-classify-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	graph, err := buildGraph(rt)
+	graph, err := buildGraph(rt, observer)
 	if err != nil {
 		return nil, fmt.Errorf("build graph: %w", err)
 	}
@@ -41,11 +41,10 @@ func Execute(ctx context.Context, rt *Runtime, documentID uuid.UUID) (*WorkflowR
 	return extractResult(finalState)
 }
 
-func buildGraph(rt *Runtime) (state.StateGraph, error) {
+func buildGraph(rt *Runtime, observer *StreamingObserver) (state.StateGraph, error) {
 	cfg := gaoconfig.DefaultGraphConfig("herald-classify")
-	cfg.Observer = "noop"
 
-	graph, err := state.NewGraph(cfg)
+	graph, err := state.NewGraphWithDeps(cfg, observer, nil)
 	if err != nil {
 		return nil, err
 	}

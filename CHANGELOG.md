@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.58.70
+- Add workflow streaming observer with channel-based event emission, lean event type filtering (node.start, node.complete, complete, error), generic `FromMap[T]` map decoder, and `NewGraphWithDeps` observer injection (#70)
+
 ## v0.3.0-dev.57.64
 - Add Go web app module with embedded client assets, SPA shell template, server integration alongside API module, Air hot reload configuration, and mise dev workflow tasks (#64)
 
