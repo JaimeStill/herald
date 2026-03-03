@@ -153,11 +153,13 @@ curl -s -X POST "$HERALD_API_BASE/api/classifications/search" \
 
 ---
 
-## Classify Document
+## Classify Document (SSE)
 
 `POST /api/classifications/{documentId}`
 
-Executes the classification workflow for a single document. Runs the full workflow graph (init, classify, enhance?, finalize), upserts the classification result, and transitions the document status to `review`. Re-classification overwrites any existing result and resets validation fields.
+Initiates the classification workflow for a document and streams progress events via Server-Sent Events. Runs the full workflow graph (init, classify, enhance?, finalize), then persists the classification result and transitions the document status to `review`. Re-classification overwrites any existing result and resets validation fields.
+
+Pre-stream errors (invalid UUID, document not found) return a standard JSON error response. Once the stream begins, errors are delivered as SSE `error` events.
 
 ### Path Parameters
 
@@ -165,17 +167,26 @@ Executes the classification workflow for a single document. Runs the full workfl
 |-----------|------|-------------|
 | documentId | uuid | Document UUID to classify |
 
+### SSE Event Types
+
+| Event | Description | Data Fields |
+|-------|-------------|-------------|
+| `node.start` | Workflow node begins execution | `node`, `iteration` |
+| `node.complete` | Workflow node finished successfully | `node`, `iteration` |
+| `error` | Error during workflow or persistence | `message`, optionally `node` |
+| `complete` | Classification finished and persisted | Full classification object |
+
 ### Responses
 
 | Status | Description |
 |--------|-------------|
-| 201 | Classification created |
-| 404 | Document not found |
+| 200 | SSE event stream (Content-Type: text/event-stream) |
+| 404 | Document not found (JSON error, before stream starts) |
 
 ### Example
 
 ```bash
-curl -s -X POST "$HERALD_API_BASE/api/classifications/660e8400-e29b-41d4-a716-446655440000" | jq .
+curl -s -N -X POST "$HERALD_API_BASE/api/classifications/660e8400-e29b-41d4-a716-446655440000"
 ```
 
 ---

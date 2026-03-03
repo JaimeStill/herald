@@ -2,6 +2,7 @@ package classifications
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -122,8 +123,9 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	handlers.RespondJSON(w, http.StatusOK, result)
 }
 
-// Classify executes the classification workflow for a document identified by the documentId path parameter.
-// Returns 201 with the classification result on success.
+// Classify initiates the classification workflow for a document and streams progress
+// via Server-Sent Events. Pre-stream errors (invalid UUID, document not found) return
+// JSON. Once streaming begins, errors arrive as SSE error events on the channel.
 func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 	documentID, err := uuid.Parse(r.PathValue("documentId"))
 	if err != nil {
@@ -131,13 +133,41 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := h.sys.Classify(r.Context(), documentID)
+	events, err := h.sys.Classify(r.Context(), documentID)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
 		return
 	}
 
-	handlers.RespondJSON(w, http.StatusCreated, c)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	for event := range events {
+		select {
+		case <-r.Context().Done():
+			return
+		default:
+		}
+
+		data, err := json.Marshal(event)
+		if err != nil {
+			h.logger.Error("failed to marshal event", "error", err)
+			continue
+		}
+
+		fmt.Fprintf(w, "event: %s\n", event.Type)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
 }
 
 // Validate marks a classification as human-validated by decoding a ValidateCommand JSON body.

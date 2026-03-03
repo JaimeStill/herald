@@ -53,9 +53,10 @@ Content-Type: application/json
 }
 
 
-### Classify Document
+### Classify Document (SSE)
 
 # Replace with a valid document ID
+# Response is an SSE event stream (text/event-stream)
 
 @documentId = 660e8400-e29b-41d4-a716-446655440000
 

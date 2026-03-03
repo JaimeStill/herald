@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.58.71
+- Add SSE classification streaming — modify `POST /api/classifications/{documentId}` to return an SSE event stream with real-time workflow progress (node.start, node.complete, complete, error events) and persisted classification result on completion (#71)
+
 ## v0.3.0-dev.58.70
 - Add workflow streaming observer with channel-based event emission, lean event type filtering (node.start, node.complete, complete, error), generic `FromMap[T]` map decoder, and `NewGraphWithDeps` observer injection (#70)
 

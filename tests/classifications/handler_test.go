@@ -1,6 +1,7 @@
 package classifications_test
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -8,12 +9,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/JaimeStill/herald/internal/classifications"
+	"github.com/JaimeStill/herald/internal/workflow"
 	"github.com/JaimeStill/herald/pkg/pagination"
 )
 
@@ -21,7 +24,7 @@ type mockSystem struct {
 	listFn           func(ctx context.Context, page pagination.PageRequest, filters classifications.Filters) (*pagination.PageResult[classifications.Classification], error)
 	findFn           func(ctx context.Context, id uuid.UUID) (*classifications.Classification, error)
 	findByDocumentFn func(ctx context.Context, documentID uuid.UUID) (*classifications.Classification, error)
-	classifyFn       func(ctx context.Context, documentID uuid.UUID) (*classifications.Classification, error)
+	classifyFn       func(ctx context.Context, documentID uuid.UUID) (<-chan workflow.ExecutionEvent, error)
 	validateFn       func(ctx context.Context, id uuid.UUID, cmd classifications.ValidateCommand) (*classifications.Classification, error)
 	updateFn         func(ctx context.Context, id uuid.UUID, cmd classifications.UpdateCommand) (*classifications.Classification, error)
 	deleteFn         func(ctx context.Context, id uuid.UUID) error
@@ -43,7 +46,7 @@ func (m *mockSystem) FindByDocument(ctx context.Context, documentID uuid.UUID) (
 	return m.findByDocumentFn(ctx, documentID)
 }
 
-func (m *mockSystem) Classify(ctx context.Context, documentID uuid.UUID) (*classifications.Classification, error) {
+func (m *mockSystem) Classify(ctx context.Context, documentID uuid.UUID) (<-chan workflow.ExecutionEvent, error) {
 	return m.classifyFn(ctx, documentID)
 }
 
@@ -357,35 +360,74 @@ func TestHandlerSearch(t *testing.T) {
 }
 
 func TestHandlerClassify(t *testing.T) {
-	c := sampleClassification()
+	docID := uuid.MustParse("660e8400-e29b-41d4-a716-446655440000")
 
-	t.Run("classifies document", func(t *testing.T) {
+	t.Run("streams SSE events", func(t *testing.T) {
 		var capturedDocID uuid.UUID
 		sys := &mockSystem{
-			classifyFn: func(_ context.Context, docID uuid.UUID) (*classifications.Classification, error) {
-				capturedDocID = docID
-				return &c, nil
+			classifyFn: func(_ context.Context, id uuid.UUID) (<-chan workflow.ExecutionEvent, error) {
+				capturedDocID = id
+				ch := make(chan workflow.ExecutionEvent, 3)
+				ch <- workflow.ExecutionEvent{Type: workflow.NodeStart, Timestamp: time.Now(), Data: map[string]any{"node": "init", "iteration": 1}}
+				ch <- workflow.ExecutionEvent{Type: workflow.NodeComplete, Timestamp: time.Now(), Data: map[string]any{"node": "init", "iteration": 1}}
+				ch <- workflow.ExecutionEvent{Type: workflow.Complete, Timestamp: time.Now(), Data: map[string]any{"classification": "SECRET"}}
+				close(ch)
+				return ch, nil
 			},
 		}
 		mux := setupMux(newTestHandler(sys))
 
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest("POST", "/classifications/"+c.DocumentID.String(), nil)
+		req := httptest.NewRequest("POST", "/classifications/"+docID.String(), nil)
 		mux.ServeHTTP(rec, req)
 
-		if rec.Code != http.StatusCreated {
-			t.Fatalf("status = %d, want 201", rec.Code)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
 		}
-		if capturedDocID != c.DocumentID {
-			t.Errorf("documentId = %v, want %v", capturedDocID, c.DocumentID)
+		if capturedDocID != docID {
+			t.Errorf("documentId = %v, want %v", capturedDocID, docID)
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != "text/event-stream" {
+			t.Errorf("Content-Type = %q, want text/event-stream", ct)
+		}
+		if cc := rec.Header().Get("Cache-Control"); cc != "no-cache" {
+			t.Errorf("Cache-Control = %q, want no-cache", cc)
 		}
 
-		var got classifications.Classification
-		if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
-			t.Fatalf("decode: %v", err)
+		// Parse SSE events from response body
+		var events []struct {
+			eventType string
+			data      string
 		}
-		if got.Classification != "SECRET" {
-			t.Errorf("classification = %q, want SECRET", got.Classification)
+		scanner := bufio.NewScanner(rec.Body)
+		var currentType, currentData string
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "event: ") {
+				currentType = strings.TrimPrefix(line, "event: ")
+			} else if strings.HasPrefix(line, "data: ") {
+				currentData = strings.TrimPrefix(line, "data: ")
+			} else if line == "" && currentType != "" {
+				events = append(events, struct {
+					eventType string
+					data      string
+				}{currentType, currentData})
+				currentType = ""
+				currentData = ""
+			}
+		}
+
+		if len(events) != 3 {
+			t.Fatalf("event count = %d, want 3", len(events))
+		}
+		if events[0].eventType != "node.start" {
+			t.Errorf("event[0].type = %q, want node.start", events[0].eventType)
+		}
+		if events[1].eventType != "node.complete" {
+			t.Errorf("event[1].type = %q, want node.complete", events[1].eventType)
+		}
+		if events[2].eventType != "complete" {
+			t.Errorf("event[2].type = %q, want complete", events[2].eventType)
 		}
 	})
 
@@ -402,9 +444,9 @@ func TestHandlerClassify(t *testing.T) {
 		}
 	})
 
-	t.Run("system error maps to status", func(t *testing.T) {
+	t.Run("pre-stream error returns JSON", func(t *testing.T) {
 		sys := &mockSystem{
-			classifyFn: func(_ context.Context, _ uuid.UUID) (*classifications.Classification, error) {
+			classifyFn: func(_ context.Context, _ uuid.UUID) (<-chan workflow.ExecutionEvent, error) {
 				return nil, classifications.ErrNotFound
 			},
 		}
@@ -416,6 +458,9 @@ func TestHandlerClassify(t *testing.T) {
 
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("status = %d, want 404", rec.Code)
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+			t.Errorf("Content-Type = %q, want application/json for pre-stream error", ct)
 		}
 	})
 }
