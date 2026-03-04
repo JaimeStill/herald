@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.59.76
+- Add document upload stateful component with drag-and-drop file selection, per-file metadata inputs, concurrent `Promise.allSettled` upload coordination, and per-file status tracking (#76)
+
 ## v0.3.0-dev.59.75
 - Add document card and classify progress pure elements with `WorkflowStage` domain type, shared formatting utilities, and corrected streaming orchestration in web-development skill references (#75)
 
