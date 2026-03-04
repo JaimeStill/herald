@@ -1,4 +1,5 @@
 import './design/index.css';
+import './components';
 import './elements';
 import './views';
 
