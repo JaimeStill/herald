@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.60.83
+- Add prompt list module with search (300ms debounce), stage filtering, sorting, pagination, activate/deactivate lifecycle, and delete with confirmation dialog; clean up document-grid filter/sort/search handlers to delegate to `refresh()` (#83)
+
 ## v0.3.0-dev.60.82
 - Add prompt card pure element with stage badge, active indicator, and toggle/delete events; add prompts `SearchRequest` type with domain-owned pagination fields; flatten `ui/` tier directories removing domain subdirectories; invert router route dependency via constructor injection with routes at `app/client/routes.ts`; consolidate badge CSS variants by color; fix app test base href assertion for format-agnostic self-closing tags (#82)
 

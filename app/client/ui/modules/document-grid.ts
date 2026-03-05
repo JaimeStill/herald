@@ -76,24 +76,19 @@ export class DocumentGrid extends LitElement {
     this.search = input.value;
 
     clearTimeout(this.searchTimer);
-    this.searchTimer = window.setTimeout(() => {
-      this.page = 1;
-      this.fetchDocuments();
-    }, 300);
+    this.searchTimer = window.setTimeout(() => this.refresh(), 300);
   }
 
   private handleStatusFilter(e: Event) {
     const select = e.target as HTMLSelectElement;
     this.status = select.value;
-    this.page = 1;
-    this.fetchDocuments();
+    this.refresh();
   }
 
   private handleSort(e: Event) {
     const select = e.target as HTMLSelectElement;
     this.sort = select.value;
-    this.page = 1;
-    this.fetchDocuments();
+    this.refresh();
   }
 
   private handlePageChange(e: CustomEvent<{ page: number }>) {
