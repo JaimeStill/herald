@@ -1,9 +1,9 @@
-export { request, stream, toQueryString } from './api';
+export { request, stream, toQueryString } from "./api";
 
 export type {
   ExecutionEvent,
   PageRequest,
   PageResult,
   Result,
-  StreamOptions
-} from './api';
+  StreamOptions,
+} from "./api";

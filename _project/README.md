@@ -312,6 +312,7 @@ Key views: document management (upload, browse, classify, bulk operations), prom
 2. **GPT-5-mini vs GPT-5.2 benchmarking**: Which model performs better at acceptable cost? Both confirmed available on IL6. Benchmarking during Phase 2.
 3. **Azure deployment target**: Container Apps vs AKS vs App Service? Deferred to Phase 4.
 4. **Bulk ingestion strategy**: Loading 1M documents requires a bulk ingestion approach feeding the upload API. Detailed strategy TBD.
+5. **Remove `PageRequest` from core**: Each domain now defines its own `SearchRequest` (pagination + domain-specific filters). Once classifications and prompts services migrate to their own `SearchRequest` types (during their respective view objectives), remove `PageRequest` and `toQueryString`'s dependency on it from `@app/core`.
 
 ## Resolved Questions
 

@@ -1,5 +1,4 @@
 @layer reset {
-
   *,
   *::before,
   *::after {
@@ -22,6 +21,14 @@
   svg {
     display: block;
     max-width: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  option {
+    font-family: var(--font-mono);
   }
 
   @media (prefers-reduced-motion: no-preference) {

@@ -14,14 +14,14 @@ bun run watch    # Watch client/ for .ts/.css changes, rebuild with 150ms deboun
 `app/scripts/build.ts`:
 
 ```typescript
-import { litCSSModulePlugin } from '../plugins/css-modules';
+import { litCSSModulePlugin } from "../plugins/css-modules";
 
 const result = await Bun.build({
-  entrypoints: ['client/app.ts'],
-  outdir: 'dist',
-  naming: 'app.[ext]',
-  plugins: [litCSSModulePlugin],
-  minify: false,
+    entrypoints: ["client/app.ts"],
+    outdir: "dist",
+    naming: "app.[ext]",
+    plugins: [litCSSModulePlugin],
+    minify: false,
 });
 ```
 
@@ -49,12 +49,13 @@ Non-module CSS (`import './design/index.css'`) is never intercepted — it flows
 
 Two terminals, clean separation of concerns:
 
-| Terminal | Command | Watches | Rebuilds |
-|----------|---------|---------|----------|
-| 1 | `bun run watch` | `app/client/**/*.{ts,css}` | Client assets → `dist/` |
-| 2 | `air` | Go + `dist/` + templates | Go binary → restart server |
+| Terminal | Command         | Watches                    | Rebuilds                   |
+| -------- | --------------- | -------------------------- | -------------------------- |
+| 1        | `bun run watch` | `app/client/**/*.{ts,css}` | Client assets → `dist/`    |
+| 2        | `air`           | Go + `dist/` + templates   | Go binary → restart server |
 
 Air's `.air.toml` configuration:
+
 - **Includes**: `cmd/`, `internal/`, `pkg/`, `app/` (Go files, templates, dist output)
 - **Excludes**: `app/client`, `app/scripts`, `app/plugins`, `app/node_modules`
 - **Extensions**: `.go`, `.html`, `.js`, `.css`
@@ -67,9 +68,9 @@ This separation means Bun handles TypeScript/CSS compilation and Air handles Go 
 
 ```json
 {
-  "compilerOptions": {
-    "paths": { "@app/*": ["./client/*"] }
-  }
+    "compilerOptions": {
+        "paths": { "@app/*": ["./client/*"] }
+    }
 }
 ```
 
@@ -78,6 +79,7 @@ Use for all cross-directory imports within the client source.
 ## TypeScript Configuration
 
 Key settings in `tsconfig.json`:
+
 - `target: "es2024"` — modern JavaScript output
 - `experimentalDecorators: true` — required for Lit decorators
 - `useDefineForClassFields: false` — required for Lit reactivity (class fields must use [[Set]] semantics)

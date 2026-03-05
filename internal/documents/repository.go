@@ -97,7 +97,7 @@ func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Document, error)
 	q := `
 		INSERT INTO documents(id, external_id, external_platform, filename, content_type, size_bytes, page_count, storage_key)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, external_id, external_platform, filename, content_type, size_bytes, page_count, storage_key, status, uploaded_at, updated_at`
+		RETURNING id, external_id, external_platform, filename, content_type, size_bytes, page_count, storage_key, status, uploaded_at, updated_at, NULL, NULL, NULL`
 
 	insertArgs := []any{
 		id,

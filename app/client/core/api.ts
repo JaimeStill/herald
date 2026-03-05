@@ -1,12 +1,10 @@
-const BASE = '/api';
+const BASE = "/api";
 
 /**
  * Discriminated union for API call results.
  * Check `result.ok` before accessing `result.data` — TypeScript narrows automatically.
  */
-export type Result<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string };
+export type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
 /** Structured SSE event from the classification workflow. */
 export interface ExecutionEvent {
@@ -25,7 +23,7 @@ export interface ExecutionEvent {
 export async function request<T>(
   path: string,
   init?: RequestInit,
-  parse: (res: Response) => Promise<T> = (res) => res.json()
+  parse: (res: Response) => Promise<T> = (res) => res.json(),
 ): Promise<Result<T>> {
   try {
     const res = await fetch(`${BASE}${path}`, init);
@@ -80,29 +78,29 @@ export function stream(
 
       const reader = res.body?.getReader();
       if (!reader) {
-        options.onError?.('No response body');
+        options.onError?.("No response body");
         return;
       }
 
       const decoder = new TextDecoder();
-      let buffer = '';
-      let currentEvent = 'message';
+      let buffer = "";
+      let currentEvent = "message";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          if (line.startsWith('event: ')) {
+          if (line.startsWith("event: ")) {
             currentEvent = line.slice(7).trim();
-          } else if (line.startsWith('data: ')) {
+          } else if (line.startsWith("data: ")) {
             const data = line.slice(6).trim();
             options.onEvent(currentEvent, data);
-            currentEvent = 'message';
+            currentEvent = "message";
           }
         }
       }
@@ -110,7 +108,7 @@ export function stream(
       options.onComplete?.();
     })
     .catch((err: Error) => {
-      if (err.name !== 'AbortError') {
+      if (err.name !== "AbortError") {
         options.onError?.(err.message);
       }
     });
@@ -136,12 +134,12 @@ export interface PageRequest {
 }
 
 /** Converts pagination params to a query string (e.g., `?page=1&page_size=20`). */
-export function toQueryString(params: PageRequest): string {
+export function toQueryString<T extends object>(params: T): string {
   const entries = Object.entries(params)
-    .filter(([, v]) => v !== undefined && v !== null && v !== '')
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
+    );
 
-  return entries.length > 0
-    ? `?${entries.join('&')}`
-    : '';
+  return entries.length > 0 ? `?${entries.join("&")}` : "";
 }
