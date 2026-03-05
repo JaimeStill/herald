@@ -3,8 +3,8 @@ name: web-development
 description: >
   REQUIRED for web client development with Lit. Use when creating views,
   modules, elements, services, or styling with CSS layers.
-  Triggers: app/client/, LitElement, @customElement, @provide, @consume,
-  SignalWatcher, design/tokens, "create module", "add view", "add service".
+  Triggers: app/client/, LitElement, @customElement, @state, @property,
+  design/tokens, "create module", "add view", "add service".
   File patterns: app/**/*.ts, app/**/*.css, app/**/*.go, pkg/web/*.go
 ---
 
@@ -14,7 +14,7 @@ description: >
 
 - Creating or modifying web client code in `app/client/`
 - Implementing Lit components (views, modules, elements)
-- Working with services and context-based dependency injection
+- Working with services and component state management
 - Styling with CSS cascade layers and design tokens
 - Integrating Go server with Lit client (`app/app.go`, `app/server/`)
 - Build system work (`app/scripts/`, `app/plugins/`)
@@ -34,10 +34,10 @@ description: >
 | Concern | Location | Purpose |
 |---------|----------|---------|
 | Services | `app/client/domains/<domain>/service.ts` | Stateless API wrappers mirroring Go handlers. Called by views and modules only. |
-| Shared state | View/module class fields | `Signal.State` signals shared via `@lit/context` |
-| Local state | `@state()` decorator | Per-component reactive state (progress, errors, UI toggles) |
+| Component state | `@state()` decorator | Per-component reactive state — data, filters, progress, errors, UI toggles |
+| Props | `@property()` decorator | Data passed from parent to child. Views pass to modules, modules pass to elements. |
 
-Services are stateless — they return `Result<T>` or `AbortController` and forget. Modules call services directly, update their own state (signals or `@state()`), and share reactive data with descendants via `@provide`/`@consume`. There is no orchestration layer between services and components.
+Services are stateless — they return `Result<T>` or `AbortController` and forget. Modules call services directly, update their own `@state()` fields, and pass data to child elements via `@property()`. There is no orchestration layer between services and components.
 
 ### Three-Tier Component Hierarchy
 
@@ -45,8 +45,8 @@ Each tier has a specific role. Violating the boundaries (e.g., a pure element di
 
 | Tier | Role | Tools | Example |
 |------|------|-------|---------|
-| View | Route-level composition, call services, provide shared signals | `@provide`, `SignalWatcher`, services | `hd-documents-view` |
-| Module | Self-contained capability unit — owns state, calls services, orchestrates elements | `@consume`, `@state()`, services, events | `hd-document-grid` |
+| View | Route-level composition, coordinate modules, manage view-level state | `@state()`, services, `querySelector` | `hd-documents-view` |
+| Module | Self-contained capability unit — owns state, calls services, orchestrates elements | `@state()`, services, events | `hd-document-grid` |
 | Element | Pure — props in, events out | `@property`, `CustomEvent`. Imports `lit`, own CSS module, and immutable domain infrastructure (types, constants, formatters). | `hd-document-card` |
 
 **Lego analogy:** Element = brick, Module = car (composed of bricks, functional, self-sufficient), View = scene.
@@ -57,15 +57,15 @@ Each topic below has a dedicated reference with full code examples and detailed 
 
 ### Components — [references/components.md](references/components.md)
 
-Three component tiers with complete examples: View components call services, manage `Signal.State` signals, and `@provide` shared data via `SignalWatcher(LitElement)`. Modules `@consume` shared state and call services for their own concerns. Pure elements accept `@property` data and emit `CustomEvent` upward. Every component uses `*.module.css` imports for styles (producing `CSSStyleSheet` directly — no `unsafeCSS()`).
+Three component tiers with complete examples: View components manage view-level `@state()`, compose modules, and coordinate between them via `querySelector` and events. Modules own their data via `@state()`, call services directly, and pass data to elements via `@property()`. Pure elements accept `@property` data and emit `CustomEvent` upward. Every component uses `*.module.css` imports for styles (producing `CSSStyleSheet` directly — no `unsafeCSS()`).
 
 ### Services — [references/services.md](references/services.md)
 
 Stateless API wrappers that mirror Go domain handlers. Each domain has a PascalCase service object (`DocumentService`, `ClassificationService`, etc.) with a `base` path constant. Methods return `Result<T>` for request-response and `AbortController` for streaming. No signals, no context, no state.
 
-### Shared Reactive State — [references/state.md](references/state.md)
+### Component State — [references/state.md](references/state.md)
 
-`Signal.State` signals shared across component subtrees via `@lit/context`. Views `@provide` signals as class fields; descendants `@consume` them. Components call services directly and update signals themselves — no factory functions or orchestration layer. `@state()` for local concerns (progress, errors, UI toggles). `SignalWatcher` mixin drives re-renders.
+`@state()` is the primary state management tool for views and modules. Modules own their data (fetched from services), filters, pagination, and UI state as `@state()` fields. Views manage view-level toggles and coordinate between modules via `querySelector` and events. Data flows down via `@property()`, events flow up via `CustomEvent`.
 
 ### CSS — [references/css.md](references/css.md)
 
@@ -207,10 +207,9 @@ declare global {
 
 - Creating custom elements for native HTML (buttons, inputs, badges) — use CSS classes
 - Using `unsafeCSS()` — Herald's `*.module.css` plugin produces `CSSStyleSheet` directly
-- Skipping `SignalWatcher` mixin when consuming signal-based state (reactivity won't work)
 - Putting signals or context in service files — services are stateless API wrappers
 - Creating state orchestration layers between services and modules — modules call services directly
-- Pure elements importing stateful infrastructure — services, signals, context (`@provide`/`@consume`), `SignalWatcher`, or router utilities. Elements can import immutable domain infrastructure (types, constants, formatters) but never anything that holds or mutates state.
+- Pure elements importing stateful infrastructure — services, context, or router utilities. Elements can import immutable domain infrastructure (types, constants, formatters) but never anything that holds or mutates state.
 - Using `height: 100%` in flex containers — use `flex: 1` with `min-height: 0`
 - Forgetting `min-height: 0` on flex children that need scroll boundaries
 - Using inline `style` attributes — use CSS classes and custom properties
@@ -221,11 +220,10 @@ declare global {
 ### Prefer
 
 - Native HTML elements with CSS classes for simple UI
-- `@provide`/`@consume` over prop drilling through intermediate modules
-- `@state()` for local component concerns (progress, errors, UI toggles)
-- `Signal.State` via context only for data shared across multiple descendants
+- `@state()` for all component-owned state — data, filters, pagination, progress, errors, UI toggles
 - Modules calling services directly — no orchestration middleman
-- Events up (`CustomEvent`), data down (`@property`, context) for parent-child communication
+- Events up (`CustomEvent`), data down (`@property()`) for parent-child communication
+- Views coordinating modules via `querySelector` + public methods (e.g., `refresh()`)
 - `nothing` from Lit for conditional non-rendering
 - FormData extraction over controlled inputs for form handling
 - `disconnectedCallback` cleanup for blob URLs and event listeners

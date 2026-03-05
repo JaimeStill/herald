@@ -23,7 +23,7 @@ Deliver a Lit 3.x web client embedded in the Go binary with three views (documen
 |---|-----------|-------|--------|------------|
 | 1 | Web Client Foundation and Build System | #57 | Complete | — |
 | 2 | SSE Classification Streaming | #58 | Complete | — |
-| 3 | Document Management View | #59 | Open | #57, #58 |
+| 3 | Document Management View | #59 | Complete | #57, #58 |
 | 4 | Prompt Management View | #60 | Open | #57 |
 | 5 | Document Review View | #61 | Open | #57, #59 |
 
@@ -57,6 +57,6 @@ Objectives 1 and 2 can proceed in parallel. Objective 4 can start after 1. Objec
 
 - Component CSS uses `import styles from './x.css' with { type: 'css' }` — Bun plugin emits `CSSStyleSheet`, accepted directly by Lit `static styles`
 - Global CSS uses side-effect import (`import './design/index.css'`) — Bun extracts to dist/app.css
-- All views follow the three-tier hierarchy: View (@provide) → Stateful Component (@consume) → Pure Element (props/events)
-- Services use Signal.State + @lit/context for reactive state management
+- All views follow the three-tier hierarchy: View (@state) → Module (@state, services) → Pure Element (props/events)
+- Modules own state via `@state()` and call services directly
 - No shadow DOM bypass — use CSS custom properties for design token penetration

@@ -1,235 +1,155 @@
-# Shared Reactive State
+# Component State
 
-Views and stateful components use `Signal.State` signals with `@lit/context` to share reactive data across their subtree. Components call services directly and update signals themselves — there is no orchestration layer between services and components.
+Views and modules manage state with Lit's `@state()` decorator. Modules own their data (fetched from services), filters, pagination, and UI state. Views manage view-level concerns and coordinate between modules. Data flows down via `@property()`, events flow up via `CustomEvent`.
 
-## When to Use Context
+## `@state()` — Primary State Tool
 
-Use `@provide`/`@consume` with signals when a parent component has data that multiple descendants need reactively. If only one child needs the data, pass it as a `@property` instead.
+`@state()` is the primary mechanism for all component-owned reactive state. When a `@state()` field changes, Lit automatically triggers a re-render.
 
-```typescript
-// View provides shared data to its subtree
-@provide({ context: documentsContext })
-private documents = new Signal.State<PageResult<Document> | null>(null);
-```
+### Module State Pattern
 
-## Providing Shared State
-
-Views create signals as class fields and `@provide` them. The view calls services directly and updates its own signals.
+Modules own their data. They call services directly, store results in `@state()` fields, and pass data to child elements via `@property()` bindings.
 
 ```typescript
-import { LitElement, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
-import { provide } from '@lit/context';
-import { SignalWatcher, Signal } from '@lit-labs/signals';
-import { createContext } from '@lit/context';
-import { DocumentService } from '@app/documents';
-import type { Document, PageResult, PageRequest } from '@app/documents';
+@customElement("hd-document-grid")
+export class DocumentGrid extends LitElement {
+  // Data state — fetched from services
+  @state() private documents: PageResult<Document> | null = null;
 
-export const documentsContext =
-  createContext<Signal.State<PageResult<Document> | null>>('documents');
+  // Filter/pagination state — drives fetch parameters
+  @state() private page = 1;
+  @state() private search = "";
+  @state() private status = "";
+  @state() private sort = "-UploadedAt";
 
-@customElement('hd-documents-view')
-export class DocumentsView extends SignalWatcher(LitElement) {
-  @provide({ context: documentsContext })
-  private documents = new Signal.State<PageResult<Document> | null>(null);
+  // UI state — local concerns
+  @state() private classifying = new Map<string, ClassifyProgress>();
+  @state() private selectedIds = new Set<string>();
+  @state() private deleteDocument: Document | null = null;
 
-  async connectedCallback() {
+  connectedCallback() {
     super.connectedCallback();
-    const result = await DocumentService.list();
-    if (result.ok) this.documents.set(result.data);
+    this.fetchDocuments();
   }
 
-  render() {
-    return html`<hd-document-list></hd-document-list>`;
+  async refresh() {
+    this.page = 1;
+    await this.fetchDocuments();
+  }
+
+  private async fetchDocuments() {
+    const req: SearchRequest = {
+      page: this.page,
+      page_size: 12,
+      sort: this.sort,
+    };
+
+    if (this.search) req.search = this.search;
+    if (this.status) req.status = this.status;
+
+    const result = await DocumentService.search(req);
+    if (result.ok) this.documents = result.data;
   }
 }
 ```
 
-## Consuming Shared State
+### View State Pattern
 
-Descendants `@consume` the signal and call `.get()` in templates. `SignalWatcher` drives re-renders when the signal value changes.
+Views manage view-level UI toggles and coordinate between modules.
 
 ```typescript
-import { LitElement, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
-import { consume } from '@lit/context';
-import { SignalWatcher, Signal } from '@lit-labs/signals';
-import { documentsContext } from '../views/documents/documents-view';
-import type { Document, PageResult } from '@app/documents';
+@customElement("hd-documents-view")
+export class DocumentsView extends LitElement {
+  @state() private showUpload = false;
 
-@customElement('hd-document-list')
-export class DocumentList extends SignalWatcher(LitElement) {
-  @consume({ context: documentsContext })
-  private documents!: Signal.State<PageResult<Document> | null>;
+  private handleUploadComplete() {
+    this.showUpload = false;
+    this.renderRoot.querySelector<any>("hd-document-grid")?.refresh();
+  }
 
   render() {
-    const page = this.documents.get();
-    if (!page) return html`<p>Loading...</p>`;
     return html`
-      ${page.data.map((doc) => html`
-        <hd-document-card .document=${doc}></hd-document-card>
-      `)}
+      <div class="view">
+        ${this.showUpload
+          ? html`<hd-document-upload
+              @upload-complete=${this.handleUploadComplete}
+            ></hd-document-upload>`
+          : nothing}
+        <hd-document-grid></hd-document-grid>
+      </div>
     `;
   }
 }
 ```
 
-## Signal Initialization
+## State Initialization
 
-- `null` means "not yet loaded" — components show skeleton/spinner
-- Empty `PageResult` (`data: []`) means "loaded but empty" — components show empty state
+- `null` means "not yet loaded" — show loading indicator
+- Empty `PageResult` (`data: []`) means "loaded but empty" — show empty state
 - Pagination metadata comes from the server, never hardcoded on the client
 
+## View-to-Module Coordination
+
+Views coordinate modules through two mechanisms:
+
+### `querySelector` + Public Methods
+
+Views call public methods on modules to trigger refreshes or state changes:
+
 ```typescript
-const documents = new Signal.State<PageResult<Document> | null>(null);
+// View refreshes the grid after an upload
+private handleUploadComplete() {
+  this.showUpload = false;
+  this.renderRoot.querySelector<any>("hd-document-grid")?.refresh();
+}
 ```
 
-## Context Key Conventions
+### `@property()` for Parent-to-Child Data
 
-- kebab-case strings: `'documents'`, `'prompts'`, `'loading'`
-- Defined adjacent to the providing component, not in a shared file
-- Typed via the generic: `createContext<Signal.State<T>>('key')`
-
-## Components Call Services Directly
-
-There is no orchestration layer between services and components. Components import services, call them, and update their own state (signals or `@state()`) based on results.
+Views pass data to modules via `@property()` when modules need external input:
 
 ```typescript
-// View calls service and updates its signal
-private async refresh(params?: PageRequest) {
-  const result = await DocumentService.list(params);
-  if (result.ok) this.documents.set(result.data);
-}
+// Module accepts selectedId from parent view for highlighting
+@property() selectedId = "";
+```
 
-// Stateful component calls service for its own concern
-private async handleDelete(id: string) {
-  const result = await DocumentService.delete(id);
-  if (result.ok) {
-    this.dispatchEvent(new CustomEvent('document-deleted', {
-      detail: { id },
-      bubbles: true,
-      composed: true,
-    }));
-  }
-}
+## Events for Child-to-Parent Communication
+
+Children dispatch `CustomEvent` with `bubbles: true, composed: true` to notify parents. Parents listen in templates:
+
+```typescript
+// Child dispatches
+this.dispatchEvent(
+  new CustomEvent("prompt-select", {
+    detail: { id: this.prompt.id },
+    bubbles: true,
+    composed: true,
+  }),
+);
+
+// Parent listens
+html`<hd-prompt-list
+  @prompt-select=${this.handleSelect}
+></hd-prompt-list>`;
 ```
 
 ## Streaming Orchestration
 
-SSE operations are owned by the **stateful component** closest to the collection concern — not the pure element that triggered the action. The stateful component calls the streaming service, tracks per-item progress via `@state()`, and passes progress data to pure elements as properties.
+SSE operations are owned by the **module** managing the collection — not the pure element that triggered the action. The module:
 
-This keeps pure elements context-free and reusable. The parent dispatches a single completion event when the operation finishes — the view never sees intermediate progress events.
+1. Calls the streaming service
+2. Tracks per-item progress via `@state()` Map
+3. Passes progress data to pure elements as `@property()` bindings
+4. Dispatches a completion event upward when done
 
-```typescript
-// Stateful component — owns SSE lifecycle for the collection
-@customElement('hd-document-list')
-export class DocumentList extends SignalWatcher(LitElement) {
-  @consume({ context: documentsContext })
-  private documents!: Signal.State<PageResult<Document> | null>;
-
-  @state() private classifying = new Map<string, ClassifyProgress>();
-
-  private handleClassify(e: CustomEvent<{ id: string }>) {
-    const docId = e.detail.id;
-    this.classifying.set(docId, { currentNode: 'init', completedNodes: [] });
-    this.requestUpdate();
-
-    ClassificationService.classify(docId, {
-      onEvent: (type, data) => {
-        const event = JSON.parse(data);
-        const progress = this.classifying.get(docId);
-        if (!progress) return;
-
-        switch (type) {
-          case 'node.start':
-            progress.currentNode = event.data.node;
-            break;
-          case 'node.complete':
-            progress.completedNodes = [...progress.completedNodes, event.data.node];
-            break;
-          case 'complete':
-            this.classifying.delete(docId);
-            this.dispatchEvent(new CustomEvent('classify-complete', {
-              bubbles: true, composed: true,
-            }));
-            break;
-          case 'error':
-            this.classifying.delete(docId);
-            break;
-        }
-        this.requestUpdate();
-      },
-      onError: () => {
-        this.classifying.delete(docId);
-        this.requestUpdate();
-      },
-    });
-  }
-
-  render() {
-    const page = this.documents.get();
-    if (!page) return html`<p>Loading...</p>`;
-
-    return html`
-      ${page.data.map((doc) => {
-        const progress = this.classifying.get(doc.id);
-        return html`
-          <hd-document-card
-            .document=${doc}
-            ?classifying=${progress !== undefined}
-            .currentNode=${progress?.currentNode ?? null}
-            .completedNodes=${progress?.completedNodes ?? []}
-            @classify=${this.handleClassify}
-          ></hd-document-card>
-        `;
-      })}
-    `;
-  }
-}
-```
-
-The pure element receives all streaming state as properties and dispatches intent events upward. It has no knowledge of services, SSE, or `AbortController`.
-
-```typescript
-// Pure element — props in, events out
-@customElement('hd-document-card')
-export class DocumentCard extends LitElement {
-  @property({ type: Object }) document!: Document;
-  @property({ type: Boolean }) classifying = false;
-  @property() currentNode: WorkflowStage | null = null;
-  @property({ type: Array }) completedNodes: WorkflowStage[] = [];
-
-  private handleClassify() {
-    this.dispatchEvent(new CustomEvent('classify', {
-      detail: { id: this.document.id },
-      bubbles: true, composed: true,
-    }));
-  }
-
-  render() {
-    return html`
-      <button
-        ?disabled=${this.document.status === 'complete' || this.classifying}
-        @click=${this.handleClassify}
-      >Classify</button>
-      ${this.classifying
-        ? html`<hd-classify-progress
-            .currentNode=${this.currentNode}
-            .completedNodes=${this.completedNodes}
-          ></hd-classify-progress>`
-        : nothing}
-    `;
-  }
-}
-```
+Pure elements receive all streaming state as properties and dispatch intent events. They have no knowledge of services, SSE, or `AbortController`.
 
 ## Conventions
 
-- **Context for shared data only**: Use `@provide`/`@consume` when multiple descendants need the same reactive data. Pure elements never use context — only views and stateful components.
-- **Streaming in stateful components**: The component managing the collection (list/grid) owns SSE lifecycle. Pure elements receive progress as properties and dispatch intent events.
-- **`@state()` for local concerns**: Classification progress, form errors, UI toggles — use Lit's built-in reactive state
-- **Views and stateful components call services directly**: No orchestration middleman between services and components. Pure elements dispatch events instead.
-- **Events up, data down**: Children dispatch `CustomEvent` to notify parents of outcomes
-- **Signal reads**: `.get()` in templates inside `SignalWatcher` components
-- **Signal writes**: `.set()` in the component that owns the signal
-- **No state files**: State is defined inline in the component that provides it
+- **`@state()` for all component-owned data**: Fetched results, filters, pagination, progress, errors, UI toggles
+- **`@property()` for parent-provided data**: Selected ID, mode flags, data objects from parent
+- **Modules call services directly**: No orchestration middleman between services and modules
+- **Events up, data down**: Children dispatch `CustomEvent`, parents bind `@property()`
+- **Views coordinate, modules own data**: Views manage UI toggles and relay between modules; modules own their domain data
+- **Public `refresh()` methods**: Modules expose refresh for parent views to call after cross-module events
+- **`null` vs empty**: Use `null` for "not loaded", empty results for "loaded but nothing found"
