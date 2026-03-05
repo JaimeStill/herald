@@ -26,6 +26,10 @@ run = "go run ./cmd/migrate -down"
 description = "Print current migration version"
 run = "go run ./cmd/migrate -version"
 
+[tasks."web:fmt"]
+description = "Format web client source files"
+run = "cd app && bunx prettier --write client/"
+
 [tasks."web:build"]
 description = "Build the web client"
 run = "cd app && bun run build"

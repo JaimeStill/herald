@@ -2,8 +2,12 @@
   :root {
     color-scheme: dark light;
 
-    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --font-sans:
+      system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, sans-serif;
+    --font-mono:
+      ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas,
+      "DejaVu Sans Mono", monospace;
 
     --space-1: 0.25rem;
     --space-2: 0.5rem;
@@ -32,51 +36,24 @@
     --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.05);
     --shadow-md: 0 4px 6px hsl(0 0% 0% / 0.1);
     --shadow-lg: 0 10px 15px hsl(0 0% 0% / 0.15);
-  }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: hsl(0, 0%, 7%);
-      --bg-1: hsl(0, 0%, 12%);
-      --bg-2: hsl(0, 0%, 18%);
-      --color: hsl(0, 0%, 93%);
-      --color-1: hsl(0, 0%, 80%);
-      --color-2: hsl(0, 0%, 65%);
-      --divider: hsl(0, 0%, 25%);
+    --bg: light-dark(hsl(0, 0%, 100%), hsl(0, 0%, 7%));
+    --bg-1: light-dark(hsl(0, 0%, 96%), hsl(0, 0%, 12%));
+    --bg-2: light-dark(hsl(0, 0%, 92%), hsl(0, 0%, 18%));
+    --color: light-dark(hsl(0, 0%, 10%), hsl(0, 0%, 93%));
+    --color-1: light-dark(hsl(0, 0%, 30%), hsl(0, 0%, 80%));
+    --color-2: light-dark(hsl(0, 0%, 45%), hsl(0, 0%, 65%));
+    --divider: light-dark(hsl(0, 0%, 80%), hsl(0, 0%, 25%));
 
-      --blue: hsl(210, 100%, 70%);
-      --blue-bg: hsl(210, 50%, 20%);
-      --green: hsl(140, 70%, 55%);
-      --green-bg: hsl(140, 40%, 18%);
-      --red: hsl(0, 85%, 65%);
-      --red-bg: hsl(0, 50%, 20%);
-      --yellow: hsl(45, 90%, 60%);
-      --yellow-bg: hsl(45, 50%, 18%);
-      --orange: hsl(25, 95%, 65%);
-      --orange-bg: hsl(25, 50%, 20%);
-    }
-  }
-
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: hsl(0, 0%, 100%);
-      --bg-1: hsl(0, 0%, 96%);
-      --bg-2: hsl(0, 0%, 92%);
-      --color: hsl(0, 0%, 10%);
-      --color-1: hsl(0, 0%, 30%);
-      --color-2: hsl(0, 0%, 45%);
-      --divider: hsl(0, 0%, 80%);
-
-      --blue: hsl(210, 90%, 45%);
-      --blue-bg: hsl(210, 80%, 92%);
-      --green: hsl(140, 60%, 35%);
-      --green-bg: hsl(140, 50%, 90%);
-      --red: hsl(0, 70%, 50%);
-      --red-bg: hsl(0, 70%, 93%);
-      --yellow: hsl(45, 80%, 40%);
-      --yellow-bg: hsl(45, 80%, 88%);
-      --orange: hsl(25, 85%, 50%);
-      --orange-bg: hsl(25, 75%, 90%);
-    }
+    --blue: light-dark(hsl(210, 90%, 45%), hsl(210, 100%, 70%));
+    --blue-bg: light-dark(hsl(210, 80%, 92%), hsl(210, 50%, 20%));
+    --green: light-dark(hsl(140, 60%, 35%), hsl(140, 70%, 55%));
+    --green-bg: light-dark(hsl(140, 50%, 90%), hsl(140, 40%, 18%));
+    --red: light-dark(hsl(0, 70%, 50%), hsl(0, 85%, 65%));
+    --red-bg: light-dark(hsl(0, 70%, 93%), hsl(0, 50%, 20%));
+    --yellow: light-dark(hsl(45, 80%, 40%), hsl(45, 90%, 60%));
+    --yellow-bg: light-dark(hsl(45, 80%, 88%), hsl(45, 50%, 18%));
+    --orange: light-dark(hsl(25, 85%, 50%), hsl(25, 95%, 65%));
+    --orange-bg: light-dark(hsl(25, 75%, 90%), hsl(25, 50%, 20%));
   }
 }

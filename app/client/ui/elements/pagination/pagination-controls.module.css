@@ -1,0 +1,17 @@
+:host {
+  display: block;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--divider);
+}
+
+.page-indicator {
+  font-size: var(--text-sm);
+  color: var(--color-1);
+}

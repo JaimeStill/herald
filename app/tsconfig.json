@@ -13,16 +13,14 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "paths": {
-      "@app/*": [
-        "./client/*"
-      ]
+      "@core": ["./client/core/index.ts"],
+      "@core/*": ["./client/core/*"],
+      "@design/*": ["./client/design/*"],
+      "@domains/*": ["./client/domains/*"],
+      "@styles/*": ["./client/design/styles/*"],
+      "@ui/*": ["./client/ui/*"]
     }
   },
-  "include": [
-    "client/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["client/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

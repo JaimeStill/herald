@@ -1,17 +1,17 @@
-import { watch } from 'fs';
-import { join } from 'path';
+import { watch } from "fs";
+import { join } from "path";
 
-const CLIENT_DIR = join(import.meta.dir, '..', 'client');
-const BUILD_SCRIPT = join(import.meta.dir, 'build.ts');
+const CLIENT_DIR = join(import.meta.dir, "..", "client");
+const BUILD_SCRIPT = join(import.meta.dir, "build.ts");
 
 let timeout: ReturnType<typeof setTimeout> | null = null;
 
 async function rebuild() {
-  console.log('Rebuilding...');
-  const proc = Bun.spawn(['bun', BUILD_SCRIPT], {
-    cwd: join(import.meta.dir, '..'),
-    stdout: 'inherit',
-    stderr: 'inherit',
+  console.log("Rebuilding...");
+  const proc = Bun.spawn(["bun", BUILD_SCRIPT], {
+    cwd: join(import.meta.dir, ".."),
+    stdout: "inherit",
+    stderr: "inherit",
   });
   await proc.exited;
 }
@@ -23,9 +23,9 @@ function debounceRebuild() {
 
 await rebuild();
 
-console.log('Watching client/ for changes...');
+console.log("Watching client/ for changes...");
 watch(CLIENT_DIR, { recursive: true }, (_, filename) => {
-  if (filename && (filename.endsWith('.ts') || filename.endsWith('.css'))) {
+  if (filename && (filename.endsWith(".ts") || filename.endsWith(".css"))) {
     debounceRebuild();
   }
 });

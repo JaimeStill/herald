@@ -1,9 +1,9 @@
-import './design/index.css';
-import './components';
-import './elements';
-import './views';
+import { Router } from "@core/router";
+import "@ui/elements";
+import "@ui/modules";
+import "@ui/views";
 
-import { Router } from '@app/router';
+import "@design/index.css";
 
-const router = new Router('app-content');
+const router = new Router("app-content");
 router.start();

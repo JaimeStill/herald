@@ -2,9 +2,9 @@
 name: web-development
 description: >
   REQUIRED for web client development with Lit. Use when creating views,
-  components, elements, services, or styling with CSS layers.
+  modules, elements, services, or styling with CSS layers.
   Triggers: app/client/, LitElement, @customElement, @provide, @consume,
-  SignalWatcher, design/tokens, "create component", "add view", "add service".
+  SignalWatcher, design/tokens, "create module", "add view", "add service".
   File patterns: app/**/*.ts, app/**/*.css, app/**/*.go, pkg/web/*.go
 ---
 
@@ -13,7 +13,7 @@ description: >
 ## When This Skill Applies
 
 - Creating or modifying web client code in `app/client/`
-- Implementing Lit components (views, stateful components, elements)
+- Implementing Lit components (views, modules, elements)
 - Working with services and context-based dependency injection
 - Styling with CSS cascade layers and design tokens
 - Integrating Go server with Lit client (`app/app.go`, `app/server/`)
@@ -33,11 +33,11 @@ description: >
 
 | Concern | Location | Purpose |
 |---------|----------|---------|
-| Services | `app/client/<domain>/service.ts` | Stateless API wrappers mirroring Go handlers. Called by views and stateful components only. |
-| Shared state | View/component class fields | `Signal.State` signals shared via `@lit/context` |
+| Services | `app/client/domains/<domain>/service.ts` | Stateless API wrappers mirroring Go handlers. Called by views and modules only. |
+| Shared state | View/module class fields | `Signal.State` signals shared via `@lit/context` |
 | Local state | `@state()` decorator | Per-component reactive state (progress, errors, UI toggles) |
 
-Services are stateless — they return `Result<T>` or `AbortController` and forget. Components call services directly, update their own state (signals or `@state()`), and share reactive data with descendants via `@provide`/`@consume`. There is no orchestration layer between services and components.
+Services are stateless — they return `Result<T>` or `AbortController` and forget. Modules call services directly, update their own state (signals or `@state()`), and share reactive data with descendants via `@provide`/`@consume`. There is no orchestration layer between services and components.
 
 ### Three-Tier Component Hierarchy
 
@@ -45,9 +45,11 @@ Each tier has a specific role. Violating the boundaries (e.g., a pure element di
 
 | Tier | Role | Tools | Example |
 |------|------|-------|---------|
-| View | Call services, provide shared signals, route-level | `@provide`, `SignalWatcher`, services | `hd-documents-view` |
-| Stateful Component | Consume shared state, call services for own concerns | `@consume`, `@state()`, services, events | `hd-document-list` |
-| Pure Element | Props in, events out | `@property`, `CustomEvent`. Imports `lit`, own CSS module, and immutable domain infrastructure (types, constants). | `hd-document-card` |
+| View | Route-level composition, call services, provide shared signals | `@provide`, `SignalWatcher`, services | `hd-documents-view` |
+| Module | Self-contained capability unit — owns state, calls services, orchestrates elements | `@consume`, `@state()`, services, events | `hd-document-grid` |
+| Element | Pure — props in, events out | `@property`, `CustomEvent`. Imports `lit`, own CSS module, and immutable domain infrastructure (types, constants, formatters). | `hd-document-card` |
+
+**Lego analogy:** Element = brick, Module = car (composed of bricks, functional, self-sufficient), View = scene.
 
 ## Reference Guide
 
@@ -55,7 +57,7 @@ Each topic below has a dedicated reference with full code examples and detailed 
 
 ### Components — [references/components.md](references/components.md)
 
-Three component tiers with complete examples: View components call services, manage `Signal.State` signals, and `@provide` shared data via `SignalWatcher(LitElement)`. Stateful components `@consume` shared state and call services for their own concerns. Pure elements accept `@property` data and emit `CustomEvent` upward. Every component uses `*.module.css` imports for styles (producing `CSSStyleSheet` directly — no `unsafeCSS()`).
+Three component tiers with complete examples: View components call services, manage `Signal.State` signals, and `@provide` shared data via `SignalWatcher(LitElement)`. Modules `@consume` shared state and call services for their own concerns. Pure elements accept `@property` data and emit `CustomEvent` upward. Every component uses `*.module.css` imports for styles (producing `CSSStyleSheet` directly — no `unsafeCSS()`).
 
 ### Services — [references/services.md](references/services.md)
 
@@ -67,7 +69,7 @@ Stateless API wrappers that mirror Go domain handlers. Each domain has a PascalC
 
 ### CSS — [references/css.md](references/css.md)
 
-Three cascade layers (`tokens, reset, theme`), design tokens as CSS custom properties (penetrate shadow DOM naturally), component styles via `*.module.css` → `CSSStyleSheet`, global CSS via side-effect import, and app-shell scroll architecture (body never scrolls, views own scroll regions).
+Four cascade layers (`tokens, reset, theme, app`), design tokens as CSS custom properties using `light-dark()` (penetrate shadow DOM naturally), component styles via `*.module.css` → `CSSStyleSheet`, shared styles via `@styles/*` alias, global CSS via side-effect import, and app-shell scroll architecture (body never scrolls, views own scroll regions).
 
 ### API — [references/api.md](references/api.md)
 
@@ -75,7 +77,7 @@ Three cascade layers (`tokens, reset, theme`), design tokens as CSS custom prope
 
 ### Router — [references/router.md](references/router.md)
 
-History API router at `app/client/router/`. Route definitions map path patterns to component tag names. Dynamic `:paramName` segments, catch-all `'*'`, `navigate()` for programmatic routing. Router sets path/query params as HTML attributes on mounted components.
+History API router at `app/client/core/router/`. Route definitions map path patterns to component tag names. Dynamic `:paramName` segments, catch-all `'*'`, `navigate()` for programmatic routing. Router sets path/query params as HTML attributes on mounted components. Progressive enhancement with View Transitions API.
 
 ### Build — [references/build.md](references/build.md)
 
@@ -105,55 +107,86 @@ See [references/components.md](references/components.md) for full code examples 
 
 - **Prefix**: `hd-` (Herald)
 - **Views**: `hd-<domain>-view` (e.g., `hd-documents-view`)
-- **Stateful components**: `hd-<domain>-<name>` (e.g., `hd-document-list`)
+- **Modules**: `hd-<domain>-<name>` (e.g., `hd-document-grid`)
 - **Pure elements**: `hd-<name>` (e.g., `hd-document-card`)
 - **Avoid HTMLElement conflicts**: Use `heading` not `title`, `configId` not `id`
 
-### File Structure
-
-Domain infrastructure (types, services) lives in domain directories. Views, components, and elements each have their own top-level directories.
+### Directory Structure
 
 ```
 app/client/
-├── core/                            # API layer (request, stream, types)
-├── formatting/                      # shared formatting utilities (formatBytes, formatDate)
-├── documents/                       # domain: types + service
-│   ├── document.ts                  # Document, DocumentStatus
-│   ├── service.ts                   # DocumentService (stateless)
-│   └── index.ts                     # barrel
-├── classifications/                 # domain: types + service + constants
-│   ├── classification.ts            # Classification, WorkflowStage, WORKFLOW_STAGES
-│   ├── service.ts                   # ClassificationService (stateless)
-│   └── index.ts                     # barrel
-├── prompts/                         # domain: types + service
-├── storage/                         # domain: types + service
-├── views/
-│   └── documents/                   # view: route-level component
-│       ├── index.ts                 # barrel (view component only)
-│       ├── documents-view.ts        # @customElement('hd-documents-view')
-│       └── documents-view.module.css
-├── components/                      # stateful components (@consume, service calls)
-│   └── documents/                   # domain-scoped components
-├── elements/                        # pure elements (props/events)
-│   └── documents/                   # domain-scoped elements
-│       ├── document-card.ts         # @customElement('hd-document-card')
-│       ├── document-card.module.css
-│       ├── classify-progress.ts     # @customElement('hd-classify-progress')
-│       ├── classify-progress.module.css
-│       └── index.ts                 # barrel
-├── router/
-└── design/
+├── core/                              # framework utilities (no domain knowledge)
+│   ├── api.ts                         # request, stream, toQueryString, types
+│   ├── index.ts                       # barrel
+│   ├── formatting/                    # formatBytes, formatDate
+│   └── router/                        # History API router, routes, navigate()
+├── design/                            # global design system
+│   ├── core/                          # tokens.css, reset.css, theme.css
+│   ├── styles/                        # shared component styles (badge, buttons)
+│   ├── app/                           # app-shell styles
+│   └── index.css                      # layer declarations + imports
+├── domains/                           # data types and service contracts
+│   ├── classifications/               # Classification, WorkflowStage, ClassificationService
+│   ├── documents/                     # Document, SearchRequest, DocumentService
+│   ├── prompts/                       # Prompt, PromptService
+│   └── storage/                       # BlobMeta, StorageService
+└── ui/                                # everything that renders
+    ├── elements/                      # pure elements (props/events)
+    │   ├── dialog/                    # hd-confirm-dialog
+    │   ├── documents/                 # hd-document-card, hd-classify-progress
+    │   ├── pagination/                # hd-pagination
+    │   └── index.ts                   # barrel
+    ├── modules/                       # stateful capability units
+    │   ├── documents/                 # hd-document-grid, hd-document-upload
+    │   └── index.ts                   # barrel
+    └── views/                         # route-level composition
+        ├── documents/                 # hd-documents-view
+        ├── prompts/                   # hd-prompts-view
+        ├── review/                    # hd-review-view
+        ├── not-found/                 # hd-not-found-view
+        └── index.ts                   # barrel
 ```
 
-**Domain directories** export types, constants, and stateless services. **Component type directories** (`views/`, `components/`, `elements/`) each use domain subdirectories mirroring the domain infrastructure layout. Elements and components are registered via side-effect imports in `app.ts`.
+**Dependency flow:** `design ← core ← domains ← ui`
 
-### Path Alias
+### Path Aliases
 
-`@app/*` resolves to `app/client/*` (configured in `tsconfig.json`):
+```json
+{
+  "@core":      "./client/core/index.ts",
+  "@core/*":    "./client/core/*",
+  "@design/*":  "./client/design/*",
+  "@domains/*": "./client/domains/*",
+  "@styles/*":  "./client/design/styles/*",
+  "@ui/*":      "./client/ui/*"
+}
+```
+
+### Import Convention
+
+Imports are organized into four groups, separated by blank lines:
+
+1. **Third-party** — `lit`, `lit/decorators.js`, etc.
+2. **Cross-package** — path-aliased imports (`@core`, `@domains/*`, etc.)
+3. **Relative** — same-package imports (`./document`, `./types`)
+4. **Styles** — `@styles/*` first (alphabetically), then relative `*.module.css`
+
+Within each group:
+- Infrastructure imports before `type` imports (even if same path)
+- Sorted alphabetically by import path, shallower paths first
+- PascalCase identifiers before camelCase within the same import
 
 ```typescript
-import { request } from '@app/core';
-import { navigate } from '@app/router';
+import { LitElement, html, nothing } from "lit";
+import { customElement, property } from "lit/decorators.js";
+
+import { formatBytes, formatDate } from "@core/formatting";
+import type { WorkflowStage } from "@domains/classifications";
+import type { Document } from "@domains/documents";
+
+import badgeStyles from "@styles/badge.module.css";
+import buttonStyles from "@styles/buttons.module.css";
+import styles from "./document-card.module.css";
 ```
 
 ### HTMLElementTagNameMap
@@ -176,24 +209,27 @@ declare global {
 - Using `unsafeCSS()` — Herald's `*.module.css` plugin produces `CSSStyleSheet` directly
 - Skipping `SignalWatcher` mixin when consuming signal-based state (reactivity won't work)
 - Putting signals or context in service files — services are stateless API wrappers
-- Creating state orchestration layers between services and components — components call services directly
+- Creating state orchestration layers between services and modules — modules call services directly
 - Pure elements importing stateful infrastructure — services, signals, context (`@provide`/`@consume`), `SignalWatcher`, or router utilities. Elements can import immutable domain infrastructure (types, constants, formatters) but never anything that holds or mutates state.
 - Using `height: 100%` in flex containers — use `flex: 1` with `min-height: 0`
 - Forgetting `min-height: 0` on flex children that need scroll boundaries
 - Using inline `style` attributes — use CSS classes and custom properties
 - Accessing `this.id` or `this.title` on components — conflicts with `HTMLElement` built-ins
 - Importing `*.module.css` with `?inline` suffix — Herald uses the naming convention, not query params
+- Using `margin-left: auto` hacks — let flex container properties (`justify-content`, `gap`) manage layout
 
 ### Prefer
 
 - Native HTML elements with CSS classes for simple UI
-- `@provide`/`@consume` over prop drilling through intermediate components
+- `@provide`/`@consume` over prop drilling through intermediate modules
 - `@state()` for local component concerns (progress, errors, UI toggles)
 - `Signal.State` via context only for data shared across multiple descendants
-- Components calling services directly — no orchestration middleman
+- Modules calling services directly — no orchestration middleman
 - Events up (`CustomEvent`), data down (`@property`, context) for parent-child communication
 - `nothing` from Lit for conditional non-rendering
 - FormData extraction over controlled inputs for form handling
 - `disconnectedCallback` cleanup for blob URLs and event listeners
 - Event delegation at the list level over individual handlers on each item
 - Domain types and constants in pure elements — immutable domain knowledge is fine, stateful behavior is not
+- Monospace font (`--font-mono`) on interactive elements (buttons, inputs, selects)
+- `light-dark()` for color tokens instead of duplicated `@media (prefers-color-scheme)` blocks

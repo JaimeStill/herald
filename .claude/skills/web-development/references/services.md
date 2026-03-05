@@ -2,23 +2,47 @@
 
 Stateless API wrappers that mirror Go domain handlers. Each domain has a PascalCase service object with a `base` path constant. Methods return `Result<T>` for request-response and `AbortController` for streaming. No signals, no context, no state.
 
+## SearchRequest Convention
+
+Each domain defines its own `SearchRequest` interface combining pagination fields with domain-specific filters. Both `list()` (GET + query params) and `search()` (POST + JSON body) accept it. The type mirrors the Go handler's `SearchRequest` struct (embedded `PageRequest` + `Filters`), which serializes to flat JSON.
+
+```typescript
+// documents/document.ts — domain-specific SearchRequest
+export interface SearchRequest {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  sort?: string;
+  status?: string;           // domain filter
+  classification?: string;   // domain filter
+  confidence?: string;       // domain filter
+}
+```
+
+`toQueryString()` in `@app/core` is generic (`<T extends object>`) and serializes any `SearchRequest` variant to query params.
+
 ## Service Pattern
 
 ```typescript
 // documents/service.ts
-import {
-  request, toQueryString,
-  type Result, type PageResult, type PageRequest,
-} from '@app/core';
-import type { Document } from './document';
+import { request, toQueryString, type Result, type PageResult } from '@app/core';
+import type { Document, SearchRequest } from './document';
 
 const base = '/documents';
 
 export const DocumentService = {
-  async list(params?: PageRequest): Promise<Result<PageResult<Document>>> {
+  async list(params?: SearchRequest): Promise<Result<PageResult<Document>>> {
     return await request<PageResult<Document>>(
       `${base}${params ? toQueryString(params) : ''}`
     );
+  },
+
+  async search(body: SearchRequest): Promise<Result<PageResult<Document>>> {
+    return await request<PageResult<Document>>(`${base}/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
   },
 
   async find(id: string): Promise<Result<Document>> {

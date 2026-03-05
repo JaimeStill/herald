@@ -1,0 +1,41 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(0 0% 0% / 0.5);
+  z-index: 100;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--bg-1);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-md);
+  max-width: 24rem;
+  width: 100%;
+}
+
+.message {
+  font-size: var(--text-sm);
+  color: var(--color);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.confirm-btn:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+
+  &:hover {
+    background: var(--red-bg);
+  }
+}
