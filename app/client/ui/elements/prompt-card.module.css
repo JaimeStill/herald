@@ -1,0 +1,88 @@
+:host {
+  display: block;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-1);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s;
+}
+
+.card.selected {
+  border-color: var(--blue);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.name {
+  flex: 1;
+  font-weight: 600;
+  color: var(--color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.active-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--divider);
+}
+
+.active-indicator.active {
+  background: var(--green);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--color-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.toggle-btn:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+
+  &:hover {
+    background: var(--green-bg);
+  }
+}
+
+.toggle-btn.deactivate:not(:disabled) {
+  border-color: var(--yellow);
+  color: var(--yellow);
+
+  &:hover {
+    background: var(--yellow-bg);
+  }
+}
+
+.delete-btn:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+
+  &:hover {
+    background: var(--red-bg);
+  }
+}

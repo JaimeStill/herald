@@ -1,12 +1,14 @@
 # Router
 
-History API router at `app/client/router/`. Handles client-side navigation within the SPA.
+History API router at `app/client/core/router/`. Routes are defined externally in `app/client/routes.ts` and injected into the `Router` constructor — the router has no knowledge of specific routes.
 
 ## Route Definitions
 
 ```typescript
-// router/routes.ts
-const routes: Record<string, RouteConfig> = {
+// app/client/routes.ts
+import type { RouteConfig } from "@core/router";
+
+export const routes: Record<string, RouteConfig> = {
   '': { component: 'hd-documents-view', title: 'Documents' },
   'prompts': { component: 'hd-prompts-view', title: 'Prompts' },
   'review/:documentId': { component: 'hd-review-view', title: 'Review' },
@@ -20,14 +22,25 @@ const routes: Record<string, RouteConfig> = {
 
 ### Adding a New Route
 
-1. Add entry to `routes` in `router/routes.ts`
-2. Create the view component in `views/<domain>/`
-3. Import the view in `views/index.ts` barrel
+1. Add entry to `routes` in `app/client/routes.ts`
+2. Create the view component in `ui/views/`
+3. Export from `ui/views/index.ts` barrel
+
+## Initialization
+
+```typescript
+// app/client/app.ts
+import { Router } from "@core/router";
+import { routes } from "./routes";
+
+const router = new Router("app-content", routes);
+router.start();
+```
 
 ## Navigation
 
 ```typescript
-import { navigate } from '@app/router';
+import { navigate } from '@core/router';
 
 // Programmatic navigation
 navigate('prompts');
@@ -53,7 +66,7 @@ Query params are also set as attributes on the component.
 ## Route Types
 
 ```typescript
-// router/types.ts
+// core/router/types.ts
 interface RouteConfig {
   component: string;      // Custom element tag name
   title: string;          // Page title
@@ -68,9 +81,10 @@ interface RouteMatch {
 
 ## How It Works
 
-1. Router reads `<base href>` from the HTML shell for basePath
-2. On navigation, strips basePath and matches against route patterns
-3. Exact match first, then segment-by-segment pattern matching
-4. Creates the custom element by tag name, sets params as attributes
-5. Replaces container (`#app-content`) innerHTML with the new element
-6. Updates `document.title` and pushes to history
+1. Router receives route table via constructor — no internal route knowledge
+2. Reads `<base href>` from the HTML shell for basePath
+3. On navigation, strips basePath and matches against route patterns
+4. Exact match first, then segment-by-segment pattern matching
+5. Creates the custom element by tag name, sets params as attributes
+6. Replaces container (`#app-content`) innerHTML with the new element
+7. Updates `document.title` and pushes to history

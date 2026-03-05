@@ -35,3 +35,14 @@ export interface UpdatePromptCommand {
   instructions: string;
   description?: string;
 }
+
+/** Pagination and filter parameters for prompt list and search endpoints. */
+export interface SearchRequest {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  sort?: string;
+  stage?: PromptStage;
+  name?: string;
+  active?: boolean;
+}

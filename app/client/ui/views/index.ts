@@ -1,4 +1,4 @@
-export * from "./documents";
-export * from "./not-found/";
-export * from "./prompts";
-export * from "./review";
+export { DocumentsView } from "./documents-view";
+export { NotFoundView } from "./not-found-view";
+export { PromptsView } from "./prompts-view";
+export { ReviewView } from "./review-view";

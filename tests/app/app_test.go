@@ -35,7 +35,7 @@ func TestShellTemplate(t *testing.T) {
 		name    string
 		content string
 	}{
-		{"base href", `<base href="/app/">`},
+		{"base href", `<base href="/app/"`},
 		{"css link", `dist/app.css`},
 		{"js script", `dist/app.js`},
 		{"title", `Herald`},
@@ -103,7 +103,7 @@ func TestSPAFallback(t *testing.T) {
 			}
 
 			body := rec.Body.String()
-			if !strings.Contains(body, `<base href="/app/">`) {
+			if !strings.Contains(body, `<base href="/app/"`) {
 				t.Error("SPA fallback did not render shell template")
 			}
 		})

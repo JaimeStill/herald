@@ -1,4 +1,4 @@
-import type { RouteConfig } from "./types";
+import type { RouteConfig } from "@core/router";
 
 /** Route table mapping URL path patterns to view components. */
 export const routes: Record<string, RouteConfig> = {

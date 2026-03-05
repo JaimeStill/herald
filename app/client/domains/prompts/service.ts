@@ -1,11 +1,12 @@
 import { request, toQueryString } from "@core";
-import type { PageRequest, PageResult, Result } from "@core";
+import type { PageResult, Result } from "@core";
 
 import type {
+  CreatePromptCommand,
   Prompt,
   PromptStage,
+  SearchRequest,
   StageContent,
-  CreatePromptCommand,
   UpdatePromptCommand,
 } from "./prompt";
 
@@ -17,7 +18,7 @@ const base = "/prompts";
  */
 export const PromptService = {
   /** `GET /api/prompts` — paginated prompt list. */
-  async list(params?: PageRequest): Promise<Result<PageResult<Prompt>>> {
+  async list(params?: SearchRequest): Promise<Result<PageResult<Prompt>>> {
     return await request<PageResult<Prompt>>(
       `${base}${params ? toQueryString(params) : ""}`,
     );
@@ -44,7 +45,7 @@ export const PromptService = {
   },
 
   /** `POST /api/prompts/search` — server-side filtered search. */
-  async search(body: PageRequest): Promise<Result<PageResult<Prompt>>> {
+  async search(body: SearchRequest): Promise<Result<PageResult<Prompt>>> {
     return await request<PageResult<Prompt>>(`${base}/search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

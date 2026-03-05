@@ -1,5 +1,4 @@
-import { routes } from "./routes";
-import type { RouteMatch } from "./types";
+import type { RouteConfig, RouteMatch } from "./types";
 
 let routerInstance: Router | null = null;
 
@@ -16,10 +15,13 @@ export function navigate(path: string): void {
 export class Router {
   private container: HTMLElement;
   private basePath: string;
+  private routes: Record<string, RouteConfig>;
 
-  constructor(containerId: string) {
+  constructor(containerId: string, routes: Record<string, RouteConfig>) {
     const el = document.getElementById(containerId);
     if (!el) throw new Error(`Container #${containerId} not found`);
+
+    this.routes = routes;
 
     this.container = el;
     this.basePath =
@@ -69,9 +71,9 @@ export class Router {
   private match(path: string, query: Record<string, string>): RouteMatch {
     const segments = path.split("/").filter(Boolean);
 
-    if (routes[path]) return { config: routes[path], params: {}, query };
+    if (this.routes[path]) return { config: this.routes[path], params: {}, query };
 
-    for (const [pattern, config] of Object.entries(routes)) {
+    for (const [pattern, config] of Object.entries(this.routes)) {
       if (pattern === "*") continue;
 
       const patternSegments = pattern.split("/").filter(Boolean);
@@ -98,7 +100,7 @@ export class Router {
       }
     }
 
-    return { config: routes["*"], params: { path }, query };
+    return { config: this.routes["*"], params: { path }, query };
   }
 
   private mount(match: RouteMatch): void {
