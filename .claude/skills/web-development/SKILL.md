@@ -77,7 +77,7 @@ Four cascade layers (`tokens, reset, theme, app`), design tokens as CSS custom p
 
 ### Router — [references/router.md](references/router.md)
 
-History API router at `app/client/core/router/`. Route definitions map path patterns to component tag names. Dynamic `:paramName` segments, catch-all `'*'`, `navigate()` for programmatic routing. Router sets path/query params as HTML attributes on mounted components. Progressive enhancement with View Transitions API.
+History API router at `app/client/core/router/`. Routes are defined in `app/client/routes.ts` and injected into the `Router` constructor — the router has no knowledge of specific routes. Dynamic `:paramName` segments, catch-all `'*'`, `navigate()` for programmatic routing. Router sets path/query params as HTML attributes on mounted components. Progressive enhancement with View Transitions API.
 
 ### Build — [references/build.md](references/build.md)
 
@@ -115,11 +115,13 @@ See [references/components.md](references/components.md) for full code examples 
 
 ```
 app/client/
+├── app.ts                             # entry point — creates Router, imports tiers
+├── routes.ts                          # route table (injected into Router)
 ├── core/                              # framework utilities (no domain knowledge)
 │   ├── api.ts                         # request, stream, toQueryString, types
 │   ├── index.ts                       # barrel
 │   ├── formatting/                    # formatBytes, formatDate
-│   └── router/                        # History API router, routes, navigate()
+│   └── router/                        # History API router, navigate()
 ├── design/                            # global design system
 │   ├── core/                          # tokens.css, reset.css, theme.css
 │   ├── styles/                        # shared component styles (badge, buttons)
@@ -128,24 +130,29 @@ app/client/
 ├── domains/                           # data types and service contracts
 │   ├── classifications/               # Classification, WorkflowStage, ClassificationService
 │   ├── documents/                     # Document, SearchRequest, DocumentService
-│   ├── prompts/                       # Prompt, PromptService
+│   ├── prompts/                       # Prompt, SearchRequest, PromptService
 │   └── storage/                       # BlobMeta, StorageService
-└── ui/                                # everything that renders
-    ├── elements/                      # pure elements (props/events)
-    │   ├── dialog/                    # hd-confirm-dialog
-    │   ├── documents/                 # hd-document-card, hd-classify-progress
-    │   ├── pagination/                # hd-pagination
+└── ui/                                # everything that renders (flat per tier)
+    ├── elements/                      # pure elements — props in, events out
+    │   ├── confirm-dialog.ts
+    │   ├── classify-progress.ts
+    │   ├── document-card.ts
+    │   ├── pagination-controls.ts
+    │   ├── prompt-card.ts
     │   └── index.ts                   # barrel
     ├── modules/                       # stateful capability units
-    │   ├── documents/                 # hd-document-grid, hd-document-upload
+    │   ├── document-grid.ts
+    │   ├── document-upload.ts
     │   └── index.ts                   # barrel
     └── views/                         # route-level composition
-        ├── documents/                 # hd-documents-view
-        ├── prompts/                   # hd-prompts-view
-        ├── review/                    # hd-review-view
-        ├── not-found/                 # hd-not-found-view
+        ├── documents-view.ts
+        ├── not-found-view.ts
+        ├── prompts-view.ts
+        ├── review-view.ts
         └── index.ts                   # barrel
 ```
+
+Components live directly in their tier directory — no domain subdirectories. The `hd-` prefix already namespaces by domain. Each component has a co-located `*.module.css` file (omitted from tree for brevity).
 
 **Dependency flow:** `design ← core ← domains ← ui`
 

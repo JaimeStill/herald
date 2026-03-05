@@ -12,22 +12,21 @@
     background: var(--yellow-bg);
   }
 
-  &.review {
-    color: var(--blue);
-    background: var(--blue-bg);
+  &.enhance {
+    color: var(--orange);
+    background: var(--orange-bg);
   }
 
-  &.complete {
-    color: var(--green);
-    background: var(--green-bg);
-  }
-
+  &.classify,
+  &.finalize,
+  &.review,
   &.uploading {
     color: var(--blue);
     background: var(--blue-bg);
   }
 
-  &.success {
+  &.success,
+  &.complete {
     color: var(--green);
     background: var(--green-bg);
   }

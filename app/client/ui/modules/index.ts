@@ -1,1 +1,2 @@
-export * from "./documents";
+export { DocumentGrid } from "./document-grid";
+export { DocumentUpload } from "./document-upload";
