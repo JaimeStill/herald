@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.59.77
+- Add document grid module with search, filtering, sorting, pagination, SSE classify orchestration, bulk select + classify, and delete with confirmation dialog; compose documents view with upload toggle and grid refresh wiring; restructure `app/client/` into four top-level packages (`core/`, `domains/`, `ui/`, `design/`) with path aliases and View → Module → Element component vocabulary; consolidate design system with `light-dark()` tokens, shared button/badge styles, monospace interactive elements, and View Transitions API progressive enhancement (#77)
+
 ## v0.3.0-dev.59.76
 - Add document upload stateful component with drag-and-drop file selection, per-file metadata inputs, concurrent `Promise.allSettled` upload coordination, and per-file status tracking (#76)
 
