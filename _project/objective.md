@@ -1,39 +1,39 @@
-# Objective: Prompt Management View
+# Objective: Document Review View
 
-**Issue**: #60
+**Issue**: #61
 **Phase**: Phase 3 — Web Client (v0.3.0)
 
 ## Scope
 
-Build the prompt management view — a CRUD interface for named prompt overrides with stage filtering and active toggle. Accessible at `/app/prompts`. The prompt domain layer (types + stateless service) and backend API are already complete. This objective is purely UI work.
+Build the document review view — a side-by-side interface showing a PDF viewer alongside the classification record, with actions to validate (agree with AI) or manually update the classification. Accessible at `/app/review/:documentId`. All backend APIs and frontend domain services already exist. This objective is purely UI work plus one small storage endpoint addition.
 
 ## Sub-Issues
 
 | # | Sub-Issue | Issue | Status | Depends On |
 |---|-----------|-------|--------|------------|
-| 1 | Prompt card pure element and search request type | #82 | Open | — |
-| 2 | Prompt list module with stage filtering and activation | #83 | Open | #82 |
-| 3 | Prompt form module and view integration | #84 | Open | #82, #83 |
+| 1 | PDF viewer element and storage inline endpoint | #88 | Open | — |
+| 2 | Markings list element and classification panel module | #89 | Open | — |
+| 3 | Review view composition | #90 | Open | #88, #89 |
 
 ## Dependency Graph
 
 ```
-#82 (Card + Search Type)
-      |
-      v
-#83 (List Module)
-      |
-      v
-#84 (Form + View Assembly)
+#88 (PDF Viewer + Storage Endpoint)
+                                     \
+                                      → #90 (Review View Composition)
+                                     /
+#89 (Markings List + Classification Panel)
 ```
+
+Sub-issues 1 and 2 are independent. Sub-issue 3 composes both.
 
 ## Architecture Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| State management | `@state()` + direct service calls | Follows established codebase pattern. Modules own their data, call services directly. No Signal.State/context needed. |
-| Layout | Vertical card list, not grid | Prompts are text-heavy (name, description, instructions). Vertical list is more scannable. |
-| Active toggle | On card, not in form | Activate/deactivate is atomic (auto-deactivates previous active for stage). Quick-toggle is more intuitive. |
-| Form values | FormData extraction on submit | Per web-development skill convention. Not controlled inputs. |
-| Stage in edit | Dropdown disabled | Changing stage is semantically unusual and could cause unexpected deactivation. |
-| Design approach | Utilitarian consistency | Stay within existing Herald design tokens and system fonts. Clean, functional, production-focused. |
+| PDF display | New `GET /storage/view/{key...}` with `Content-Disposition: inline` | Separate route for different representation. No risk to existing download behavior. |
+| No-classification state | Empty state with "Back to Documents" link | SSE streaming stays in document-grid only. Review view is for existing classifications. |
+| Classification panel data | Module loads own classification via `ClassificationService.findByDocument()` | Follows module pattern — modules own their async data. |
+| Post-action refresh | Panel updates `@state()` from API response, dispatches event for view to re-fetch document | Both validate/update return updated Classification. View needs fresh document for status change. |
+| No re-classification from review | Not supported | Keeps SSE orchestration in one place (document-grid module). |
+| Layout | Two-panel flex: left ~60% (PDF), right ~40% (classification) | Side-by-side comparison is the primary use case for review. |
