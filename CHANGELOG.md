@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.61.88
+- Add `GET /api/storage/view/{key}` inline blob streaming endpoint, generic `hd-blob-viewer` pure element with caller-driven `src` URL, `StorageService.view()` URL builder, and review view composition with document loading and two-panel layout (#88)
+
 ## v0.3.0-dev.60.84
 - Add prompt form module with create/edit modes, FormData extraction, and error display; compose prompts view with split-panel layout coordinating list and form via custom events; add collapsible default prompt reference panel showing stage specification and hardcoded default instructions; add `?default=true` query param to instructions endpoint to bypass active DB overrides; establish custom event naming convention (simple action verbs, no domain prefix); remove unused `@lit-labs/signals` and `@lit/context` dependencies (#84)
 

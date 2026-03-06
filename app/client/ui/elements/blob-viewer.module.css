@@ -1,0 +1,11 @@
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+iframe {
+  flex: 1;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-md);
+}

@@ -1,3 +1,4 @@
+export { BlobViewer } from "./blob-viewer";
 export { ClassifyProgress } from "./classify-progress";
 export { ConfirmDialog } from "./confirm-dialog";
 export { DocumentCard } from "./document-card";

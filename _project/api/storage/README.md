@@ -94,3 +94,31 @@ Downloads a file by storage key. Streams the blob with appropriate Content-Type 
 ```bash
 curl -s "$HERALD_API_BASE/api/storage/download/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf" -o report.pdf
 ```
+
+---
+
+## View Blob
+
+`GET /api/storage/view/{key...}`
+
+Streams a file by storage key for inline browser display. Sets `Content-Disposition: inline` so browsers render supported formats (e.g., PDFs) natively inside iframes.
+
+### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| key | string (wildcard) | Blob storage key (may contain slashes) |
+
+### Responses
+
+| Status | Description |
+|--------|-------------|
+| 200 | File stream with Content-Type, Content-Length, and Content-Disposition: inline headers |
+| 400 | Invalid key |
+| 404 | Blob not found |
+
+### Example
+
+```bash
+curl -s "$HERALD_API_BASE/api/storage/view/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf" -o report.pdf
+```
