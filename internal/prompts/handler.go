@@ -102,6 +102,7 @@ func (h *Handler) Find(w http.ResponseWriter, r *http.Request) {
 
 // Instructions returns the effective instructions for a workflow stage.
 // Returns the active DB override if one exists, otherwise the hardcoded default.
+// When ?default=true is set, always returns the hardcoded default.
 func (h *Handler) Instructions(w http.ResponseWriter, r *http.Request) {
 	stage, err := ParseStage(r.PathValue("stage"))
 	if err != nil {
@@ -109,7 +110,13 @@ func (h *Handler) Instructions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	text, err := h.sys.Instructions(r.Context(), stage)
+	var text string
+	if r.URL.Query().Get("default") == "true" {
+		text, err = Instructions(stage)
+	} else {
+		text, err = h.sys.Instructions(r.Context(), stage)
+	}
+
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
 		return

@@ -21,7 +21,7 @@ export class PromptCard extends LitElement {
   private handleSelect() {
     this.dispatchEvent(
       new CustomEvent("select", {
-        detail: { id: this.prompt.id },
+        detail: { prompt: this.prompt },
         bubbles: true,
         composed: true,
       }),

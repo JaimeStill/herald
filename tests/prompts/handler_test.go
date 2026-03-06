@@ -306,6 +306,37 @@ func TestHandlerInstructions(t *testing.T) {
 			t.Errorf("status = %d, want 400", rec.Code)
 		}
 	})
+
+	t.Run("default=true bypasses system and returns hardcoded", func(t *testing.T) {
+		sys := &mockSystem{
+			instructionsFn: func(_ context.Context, _ prompts.Stage) (string, error) {
+				t.Fatal("system.Instructions should not be called with default=true")
+				return "", nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/prompts/classify/instructions?default=true", nil)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+
+		var got prompts.StageContent
+		if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+
+		want, _ := prompts.Instructions(prompts.StageClassify)
+		if got.Content != want {
+			t.Errorf("content mismatch: got %d bytes, want %d bytes", len(got.Content), len(want))
+		}
+		if got.Stage != prompts.StageClassify {
+			t.Errorf("stage = %q, want classify", got.Stage)
+		}
+	})
 }
 
 func TestHandlerSpec(t *testing.T) {

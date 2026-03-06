@@ -40,6 +40,11 @@ GET {{HOST}}/api/prompts/{{promptId}} HTTP/1.1
 GET {{HOST}}/api/prompts/classify/instructions HTTP/1.1
 
 
+### Get Stage Default Instructions
+
+GET {{HOST}}/api/prompts/classify/instructions?default=true HTTP/1.1
+
+
 ### Get Stage Spec
 
 GET {{HOST}}/api/prompts/classify/spec HTTP/1.1

@@ -1,17 +1,51 @@
 :host {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-6);
+  overflow: hidden;
 }
 
-.container {
-  text-align: center;
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.view-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 h1 {
-  margin-bottom: var(--space-4);
+  font-size: var(--text-xl);
+  font-weight: 600;
 }
 
-p {
-  color: var(--color-1);
+.view-content {
+  display: flex;
+  gap: var(--space-6);
+  flex: 1;
+  min-height: 0;
+}
+
+.list-panel {
+  display: flex;
+  flex-direction: column;
+  width: 22rem;
+  min-width: 18rem;
+  flex-shrink: 0;
+  border-right: 1px solid var(--divider);
+  padding-right: var(--space-6);
+  overflow: hidden;
+}
+
+.form-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
