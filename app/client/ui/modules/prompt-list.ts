@@ -17,7 +17,7 @@ import styles from "./prompt-list.module.css";
 export class PromptList extends LitElement {
   static styles = [buttonStyles, styles];
 
-  @property({ type: String }) selectedId = "";
+  @property({ type: Object }) selected: Prompt | null = null;
 
   @state() private prompts: PageResult<Prompt> | null = null;
   @state() private page = 1;
@@ -83,10 +83,10 @@ export class PromptList extends LitElement {
     this.fetchPrompts();
   }
 
-  private handleSelect(e: CustomEvent<{ id: string }>) {
+  private handleSelect(e: CustomEvent<{ prompt: Prompt }>) {
     this.dispatchEvent(
-      new CustomEvent("prompt-select", {
-        detail: { id: e.detail.id },
+      new CustomEvent("select", {
+        detail: { prompt: e.detail.prompt },
         bubbles: true,
         composed: true,
       }),
@@ -118,7 +118,7 @@ export class PromptList extends LitElement {
 
     if (result.ok) {
       this.dispatchEvent(
-        new CustomEvent("prompt-deleted", {
+        new CustomEvent("delete", {
           detail: { id },
           bubbles: true,
           composed: true,
@@ -151,6 +151,7 @@ export class PromptList extends LitElement {
           .value=${this.search}
           @input=${this.handleSearchInput}
         />
+        <button class="btn new-btn" @click=${this.handleNew}>New</button>
         <select class="filter-select" @change=${this.handleStageFilter}>
           <option value="">---</option>
           <option value="classify" ?selected=${this.stage === "classify"}>
@@ -177,7 +178,6 @@ export class PromptList extends LitElement {
             Stage (Z-A)
           </option>
         </select>
-        <button class="btn new-btn" @click=${this.handleNew}>New</button>
       </div>
     `;
   }
@@ -197,7 +197,7 @@ export class PromptList extends LitElement {
           (prompt) => html`
             <hd-prompt-card
               .prompt=${prompt}
-              ?selected=${this.selectedId === prompt.id}
+              ?selected=${this.selected?.id === prompt.id}
               @select=${this.handleSelect}
               @toggle-active=${this.handleToggleActive}
               @delete=${this.handleDelete}

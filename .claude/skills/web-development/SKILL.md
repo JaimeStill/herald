@@ -143,6 +143,8 @@ app/client/
     ├── modules/                       # stateful capability units
     │   ├── document-grid.ts
     │   ├── document-upload.ts
+    │   ├── prompt-form.ts
+    │   ├── prompt-list.ts
     │   └── index.ts                   # barrel
     └── views/                         # route-level composition
         ├── documents-view.ts
@@ -195,6 +197,15 @@ import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
 import styles from "./document-card.module.css";
 ```
+
+### Custom Events
+
+Event names are simple action verbs describing what happened from the component's perspective. Avoid prefixing with the domain name — the component tag already provides context.
+
+- **Simple verbs**: `select`, `delete`, `save`, `create`, `cancel`
+- **Compound verbs** when needed for clarity: `toggle-active`, `upload-complete`, `page-change`
+- **No domain prefix**: `select` not `prompt-select`, `delete` not `prompt-deleted`
+- **Avoid overwriting native events** that are semantically associated with the component itself (e.g., don't use `input` on a component that wraps an input). A list emitting `select` is fine — the list itself doesn't have a native `select` semantic.
 
 ### HTMLElementTagNameMap
 

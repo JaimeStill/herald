@@ -35,8 +35,15 @@ export const PromptService = {
   },
 
   /** `GET /api/prompts/:stage/instructions` — assembled instructions for a stage. */
-  async instructions(stage: PromptStage): Promise<Result<StageContent>> {
-    return await request<StageContent>(`${base}/${stage}/instructions`);
+  async instructions(
+    stage: PromptStage,
+    defaultOnly?: boolean,
+  ): Promise<Result<StageContent>> {
+    const params = defaultOnly ? "?default=true" : "";
+
+    return await request<StageContent>(
+      `${base}/${stage}/instructions${params}`,
+    );
   },
 
   /** `GET /api/prompts/:stage/spec` — assembled spec for a stage. */

@@ -316,13 +316,19 @@ curl -s -X POST "$HERALD_API_BASE/api/prompts/550e8400-e29b-41d4-a716-4466554400
 
 `GET /api/prompts/{stage}/instructions`
 
-Returns the effective instructions for a workflow stage. If an active prompt override exists for the stage, returns its instructions. Otherwise, returns the hardcoded default instructions.
+Returns the effective instructions for a workflow stage. If an active prompt override exists for the stage, returns its instructions. Otherwise, returns the hardcoded default instructions. Pass `?default=true` to always return the hardcoded default, bypassing any active override.
 
 ### Path Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | stage | string | Workflow stage (classify, enhance) |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| default | string | no | When `"true"`, returns hardcoded default instructions regardless of active overrides |
 
 ### Responses
 
@@ -342,6 +348,12 @@ Returns the effective instructions for a workflow stage. If an active prompt ove
 
 ```bash
 curl -s "$HERALD_API_BASE/api/prompts/classify/instructions" | jq .
+```
+
+### Default-Only Example
+
+```bash
+curl -s "$HERALD_API_BASE/api/prompts/classify/instructions?default=true" | jq .
 ```
 
 ---

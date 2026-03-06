@@ -18,15 +18,15 @@
   }
 
   &.classify,
-  &.finalize,
   &.review,
   &.uploading {
     color: var(--blue);
     background: var(--blue-bg);
   }
 
-  &.success,
-  &.complete {
+  &.complete,
+  &.finalize,
+  &.success {
     color: var(--green);
     background: var(--green-bg);
   }
