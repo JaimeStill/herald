@@ -20,3 +20,10 @@ GET {{HOST}}/api/storage/documents/550e8400-e29b-41d4-a716-446655440000/report.p
 # Replace with a valid storage key
 
 GET {{HOST}}/api/storage/download/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf HTTP/1.1
+
+
+### View Blob
+
+# Replace with a valid storage key
+
+GET {{HOST}}/api/storage/view/documents/550e8400-e29b-41d4-a716-446655440000/report.pdf HTTP/1.1

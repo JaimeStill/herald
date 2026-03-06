@@ -37,6 +37,7 @@ func (h *storageHandler) routes() routes.Group {
 		Routes: []routes.Route{
 			{Method: "GET", Pattern: "", Handler: h.list},
 			{Method: "GET", Pattern: "/download/{key...}", Handler: h.download},
+			{Method: "GET", Pattern: "/view/{key...}", Handler: h.view},
 			{Method: "GET", Pattern: "/{key...}", Handler: h.find},
 		},
 	}
@@ -88,6 +89,37 @@ func (h *storageHandler) find(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handlers.RespondJSON(w, http.StatusOK, meta)
+}
+
+// view streams a blob for inline browser display, setting Content-Disposition
+// to "inline" so browsers render supported formats (e.g., PDFs) natively.
+func (h *storageHandler) view(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+
+	result, err := h.store.Download(r.Context(), key)
+	if err != nil {
+		handlers.RespondError(
+			w, h.logger,
+			storage.MapHTTPStatus(err), err,
+		)
+		return
+	}
+	defer result.Body.Close()
+
+	w.Header().Set("Content-Type", result.ContentType)
+
+	if result.ContentLength > 0 {
+		w.Header().Set(
+			"Content-Length",
+			strconv.FormatInt(result.ContentLength, 10),
+		)
+	}
+	w.Header().Set(
+		"Content-Disposition",
+		fmt.Sprintf("inline; filename=%q", path.Base(key)),
+	)
+	w.WriteHeader(http.StatusOK)
+	io.Copy(w, result.Body)
 }
 
 func (h *storageHandler) download(w http.ResponseWriter, r *http.Request) {

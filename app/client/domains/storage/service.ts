@@ -34,6 +34,11 @@ export const StorageService = {
     return await request<BlobMeta>(`${base}/${key}`);
   },
 
+  /** Builds the inline view URL for `GET /api/storage/view/:key`. */
+  view(key: string): string {
+    return `/api${base}/view/${key}`;
+  },
+
   /** `GET /api/storage/download/:key` — download blob content. */
   async download(key: string): Promise<Result<Blob>> {
     return await request<Blob>(`${base}/download/${key}`, undefined, (res) =>
