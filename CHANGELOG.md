@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.61.89
+- Add markings list pure element rendering security markings as badge tags, classification panel module with view/validate/update modes and event-driven state refresh, and integrate panel into review view replacing placeholder content (#89)
+
 ## v0.3.0-dev.61.88
 - Add `GET /api/storage/view/{key}` inline blob streaming endpoint, generic `hd-blob-viewer` pure element with caller-driven `src` URL, `StorageService.view()` URL builder, and review view composition with document loading and two-panel layout (#88)
 

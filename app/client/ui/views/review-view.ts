@@ -23,18 +23,28 @@ export class ReviewView extends LitElement {
       this.document = undefined;
       this.error = undefined;
 
-      const result = await DocumentService.find(this.documentId);
+      await this.loadDocument(this.documentId);
+    }
+  }
 
-      if (result.ok) {
-        this.document = result.data;
-      } else {
-        this.error = result.error;
-      }
+  private async loadDocument(documentId: string) {
+    const result = await DocumentService.find(documentId);
+
+    if (result.ok) {
+      this.document = result.data;
+    } else {
+      this.error = result.error;
     }
   }
 
   private handleBack() {
     navigate("");
+  }
+
+  private async handleClassificationChange() {
+    if (!this.documentId) return;
+
+    await this.loadDocument(this.documentId);
   }
 
   render() {
@@ -61,8 +71,11 @@ export class ReviewView extends LitElement {
         ></hd-blob-viewer>
       </div>
       <div class="panel classification-panel">
-        <h2>${this.document.filename}</h2>
-        <p class="status">${this.document.status}</p>
+        <hd-classification-panel
+          .documentId=${this.documentId ?? ""}
+          @validate=${this.handleClassificationChange}
+          @update=${this.handleClassificationChange}
+        ></hd-classification-panel>
       </div>
     `;
   }
