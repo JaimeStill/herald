@@ -24,21 +24,6 @@
   overflow-y: auto;
 }
 
-.classification-panel h2 {
-  margin-bottom: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
-  word-break: break-all;
-}
-
-.classification-panel .status {
-  color: var(--color-1);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 .loading,
 .error {
   display: flex;
