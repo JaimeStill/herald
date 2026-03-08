@@ -1,49 +1,45 @@
 # Changelog
 
-## v0.3.0-dev.61.90
-- Extract duplicated CSS into shared style modules (inputs, labels, cards, button color variants), fix `querySelector<any>` type erasure, enforce named barrel exports, disable classification panel actions when validated, show external_id/platform on document cards, and align web-development skill documentation with final codebase state (#90)
+## v0.3.0
 
-## v0.3.0-dev.61.89
-- Add markings list pure element rendering security markings as badge tags, classification panel module with view/validate/update modes and event-driven state refresh, and integrate panel into review view replacing placeholder content (#89)
+### Web Infrastructure
 
-## v0.3.0-dev.61.88
-- Add `GET /api/storage/view/{key}` inline blob streaming endpoint, generic `hd-blob-viewer` pure element with caller-driven `src` URL, `StorageService.view()` URL builder, and review view composition with document loading and two-panel layout (#88)
-
-## v0.3.0-dev.60.84
-- Add prompt form module with create/edit modes, FormData extraction, and error display; compose prompts view with split-panel layout coordinating list and form via custom events; add collapsible default prompt reference panel showing stage specification and hardcoded default instructions; add `?default=true` query param to instructions endpoint to bypass active DB overrides; establish custom event naming convention (simple action verbs, no domain prefix); remove unused `@lit-labs/signals` and `@lit/context` dependencies (#84)
-
-## v0.3.0-dev.60.83
-- Add prompt list module with search (300ms debounce), stage filtering, sorting, pagination, activate/deactivate lifecycle, and delete with confirmation dialog; clean up document-grid filter/sort/search handlers to delegate to `refresh()` (#83)
-
-## v0.3.0-dev.60.82
-- Add prompt card pure element with stage badge, active indicator, and toggle/delete events; add prompts `SearchRequest` type with domain-owned pagination fields; flatten `ui/` tier directories removing domain subdirectories; invert router route dependency via constructor injection with routes at `app/client/routes.ts`; consolidate badge CSS variants by color; fix app test base href assertion for format-agnostic self-closing tags (#82)
-
-## v0.3.0-dev.59.77
-- Add document grid module with search, filtering, sorting, pagination, SSE classify orchestration, bulk select + classify, and delete with confirmation dialog; compose documents view with upload toggle and grid refresh wiring; restructure `app/client/` into four top-level packages (`core/`, `domains/`, `ui/`, `design/`) with path aliases and View → Module → Element component vocabulary; consolidate design system with `light-dark()` tokens, shared button/badge styles, monospace interactive elements, and View Transitions API progressive enhancement (#77)
-
-## v0.3.0-dev.59.76
-- Add document upload stateful component with drag-and-drop file selection, per-file metadata inputs, concurrent `Promise.allSettled` upload coordination, and per-file status tracking (#76)
-
-## v0.3.0-dev.59.75
-- Add document card and classify progress pure elements with `WorkflowStage` domain type, shared formatting utilities, and corrected streaming orchestration in web-development skill references (#75)
-
-## v0.3.0-dev.59.74
-- Add web client data layer — enhance SSE `stream()` with event type parsing and POST support, TypeScript domain types mirroring Go API shapes, and stateless service objects mapping all handler endpoints across documents, classifications, prompts, and storage domains (#74)
-
-## v0.3.0-dev.58.71
-- Add SSE classification streaming — modify `POST /api/classifications/{documentId}` to return an SSE event stream with real-time workflow progress (node.start, node.complete, complete, error events) and persisted classification result on completion (#71)
-
-## v0.3.0-dev.58.70
-- Add workflow streaming observer with channel-based event emission, lean event type filtering (node.start, node.complete, complete, error), generic `FromMap[T]` map decoder, and `NewGraphWithDeps` observer injection (#70)
-
-## v0.3.0-dev.57.64
+- Add `pkg/web/` template and static file infrastructure — TemplateSet with layout inheritance, embedded filesystem serving, and SPA-compatible router with fallback (#62)
 - Add Go web app module with embedded client assets, SPA shell template, server integration alongside API module, Air hot reload configuration, and mise dev workflow tasks (#64)
 
-## v0.3.0-dev.57.63
-- Add client-side web application foundation — Bun build pipeline with CSS module plugin (`*.module.css` → `CSSStyleSheet`), CSS cascade layer design system with dark/light theme, History API router, `Result<T>` API layer with SSE streaming, and placeholder views for all routes (#63)
+### Client Build System and Design
 
-## v0.3.0-dev.57.62
-- Add `pkg/web/` template and static file infrastructure — TemplateSet with layout inheritance, embedded filesystem serving, and SPA-compatible router with fallback (#62)
+- Add client-side web application foundation — Bun build pipeline with CSS module plugin (`*.module.css` → `CSSStyleSheet`), CSS cascade layer design system with dark/light theme, History API router, `Result<T>` API layer with SSE streaming, and placeholder views for all routes (#63)
+- Restructure `app/client/` into four top-level packages (`core/`, `domains/`, `ui/`, `design/`) with path aliases and View → Module → Element component vocabulary; consolidate design system with `light-dark()` tokens, shared button/badge styles, monospace interactive elements, and View Transitions API progressive enhancement (#77)
+- Flatten `ui/` tier directories removing domain subdirectories; invert router route dependency via constructor injection; consolidate badge CSS variants by color (#82)
+- Extract duplicated CSS into shared style modules (inputs, labels, cards, button color variants), enforce named barrel exports, and align web-development skill documentation with final codebase state (#90)
+
+### Data Layer and Services
+
+- Add web client data layer — enhance SSE `stream()` with event type parsing and POST support, TypeScript domain types mirroring Go API shapes, and stateless service objects mapping all handler endpoints across documents, classifications, prompts, and storage domains (#74)
+
+### SSE Classification Streaming
+
+- Add workflow streaming observer with channel-based event emission, lean event type filtering (node.start, node.complete, complete, error), generic `FromMap[T]` map decoder, and `NewGraphWithDeps` observer injection (#70)
+- Add SSE classification streaming — modify `POST /api/classifications/{documentId}` to return an SSE event stream with real-time workflow progress and persisted classification result on completion (#71)
+
+### Document Management View
+
+- Add document card and classify progress pure elements with `WorkflowStage` domain type and shared formatting utilities (#75)
+- Add document upload component with drag-and-drop file selection, per-file metadata inputs, concurrent `Promise.allSettled` upload coordination, and per-file status tracking (#76)
+- Add document grid module with search, filtering, sorting, pagination, SSE classify orchestration, bulk select + classify, and delete with confirmation dialog; compose documents view with upload toggle and grid refresh wiring (#77)
+
+### Prompt Management View
+
+- Add prompt card pure element with stage badge, active indicator, and toggle/delete events; add prompts `SearchRequest` type with domain-owned pagination fields (#82)
+- Add prompt list module with search (300ms debounce), stage filtering, sorting, pagination, activate/deactivate lifecycle, and delete with confirmation dialog (#83)
+- Add prompt form module with create/edit modes, prompts view composition with split-panel layout, collapsible default prompt reference panel, `?default=true` query param for instructions endpoint; remove unused `@lit-labs/signals` and `@lit/context` dependencies (#84)
+
+### Document Review View
+
+- Add `GET /api/storage/view/{key}` inline blob streaming endpoint, generic `hd-blob-viewer` pure element, `StorageService.view()` URL builder, and review view composition with two-panel layout (#88)
+- Add markings list pure element, classification panel module with view/validate/update modes and event-driven state refresh (#89)
+- Disable classification panel actions when validated, show external_id/platform on document cards (#90)
 
 ## v0.2.0
 
