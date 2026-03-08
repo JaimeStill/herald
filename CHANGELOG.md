@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0-dev.61.90
+- Extract duplicated CSS into shared style modules (inputs, labels, cards, button color variants), fix `querySelector<any>` type erasure, enforce named barrel exports, disable classification panel actions when validated, show external_id/platform on document cards, and align web-development skill documentation with final codebase state (#90)
+
 ## v0.3.0-dev.61.89
 - Add markings list pure element rendering security markings as badge tags, classification panel module with view/validate/update modes and event-driven state refresh, and integrate panel into review view replacing placeholder content (#89)
 
