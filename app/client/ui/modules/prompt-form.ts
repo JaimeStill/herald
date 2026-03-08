@@ -5,6 +5,8 @@ import { PromptService } from "@domains/prompts";
 import type { Prompt } from "@domains/prompts";
 
 import buttonStyles from "@styles/buttons.module.css";
+import inputStyles from "@styles/inputs.module.css";
+import labelStyles from "@styles/labels.module.css";
 import styles from "./prompt-form.module.css";
 
 /**
@@ -15,7 +17,7 @@ import styles from "./prompt-form.module.css";
  */
 @customElement("hd-prompt-form")
 export class PromptForm extends LitElement {
-  static styles = [buttonStyles, styles];
+  static styles = [buttonStyles, inputStyles, labelStyles, styles];
 
   @property({ type: Object }) prompt: Prompt | null = null;
 
@@ -147,8 +149,9 @@ export class PromptForm extends LitElement {
       </div>
       <form class="form-body" @submit=${this.handleSubmit}>
         <div class="field">
-          <label for="name">Name</label>
+          <label class="label" for="name">Name</label>
           <input
+            class="input"
             id="name"
             name="name"
             type="text"
@@ -157,8 +160,9 @@ export class PromptForm extends LitElement {
           />
         </div>
         <div class="field">
-          <label for="stage">Stage</label>
+          <label class="label" for="stage">Stage</label>
           <select
+            class="input"
             id="stage"
             name="stage"
             required
@@ -179,18 +183,19 @@ export class PromptForm extends LitElement {
         </div>
         ${this.renderDefaults()}
         <div class="field">
-          <label for="instructions">Instructions</label>
+          <label class="label" for="instructions">Instructions</label>
           <textarea
+            class="input instructions"
             id="instructions"
             name="instructions"
-            class="instructions"
             required
             .value=${p?.instructions ?? ""}
           ></textarea>
         </div>
         <div class="field">
-          <label for="description">Description</label>
+          <label class="label" for="description">Description</label>
           <textarea
+            class="input"
             id="descripion"
             name="description"
             .value=${p?.description ?? ""}
@@ -200,14 +205,14 @@ export class PromptForm extends LitElement {
         <div class="actions">
           <button
             type="submit"
-            class="btn save-btn"
+            class="btn btn-green"
             ?disabled=${this.submitting}
           >
             ${this.submitting ? "Saving..." : "Save"}
           </button>
           <button
             type="button"
-            class="btn cancel-btn"
+            class="btn btn-muted"
             @click=${this.handleCancel}
             ?disabled=${this.submitting}
           >

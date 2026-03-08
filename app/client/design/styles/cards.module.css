@@ -1,0 +1,10 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-1);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s;
+}

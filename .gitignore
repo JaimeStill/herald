@@ -1,5 +1,7 @@
 secrets.json
 
+.playwright-cli
+
 # Binaries
 /bin/
 *.exe

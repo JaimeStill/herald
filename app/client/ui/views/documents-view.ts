@@ -13,7 +13,7 @@ export class DocumentsView extends LitElement {
 
   private handleUploadComplete() {
     this.showUpload = false;
-    this.renderRoot.querySelector<any>("hd-document-grid")?.refresh();
+    this.renderRoot.querySelector("hd-document-grid")?.refresh();
   }
 
   render() {

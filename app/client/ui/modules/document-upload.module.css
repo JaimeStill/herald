@@ -154,31 +154,3 @@
   font-size: var(--text-xs);
   color: var(--red);
 }
-
-.upload-btn:not(:disabled) {
-  border-color: var(--blue);
-  color: var(--blue);
-
-  &:hover {
-    background: var(--blue-bg);
-  }
-}
-
-.remove-btn {
-  padding: var(--space-1) var(--space-2);
-  border-color: var(--red);
-  color: var(--red);
-
-  &:hover:not(:disabled) {
-    background: var(--red-bg);
-  }
-}
-
-.clear-btn:not(:disabled) {
-  border-color: var(--yellow);
-  color: var(--yellow);
-
-  &:hover {
-    background: var(--yellow-bg);
-  }
-}

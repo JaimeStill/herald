@@ -30,7 +30,7 @@ export class PromptsView extends LitElement {
 
   private handlePromptSaved() {
     this.reset();
-    this.renderRoot.querySelector<any>("hd-prompt-list").refresh();
+    this.renderRoot.querySelector("hd-prompt-list")?.refresh();
   }
 
   private handleCancel() {

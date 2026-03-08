@@ -1,0 +1,19 @@
+.input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+  color: var(--color);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+
+  &:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}

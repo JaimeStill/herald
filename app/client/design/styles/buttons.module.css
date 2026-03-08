@@ -19,3 +19,48 @@
     cursor: not-allowed;
   }
 }
+
+.btn-blue:not(:disabled) {
+  border-color: var(--blue);
+  color: var(--blue);
+
+  &:hover {
+    background: var(--blue-bg);
+  }
+}
+
+.btn-green:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+
+  &:hover {
+    background: var(--green-bg);
+  }
+}
+
+.btn-red:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+
+  &:hover {
+    background: var(--red-bg);
+  }
+}
+
+.btn-yellow:not(:disabled) {
+  border-color: var(--yellow);
+  color: var(--yellow);
+
+  &:hover {
+    background: var(--yellow-bg);
+  }
+}
+
+.btn-muted:not(:disabled) {
+  border-color: var(--color-2);
+  color: var(--color-2);
+
+  &:hover {
+    background: var(--bg-2);
+  }
+}

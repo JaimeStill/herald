@@ -2,17 +2,6 @@
   display: block;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--bg-1);
-  border: 1px solid var(--divider);
-  border-radius: var(--radius-md);
-  transition: border-color 0.15s;
-}
-
 .card.selected {
   border-color: var(--blue);
 }
@@ -56,31 +45,4 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.classify-btn:not(:disabled) {
-  border-color: var(--blue);
-  color: var(--blue);
-
-  &:hover {
-    background: var(--blue-bg);
-  }
-}
-
-.review-btn:not(:disabled) {
-  border-color: var(--green);
-  color: var(--green);
-
-  &:hover {
-    background: var(--green-bg);
-  }
-}
-
-.delete-btn:not(:disabled) {
-  border-color: var(--red);
-  color: var(--red);
-
-  &:hover {
-    background: var(--red-bg);
-  }
 }

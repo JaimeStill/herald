@@ -19,13 +19,13 @@ export interface SearchRequest {
 }
 ```
 
-`toQueryString()` in `@app/core` is generic (`<T extends object>`) and serializes any `SearchRequest` variant to query params.
+`toQueryString()` in `@core` is generic (`<T extends object>`) and serializes any `SearchRequest` variant to query params.
 
 ## Service Pattern
 
 ```typescript
 // documents/service.ts
-import { request, toQueryString, type Result, type PageResult } from '@app/core';
+import { request, toQueryString, type Result, type PageResult } from '@core';
 import type { Document, SearchRequest } from './document';
 
 const base = '/documents';
@@ -79,7 +79,7 @@ SSE endpoints return `AbortController`. The caller provides `StreamOptions` call
 
 ```typescript
 // classifications/service.ts
-import { stream, type StreamOptions } from '@app/core';
+import { stream, type StreamOptions } from '@core';
 
 const base = '/classifications';
 
@@ -99,14 +99,14 @@ export const ClassificationService = {
 - **`Result<T>` returns**: Request-response methods return `Result<T>` directly from `request()`
 - **`AbortController` returns**: Streaming methods return the controller from `stream()`
 - **No state**: Services never import `Signal`, `createContext`, or `@lit/context`
-- **Domain directories**: Services live in `app/client/<domain>/service.ts`, not in view directories
+- **Domain directories**: Services live in `app/client/domains/<domain>/service.ts`, not in view directories
 - **Barrel exports**: `export { DocumentService } from './service'` — named export, not `export *`
 
 ## Available Services
 
 | Service | Domain | Import |
 |---------|--------|--------|
-| `DocumentService` | `documents/` | `import { DocumentService } from '@app/documents'` |
-| `ClassificationService` | `classifications/` | `import { ClassificationService } from '@app/classifications'` |
-| `PromptService` | `prompts/` | `import { PromptService } from '@app/prompts'` |
-| `StorageService` | `storage/` | `import { StorageService } from '@app/storage'` |
+| `DocumentService` | `documents/` | `import { DocumentService } from '@domains/documents'` |
+| `ClassificationService` | `classifications/` | `import { ClassificationService } from '@domains/classifications'` |
+| `PromptService` | `prompts/` | `import { PromptService } from '@domains/prompts'` |
+| `StorageService` | `storage/` | `import { StorageService } from '@domains/storage'` |

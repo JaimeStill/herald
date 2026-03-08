@@ -64,7 +64,7 @@ export class DocumentsView extends LitElement {
 
   private handleUploadComplete() {
     this.showUpload = false;
-    this.renderRoot.querySelector<any>("hd-document-grid")?.refresh();
+    this.renderRoot.querySelector("hd-document-grid")?.refresh();
   }
 
   render() {
@@ -100,7 +100,7 @@ Views call public methods on modules to trigger refreshes or state changes:
 // View refreshes the grid after an upload
 private handleUploadComplete() {
   this.showUpload = false;
-  this.renderRoot.querySelector<any>("hd-document-grid")?.refresh();
+  this.renderRoot.querySelector("hd-document-grid")?.refresh();
 }
 ```
 
@@ -120,8 +120,8 @@ Children dispatch `CustomEvent` with `bubbles: true, composed: true` to notify p
 ```typescript
 // Child dispatches
 this.dispatchEvent(
-  new CustomEvent("prompt-select", {
-    detail: { id: this.prompt.id },
+  new CustomEvent("select", {
+    detail: { prompt: this.prompt },
     bubbles: true,
     composed: true,
   }),
@@ -129,7 +129,7 @@ this.dispatchEvent(
 
 // Parent listens
 html`<hd-prompt-list
-  @prompt-select=${this.handleSelect}
+  @select=${this.handleSelect}
 ></hd-prompt-list>`;
 ```
 

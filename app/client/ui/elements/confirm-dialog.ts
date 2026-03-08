@@ -33,7 +33,7 @@ export class ConfirmDialog extends LitElement {
           <p class="message">${this.message}</p>
           <div class="actions">
             <button class="btn" @click=${this.handleCancel}>Cancel</button>
-            <button class="btn confirm-btn" @click=${this.handleConfirm}>
+            <button class="btn btn-red" @click=${this.handleConfirm}>
               Confirm
             </button>
           </div>

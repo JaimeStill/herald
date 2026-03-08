@@ -7,6 +7,7 @@ import type { Document } from "@domains/documents";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
+import cardStyles from "@styles/cards.module.css";
 import styles from "./document-card.module.css";
 
 /**
@@ -15,7 +16,7 @@ import styles from "./document-card.module.css";
  */
 @customElement("hd-document-card")
 export class DocumentCard extends LitElement {
-  static styles = [buttonStyles, badgeStyles, styles];
+  static styles = [buttonStyles, badgeStyles, cardStyles, styles];
 
   @property({ type: Object }) document!: Document;
   @property({ type: Boolean }) classifying = false;
@@ -106,21 +107,22 @@ export class DocumentCard extends LitElement {
             : nothing}
           <span>${formatBytes(doc.size_bytes)}</span>
           <span>${formatDate(doc.uploaded_at)}</span>
+          <span>${doc.external_platform} #${doc.external_id}</span>
         </div>
 
         <div class="actions">
           <button
-            class="btn classify-btn"
+            class="btn btn-blue"
             ?disabled=${this.classifyDisabled}
             @click=${this.handleClassify}
           >
             Classify
           </button>
-          <button class="btn review-btn" @click=${this.handleReview}>
+          <button class="btn btn-green" @click=${this.handleReview}>
             Review
           </button>
           <button
-            class="btn delete-btn"
+            class="btn btn-red"
             ?disabled=${this.classifying}
             @click=${this.handleDelete}
           >

@@ -210,7 +210,7 @@ export class DocumentUpload extends LitElement {
           ${editable
             ? html`
                 <button
-                  class="btn remove-btn"
+                  class="btn btn-red"
                   @click=${() => this.handleRemove(index)}
                 >
                   Remove
@@ -234,7 +234,7 @@ export class DocumentUpload extends LitElement {
     return html`
       <div class="queue-actions">
         <button
-          class="btn clear-btn"
+          class="btn btn-yellow"
           @click=${this.handleClear}
           ?disabled=${this.uploading}
         >
@@ -243,7 +243,7 @@ export class DocumentUpload extends LitElement {
         ${!allSettled
           ? html`
               <button
-                class="btn upload-btn"
+                class="btn btn-blue"
                 @click=${this.handleUpload}
                 ?disabled=${!this.canUpload}
               >
