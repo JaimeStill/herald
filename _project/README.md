@@ -26,7 +26,7 @@ The architecture deliberately excludes: image caching (images are ephemeral duri
 |-------|-----------|----------------|--------|
 | Phase 1 - Service Foundation | Go project scaffolding, Azure PostgreSQL schema/migrations, Azure Blob Storage integration, configuration system, module/routing infrastructure, document domain (upload single + batch, registration, metadata), storage abstraction, lifecycle coordination | v0.1.0 | Complete |
 | Phase 2 - Classification Engine | Agent configuration from external config, classification workflow state graph (init -> classify -> enhance? -> finalize), parallel per-page analysis with bounded concurrency, named prompt overrides (DB + API), single document classification endpoint, classification result schema with flattened workflow metadata | v0.2.0 | Complete |
-| Phase 3 - Web Client | Lit 3.x SPA with native Bun builds embedded in Go binary, Air hot reload for development, document management UI (upload single + batch, browse, search, filter, bulk classify), SSE streaming observer for classification progress, classification result viewing/validation/manual adjustment with PDF viewer, prompt modification management | v0.3.0 | |
+| Phase 3 - Web Client | Lit 3.x SPA with native Bun builds embedded in Go binary, Air hot reload for development, document management UI (upload single + batch, browse, search, filter, bulk classify), SSE streaming observer for classification progress, classification result viewing/validation/manual adjustment with PDF viewer, prompt modification management | v0.3.0 | Complete |
 | Phase 4 - Security and Deployment | Azure Entra authentication (service + OBO for web client), AI Foundry token management (Key Vault or container secrets), Docker containerization with ImageMagick 7.0+, Azure deployment configuration, IL4/IL6 environment configuration | v0.4.0 | |
 
 ## Architecture
@@ -221,8 +221,8 @@ Lit 3.x SPA following agent-lab patterns:
 - **Embedding**: `go:embed dist/*`, shell template pattern
 - **Routing**: Client-side History API router, component prefix `hd-`
 - **Styling**: CSS cascade layers with design tokens
-- **State**: Signal-based reactivity via `@lit-labs/signals`
-- **Services**: `@lit/context` for dependency injection
+- **State**: Lit `@state()` decorators for component-local reactivity
+- **Services**: Stateless PascalCase service objects with `base` path constants
 
 Key views: document management (upload, browse, classify, bulk operations), prompt management (CRUD), document review (PDF viewer alongside classification for validation/adjustment).
 
@@ -261,7 +261,7 @@ Key views: document management (upload, browse, classify, bulk operations), prom
 
 ### Frontend
 
-- **Lit 3.x** (lit, @lit/context, @lit-labs/signals)
+- **Lit 3.x** (lit)
 - **Bun**: JavaScript runtime, package manager, and bundler (build-time)
 - **Air**: Go live reload for development (github.com/air-verse/air)
 
