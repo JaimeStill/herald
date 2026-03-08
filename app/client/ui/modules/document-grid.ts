@@ -9,6 +9,7 @@ import { DocumentService } from "@domains/documents";
 import type { Document, SearchRequest } from "@domains/documents";
 
 import buttonStyles from "@styles/buttons.module.css";
+import inputStyles from "@styles/inputs.module.css";
 import styles from "./document-grid.module.css";
 
 interface ClassifyProgress {
@@ -23,7 +24,7 @@ interface ClassifyProgress {
  */
 @customElement("hd-document-grid")
 export class DocumentGrid extends LitElement {
-  static styles = [buttonStyles, styles];
+  static styles = [buttonStyles, inputStyles, styles];
 
   @state() private documents: PageResult<Document> | null = null;
   @state() private page = 1;
@@ -208,12 +209,12 @@ export class DocumentGrid extends LitElement {
       <div class="toolbar">
         <input
           type="search"
-          class="search-input"
+          class="input search-input"
           placeholder="Search documents..."
           .value=${this.search}
           @input=${this.handleSearchInput}
         />
-        <select class="filter-select" @change=${this.handleStatusFilter}>
+        <select class="input filter-select" @change=${this.handleStatusFilter}>
           <option value="">---</option>
           <option value="pending" ?selected=${this.status === "pending"}>
             Pending
@@ -225,7 +226,7 @@ export class DocumentGrid extends LitElement {
             Complete
           </option>
         </select>
-        <select class="sort-select" @change=${this.handleSort}>
+        <select class="input sort-select" @change=${this.handleSort}>
           <option value="-UploadedAt" ?selected=${this.sort === "-UploadedAt"}>
             Newest
           </option>
@@ -241,7 +242,7 @@ export class DocumentGrid extends LitElement {
         </select>
         ${this.selectedIds.size > 0
           ? html`
-              <button class="btn bulk-btn" @click=${this.handleBulkClassify}>
+              <button class="btn btn-blue" @click=${this.handleBulkClassify}>
                 Classify ${this.selectedIds.size} Documents
               </button>
             `
@@ -292,7 +293,8 @@ export class DocumentGrid extends LitElement {
       ${this.deleteDocument
         ? html`
             <hd-confirm-dialog
-              message="Are you sure you want to delete ${this.deleteDocument.filename}?"
+              message="Are you sure you want to delete ${this.deleteDocument
+                .filename}?"
               @confirm=${this.confirmDelete}
               @cancel=${this.cancelDelete}
             ></hd-confirm-dialog>

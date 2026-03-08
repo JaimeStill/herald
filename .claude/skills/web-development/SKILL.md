@@ -83,6 +83,10 @@ History API router at `app/client/core/router/`. Routes are defined in `app/clie
 
 Native `Bun.build()` API (no Vite). CSS modules plugin at `app/plugins/css-modules.ts` intercepts `*.module.css` and emits `CSSStyleSheet`. Two-terminal dev workflow: `bun run watch` rebuilds client assets, `air` rebuilds Go on dist/ changes. Output: fixed `app.js` + `app.css` for stable `go:embed`.
 
+### Lifecycles — [references/lifecycles.md](references/lifecycles.md)
+
+Lit lifecycle hooks and when to use each: `connectedCallback` for initial data fetch, `disconnectedCallback` for cleanup, `updated(changed)` for host attribute reflection and property-change reactions, `willUpdate(changed)` for route parameter change handling in views.
+
 ### Go Integration — [references/go-integration.md](references/go-integration.md)
 
 Single shell pattern: `app/app.go` embeds `dist/*`, `server/layouts/*`, `server/views/*`. Catch-all `/{path...}` route serves the HTML shell. Template variables: `{{ .BasePath }}`, `{{ .Title }}`, `{{ .Bundle }}`. `<base href>` tag enables client-side router path resolution.
@@ -124,7 +128,7 @@ app/client/
 │   └── router/                        # History API router, navigate()
 ├── design/                            # global design system
 │   ├── core/                          # tokens.css, reset.css, theme.css
-│   ├── styles/                        # shared component styles (badge, buttons)
+│   ├── styles/                        # shared component styles (badge, buttons, cards, inputs, labels)
 │   ├── app/                           # app-shell styles
 │   └── index.css                      # layer declarations + imports
 ├── domains/                           # data types and service contracts
@@ -134,13 +138,16 @@ app/client/
 │   └── storage/                       # BlobMeta, StorageService
 └── ui/                                # everything that renders (flat per tier)
     ├── elements/                      # pure elements — props in, events out
-    │   ├── confirm-dialog.ts
+    │   ├── blob-viewer.ts
     │   ├── classify-progress.ts
+    │   ├── confirm-dialog.ts
     │   ├── document-card.ts
+    │   ├── markings-list.ts
     │   ├── pagination-controls.ts
     │   ├── prompt-card.ts
     │   └── index.ts                   # barrel
     ├── modules/                       # stateful capability units
+    │   ├── classification-panel.ts
     │   ├── document-grid.ts
     │   ├── document-upload.ts
     │   ├── prompt-form.ts

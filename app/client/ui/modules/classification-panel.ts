@@ -8,6 +8,8 @@ import type { Classification } from "@domains/classifications";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
+import inputStyles from "@styles/inputs.module.css";
+import labelStyles from "@styles/labels.module.css";
 import styles from "./classification-panel.module.css";
 
 type PanelMode = "view" | "validate" | "update";
@@ -20,7 +22,7 @@ type PanelMode = "view" | "validate" | "update";
  */
 @customElement("hd-classification-panel")
 export class ClassificationPanel extends LitElement {
-  static styles = [badgeStyles, buttonStyles, styles];
+  static styles = [badgeStyles, buttonStyles, inputStyles, labelStyles, styles];
 
   @property() documentId = "";
 
@@ -34,6 +36,10 @@ export class ClassificationPanel extends LitElement {
     if (changed.has("documentId") && this.documentId) {
       this.loadClassification();
     }
+  }
+
+  private get isValidated(): boolean {
+    return !!this.classification?.validated_by;
   }
 
   private async loadClassification() {
@@ -158,7 +164,7 @@ export class ClassificationPanel extends LitElement {
     return html`
       <div class="panel-body">
         <div class="section">
-          <span class="section-label">Classification</span>
+          <span class="label">Classification</span>
           <div class="classification-value">
             <span class="classification-name">${c.classification}</span>
             <span class="badge confidence ${c.confidence.toLowerCase()}">
@@ -168,12 +174,12 @@ export class ClassificationPanel extends LitElement {
         </div>
 
         <div class="section">
-          <span class="section-label">Markings Found</span>
+          <span class="label">Markings Found</span>
           <hd-markings-list .markings=${c.markings_found}></hd-markings-list>
         </div>
 
         <div class="section">
-          <span class="section-label">Rationale</span>
+          <span class="label">Rationale</span>
           <pre class="rationale">${c.rationale}</pre>
         </div>
 
@@ -187,12 +193,17 @@ export class ClassificationPanel extends LitElement {
 
       <div class="actions">
         <button
-          class="btn validate-btn"
+          class="btn btn-green"
           @click=${() => (this.mode = "validate")}
+          ?disabled=${this.isValidated}
         >
           Validate
         </button>
-        <button class="btn update-btn" @click=${() => (this.mode = "update")}>
+        <button
+          class="btn btn-blue"
+          @click=${() => (this.mode = "update")}
+          ?disabled=${this.isValidated}
+        >
           Update
         </button>
       </div>
@@ -205,8 +216,9 @@ export class ClassificationPanel extends LitElement {
         <p>Confirm that the classification is correct.</p>
 
         <div class="field">
-          <label for="validated_by">Your Name</label>
+          <label class="label" for="validated_by">Your Name</label>
           <input
+            class="input"
             id="validated_by"
             name="validated_by"
             type="text"
@@ -220,14 +232,14 @@ export class ClassificationPanel extends LitElement {
         <div class="actions">
           <button
             type="submit"
-            class="btn validate-btn"
+            class="btn btn-green"
             ?disabled=${this.submitting}
           >
             ${this.submitting ? "Validating..." : "Validate"}
           </button>
           <button
             type="button"
-            class="btn cancel-btn"
+            class="btn btn-muted"
             @click=${this.handleCancel}
             ?disabled=${this.submitting}
           >
@@ -246,8 +258,9 @@ export class ClassificationPanel extends LitElement {
         <p>Manually update the classification result.</p>
 
         <div class="field">
-          <label for="classification">Classification</label>
+          <label class="label" for="classification">Classification</label>
           <input
+            class="input"
             id="classification"
             name="classification"
             type="text"
@@ -257,8 +270,9 @@ export class ClassificationPanel extends LitElement {
         </div>
 
         <div class="field">
-          <label for="rationale">Rationale</label>
+          <label class="label" for="rationale">Rationale</label>
           <textarea
+            class="input"
             id="rationale"
             name="rationale"
             required
@@ -267,8 +281,14 @@ export class ClassificationPanel extends LitElement {
         </div>
 
         <div class="field">
-          <label for="updated_by">Your Name</label>
-          <input id="updated_by" name="updated_by" type="text" required />
+          <label class="label" for="updated_by">Your Name</label>
+          <input
+            class="input"
+            id="updated_by"
+            name="updated_by"
+            type="text"
+            required
+          />
         </div>
 
         ${this.renderError()}
@@ -276,14 +296,14 @@ export class ClassificationPanel extends LitElement {
         <div class="actions">
           <button
             type="submit"
-            class="btn update-btn"
+            class="btn btn-blue"
             ?disabled=${this.submitting}
           >
             ${this.submitting ? "Updating..." : "Update"}
           </button>
           <button
             type="button"
-            class="btn cancel-btn"
+            class="btn btn-muted"
             @click=${this.handleCancel}
             ?disabled=${this.submitting}
           >
@@ -303,7 +323,7 @@ export class ClassificationPanel extends LitElement {
       return html`
         <div class="empty-state">
           <span>No classification found for this document.</span>
-          <button class="button" @click=${this.handleBack}>
+          <button class="btn btn-muted" @click=${this.handleBack}>
             Back to Documents
           </button>
         </div>

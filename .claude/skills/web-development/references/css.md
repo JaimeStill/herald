@@ -2,19 +2,20 @@
 
 ## Cascade Layers
 
-Herald uses three layers with explicit precedence. Tokens are lowest priority (easily overridden), theme is highest (final say on body-level styling).
+Herald uses four layers with explicit precedence. Tokens are lowest priority (easily overridden), app is highest.
 
 ```css
 /* design/index.css */
-@layer tokens, reset, theme;
+@layer tokens, reset, theme, app;
 
 @import url(./core/tokens.css);
 @import url(./core/reset.css);
 @import url(./core/theme.css);
+
 @import url(./app/app.css);
 ```
 
-`app.css` is unlayered (highest implicit priority) and handles the application shell layout.
+`app.css` is in the `app` layer (highest priority) and handles the application shell layout.
 
 ## Design Tokens
 
@@ -84,6 +85,31 @@ Use `:host` for component-level layout and design tokens for all values:
 h3 { color: var(--color); }
 p { color: var(--color-1); }
 ```
+
+## Shared Component Styles
+
+Reusable CSS modules in `app/client/design/styles/` imported via `@styles/*`. Components add these to `static styles` arrays alongside their own `*.module.css`.
+
+| Module | Class | Purpose |
+|--------|-------|---------|
+| `badge.module.css` | `.badge` + status variants (`.pending`, `.review`, `.complete`, etc.) | Status badges with semantic colors |
+| `buttons.module.css` | `.btn` + color variants (`.btn-blue`, `.btn-green`, `.btn-red`, `.btn-yellow`, `.btn-muted`) | Button base with semantic color overlays |
+| `cards.module.css` | `.card` | Flex column container with gap, padding, border, radius, transition |
+| `inputs.module.css` | `.input` | Text inputs, selects, and textareas with focus/disabled states |
+| `labels.module.css` | `.label` | Uppercase monospace section labels (form field labels, section headers) |
+
+Usage pattern:
+
+```typescript
+import badgeStyles from "@styles/badge.module.css";
+import buttonStyles from "@styles/buttons.module.css";
+import cardStyles from "@styles/cards.module.css";
+import styles from "./document-card.module.css";
+
+static styles = [buttonStyles, badgeStyles, cardStyles, styles];
+```
+
+Shared styles provide base appearance. Component CSS retains layout-specific overrides (e.g., `.search-input { flex: 1; min-width: 12rem; }`). Button color variants compose with the `.btn` base: `class="btn btn-blue"`.
 
 ## Global CSS
 

@@ -62,19 +62,26 @@ Air's `.air.toml` configuration:
 
 This separation means Bun handles TypeScript/CSS compilation and Air handles Go compilation + server restart. Changes to client source trigger Bun → writes to `dist/` → Air detects dist change → restarts server.
 
-## Path Alias
+## Path Aliases
 
-`@app/*` resolves to `app/client/*` via `tsconfig.json` paths:
+Defined in `tsconfig.json` paths and mirrored in the Bun build plugin:
 
 ```json
 {
     "compilerOptions": {
-        "paths": { "@app/*": ["./client/*"] }
+        "paths": {
+            "@core": ["./client/core/index.ts"],
+            "@core/*": ["./client/core/*"],
+            "@design/*": ["./client/design/*"],
+            "@domains/*": ["./client/domains/*"],
+            "@styles/*": ["./client/design/styles/*"],
+            "@ui/*": ["./client/ui/*"]
+        }
     }
 }
 ```
 
-Use for all cross-directory imports within the client source.
+See SKILL.md **Import Convention** for usage patterns.
 
 ## TypeScript Configuration
 

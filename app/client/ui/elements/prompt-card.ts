@@ -5,6 +5,7 @@ import type { Prompt } from "@domains/prompts";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
+import cardStyles from "@styles/cards.module.css";
 import styles from "./prompt-card.module.css";
 
 /**
@@ -13,7 +14,7 @@ import styles from "./prompt-card.module.css";
  */
 @customElement("hd-prompt-card")
 export class PromptCard extends LitElement {
-  static styles = [buttonStyles, badgeStyles, styles];
+  static styles = [buttonStyles, badgeStyles, cardStyles, styles];
 
   @property({ type: Object }) prompt!: Prompt;
   @property({ type: Boolean }) selected = false;
@@ -72,12 +73,12 @@ export class PromptCard extends LitElement {
 
         <div class="actions">
           <button
-            class="btn toggle-btn ${p.active ? "deactivate" : ""}"
+            class="btn ${p.active ? "btn-yellow" : "btn-green"}"
             @click=${this.handleToggleActive}
           >
             ${p.active ? "Deactivate" : "Activate"}
           </button>
-          <button class="btn delete-btn" @click=${this.handleDelete}>
+          <button class="btn btn-red" @click=${this.handleDelete}>
             Delete
           </button>
         </div>

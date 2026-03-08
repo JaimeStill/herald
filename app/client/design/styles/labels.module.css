@@ -1,0 +1,7 @@
+.label {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--color-1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

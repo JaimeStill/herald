@@ -6,6 +6,7 @@ import { PromptService } from "@domains/prompts";
 import type { Prompt, SearchRequest } from "@domains/prompts";
 
 import buttonStyles from "@styles/buttons.module.css";
+import inputStyles from "@styles/inputs.module.css";
 import styles from "./prompt-list.module.css";
 
 /**
@@ -15,7 +16,7 @@ import styles from "./prompt-list.module.css";
  */
 @customElement("hd-prompt-list")
 export class PromptList extends LitElement {
-  static styles = [buttonStyles, styles];
+  static styles = [buttonStyles, inputStyles, styles];
 
   @property({ type: Object }) selected: Prompt | null = null;
 
@@ -146,13 +147,13 @@ export class PromptList extends LitElement {
       <div class="toolbar">
         <input
           type="search"
-          class="search-input"
+          class="input search-input"
           placeholder="Search prompts..."
           .value=${this.search}
           @input=${this.handleSearchInput}
         />
-        <button class="btn new-btn" @click=${this.handleNew}>New</button>
-        <select class="filter-select" @change=${this.handleStageFilter}>
+        <button class="btn btn-blue" @click=${this.handleNew}>New</button>
+        <select class="input filter-select" @change=${this.handleStageFilter}>
           <option value="">---</option>
           <option value="classify" ?selected=${this.stage === "classify"}>
             Classify
@@ -164,7 +165,7 @@ export class PromptList extends LitElement {
             Finalize
           </option>
         </select>
-        <select class="sort-select" @change=${this.handleSort}>
+        <select class="input sort-select" @change=${this.handleSort}>
           <option value="Name" ?selected=${this.sort === "Name"}>
             Name (A-Z)
           </option>
