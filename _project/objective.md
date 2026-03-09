@@ -1,20 +1,21 @@
-# Objective: Docker Production Image
+# Objective: Azure Identity Credential Infrastructure
 
-**Issue:** [#95](https://github.com/JaimeStill/herald/issues/95)
+**Issue:** [#96](https://github.com/JaimeStill/herald/issues/96)
 **Phase:** Phase 4 — Security and Deployment (v0.4.0)
 
 ## Scope
 
-Harden the Dockerfile for production deployment with ImageMagick 7.0+ support, security best practices, and local integration testing infrastructure.
+Add the Azure Identity SDK and build the credential provider foundation for managed identity support. Introduce `AuthConfig` with the three-phase finalize pattern and wire credential creation into `infrastructure.New()`. The credential is optional — nil when `auth_mode` is `none` (default), preserving current behavior.
 
 ## Sub-Issues
 
 | # | Title | Issue | Status |
 |---|-------|-------|--------|
-| 1 | Harden Dockerfile and add production compose overlay | [#101](https://github.com/JaimeStill/herald/issues/101) | Open |
+| 1 | Add AuthConfig and credential provider infrastructure | [#103](https://github.com/JaimeStill/herald/issues/103) | Open |
 
 ## Architecture Decisions
 
-- **Config files mounted, not baked in** — image stays environment-agnostic. Config overlay loaded at runtime via bind-mount + `HERALD_ENV` env var.
-- **Opt-in compose overlay** — `compose/app.yml` is not auto-included in `docker-compose.yml` to avoid breaking the existing dev workflow (server runs on host, only infra in Docker). Full-stack usage: `docker compose -f docker-compose.yml -f compose/app.yml up --build`.
-- **Alpine packages** — `imagemagick` and `ghostscript` from Alpine 3.21 repos (not compiled from source). Satisfies the 7.0+ requirement.
+- **Auth mode naming** — `none` / `azure` rather than `connection_string` / `managed_identity`. Describes the identity provider, not the connection mechanism. More intuitive and extensible.
+- **Factory on config** — `TokenCredential()` method on `AuthConfig` rather than a separate `pkg/credential/` package. The factory is trivial (~10 lines) and config owns the mode decision. Consumers access the credential via `Infrastructure.Credential`.
+- **`DefaultAzureCredential`** — wraps the full Azure credential chain (managed identity, workload identity, Azure CLI) rather than specific credential types. Handles all deployment scenarios automatically.
+- **No separate package** — single sub-issue covers config + factory + infrastructure wiring. The scope is tightly coupled and small (~140 lines of new code).
