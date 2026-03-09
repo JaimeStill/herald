@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.95.101
+- Harden Dockerfile with ImageMagick, Ghostscript, non-root user, WORKDIR, and HEALTHCHECK; add Docker Compose production overlay and config overlay for full-stack containerized deployment; add README with development, containerized, tasks, and configuration documentation (#101)
+
 ## v0.3.0
 
 ### Web Infrastructure

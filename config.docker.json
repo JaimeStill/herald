@@ -1,0 +1,8 @@
+{
+  "database": {
+    "host": "herald-postgres"
+  },
+  "storage": {
+    "connection_string": "DefaultEndpointsProtocol=http;AccountName=heraldstore;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://herald-azurite:10000/heraldstore;"
+  }
+}
