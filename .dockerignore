@@ -14,3 +14,4 @@ docker-compose.yml
 compose/
 CHANGELOG.md
 _project/
+secrets.json
