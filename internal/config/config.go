@@ -45,6 +45,7 @@ var storageEnv = &storage.Env{
 // Config is the root configuration for the Herald service.
 type Config struct {
 	Agent           gaconfig.AgentConfig `json:"agent"`
+	Auth            AuthConfig           `json:"auth"`
 	Server          ServerConfig         `json:"server"`
 	Database        database.Config      `json:"database"`
 	Storage         storage.Config       `json:"storage"`
@@ -113,6 +114,7 @@ func (c *Config) Merge(overlay *Config) {
 		c.Version = overlay.Version
 	}
 	c.Agent.Merge(&overlay.Agent)
+	c.Auth.Merge(&overlay.Auth)
 	c.Server.Merge(&overlay.Server)
 	c.Database.Merge(&overlay.Database)
 	c.Storage.Merge(&overlay.Storage)
@@ -128,6 +130,9 @@ func (c *Config) finalize() error {
 	}
 	if err := FinalizeAgent(&c.Agent); err != nil {
 		return fmt.Errorf("agent: %w", err)
+	}
+	if err := c.Auth.Finalize(); err != nil {
+		return fmt.Errorf("auth: %w", err)
 	}
 	if err := c.Server.Finalize(); err != nil {
 		return fmt.Errorf("server: %w", err)

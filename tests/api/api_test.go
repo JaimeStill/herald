@@ -17,6 +17,7 @@ const azuriteConnString = "DefaultEndpointsProtocol=http;AccountName=heraldstore
 
 func validConfig() *config.Config {
 	return &config.Config{
+		Auth: config.AuthConfig{Mode: config.AuthModeNone},
 		Agent: gaconfig.AgentConfig{
 			Name: "test-agent",
 			Provider: &gaconfig.ProviderConfig{

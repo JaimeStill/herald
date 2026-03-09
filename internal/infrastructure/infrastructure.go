@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+
 	"github.com/JaimeStill/go-agents/pkg/agent"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/pkg/database"
@@ -20,11 +22,12 @@ import (
 // It provides a single point of initialization for lifecycle coordination,
 // logging, database access, file storage, and agent configuration.
 type Infrastructure struct {
-	Lifecycle *lifecycle.Coordinator
-	Logger    *slog.Logger
-	Database  database.System
-	Storage   storage.System
-	Agent     gaconfig.AgentConfig
+	Lifecycle  *lifecycle.Coordinator
+	Logger     *slog.Logger
+	Database   database.System
+	Storage    storage.System
+	Agent      gaconfig.AgentConfig
+	Credential azcore.TokenCredential
 }
 
 // New creates an Infrastructure from the application configuration.
@@ -45,16 +48,22 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 		return nil, fmt.Errorf("storage init failed: %w", err)
 	}
 
+	cred, err := cfg.Auth.TokenCredential()
+	if err != nil {
+		return nil, fmt.Errorf("credential init failed: %w", err)
+	}
+
 	if _, err := agent.New(&cfg.Agent); err != nil {
 		return nil, fmt.Errorf("agent validation failed: %w", err)
 	}
 
 	return &Infrastructure{
-		Lifecycle: lc,
-		Logger:    logger,
-		Database:  db,
-		Storage:   store,
-		Agent:     cfg.Agent,
+		Lifecycle:  lc,
+		Logger:     logger,
+		Database:   db,
+		Storage:    store,
+		Agent:      cfg.Agent,
+		Credential: cred,
 	}, nil
 }
 
