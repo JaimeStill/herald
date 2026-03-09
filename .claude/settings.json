@@ -14,6 +14,7 @@
       "Bash(go run*)",
       "Bash(go test*)",
       "Bash(go vet*)",
+      "Bash(grep:*)",
       "Bash(ls:*)",
       "Skill(api-cartographer)",
       "Skill(tau:dev-workflow)",
@@ -23,8 +24,6 @@
       "Skill(tau:skill-creator)",
       "WebSearch"
     ],
-    "deny": [
-      "Read(secrets.json)"
-    ]
+    "deny": ["Read(secrets.json)"]
   }
 }
