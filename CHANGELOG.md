@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.97.108
+- Add `ManagedIdentity` flag to `AuthConfig` and wire credential-based constructors into infrastructure for database, storage, and agent services when managed identity is active (#108)
+
 ## v0.4.0-dev.97.107
 - Add agent factory closure to `workflow.Runtime` for auth-mode-aware agent creation, replacing direct `agent.New` calls in workflow nodes with `rt.NewAgent(ctx)` built at the infrastructure layer (#107)
 

@@ -6,9 +6,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	"github.com/JaimeStill/go-agents/pkg/agent"
 	"github.com/JaimeStill/herald/internal/config"
@@ -40,29 +42,21 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 	lc := lifecycle.New()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-	db, err := database.New(&cfg.Database, logger)
-	if err != nil {
-		return nil, fmt.Errorf("database init failed: %w", err)
-	}
-
-	store, err := storage.New(&cfg.Storage, logger)
-	if err != nil {
-		return nil, fmt.Errorf("storage init failed: %w", err)
-	}
-
 	cred, err := cfg.Auth.TokenCredential()
 	if err != nil {
 		return nil, fmt.Errorf("credential init failed: %w", err)
+	}
+
+	db, store, err := initSystems(cfg, cred, logger)
+	if err != nil {
+		return nil, err
 	}
 
 	if _, err := agent.New(&cfg.Agent); err != nil {
 		return nil, fmt.Errorf("agent validation failed: %w", err)
 	}
 
-	agentCfg := cfg.Agent
-	newAgent := func(ctx context.Context) (agent.Agent, error) {
-		return agent.New(&agentCfg)
-	}
+	newAgent := newAgentFactory(cfg.Agent, cred, cfg.Auth.ManagedIdentity)
 
 	return &Infrastructure{
 		Lifecycle:  lc,
@@ -85,4 +79,75 @@ func (i *Infrastructure) Start() error {
 		return fmt.Errorf("storage start failed: %w", err)
 	}
 	return nil
+}
+
+func initSystems(
+	cfg *config.Config,
+	cred azcore.TokenCredential,
+	logger *slog.Logger,
+) (database.System, storage.System, error) {
+	if cred != nil && cfg.Auth.ManagedIdentity {
+		return initManagedSystems(cfg, cred, logger)
+	}
+
+	db, err := database.New(&cfg.Database, logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("database init failed: %w", err)
+	}
+
+	store, err := storage.New(&cfg.Storage, logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("storage init failed: %w", err)
+	}
+
+	return db, store, nil
+}
+
+func initManagedSystems(
+	cfg *config.Config,
+	cred azcore.TokenCredential,
+	logger *slog.Logger,
+) (database.System, storage.System, error) {
+	db, err := database.NewWithCredential(&cfg.Database, cred, logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("database credential init failed: %w", err)
+	}
+
+	store, err := storage.NewWithCredential(&cfg.Storage, cred, logger)
+	if err != nil {
+		return nil, nil, fmt.Errorf("storage credential init failed: %w", err)
+	}
+
+	return db, store, nil
+}
+
+func newAgentFactory(
+	agentCfg gaconfig.AgentConfig,
+	cred azcore.TokenCredential,
+	managedIdentity bool,
+) func(ctx context.Context) (agent.Agent, error) {
+	if cred != nil && managedIdentity {
+		return func(ctx context.Context) (agent.Agent, error) {
+			tok, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+				Scopes: []string{config.AgentScope},
+			})
+			if err != nil {
+				return nil, fmt.Errorf("acquire agent token: %w", err)
+			}
+
+			pc := agentCfg.Provider
+			opts := maps.Clone(pc.Options)
+			opts["token"] = tok.Token
+			opts["auth_type"] = "bearer"
+			pc.Options = opts
+
+			cloned := agentCfg
+			cloned.Provider = pc
+			return agent.New(&cloned)
+		}
+	}
+
+	return func(ctx context.Context) (agent.Agent, error) {
+		return agent.New(&agentCfg)
+	}
 }

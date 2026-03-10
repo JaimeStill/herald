@@ -16,6 +16,9 @@ import (
 	"github.com/JaimeStill/herald/pkg/lifecycle"
 )
 
+// TokenScope is the OAuth2 scope for Azure Database for PostgreSQL Entra authentication.
+const TokenScope = "https://ossrdbms-aad.database.windows.net/.default"
+
 // System manages database connections and lifecycle coordination.
 type System interface {
 	// Connection returns the underlying database connection pool.

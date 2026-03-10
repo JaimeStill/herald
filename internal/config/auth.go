@@ -8,6 +8,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
+// AgentScope is the OAuth scope for acquiring Azure AI Foundry bearer tokens.
+const AgentScope = "https://cognitiveservices.azure.com/.default"
+
 // AuthMode identifies the authentication provider for Azure service connections.
 type AuthMode string
 
@@ -18,10 +21,11 @@ const (
 	AuthModeAzure AuthMode = "azure"
 )
 const (
-	EnvAuthMode         = "HERALD_AUTH_MODE"
-	EnvAuthTenantID     = "HERALD_AUTH_TENANT_ID"
-	EnvAuthClientID     = "HERALD_AUTH_CLIENT_ID"
-	EnvAuthClientSecret = "HERALD_AUTH_CLIENT_SECRET"
+	EnvAuthMode            = "HERALD_AUTH_MODE"
+	EnvAuthManagedIdentity = "HERALD_AUTH_MANAGED_IDENTITY"
+	EnvAuthTenantID        = "HERALD_AUTH_TENANT_ID"
+	EnvAuthClientID        = "HERALD_AUTH_CLIENT_ID"
+	EnvAuthClientSecret    = "HERALD_AUTH_CLIENT_SECRET"
 )
 
 // AuthConfig holds Azure identity credential parameters.
@@ -29,10 +33,11 @@ const (
 // behavior is preserved. When Mode is "azure", a TokenCredential is created
 // using either explicit service principal fields or the DefaultAzureCredential chain.
 type AuthConfig struct {
-	Mode         AuthMode `json:"auth_mode"`
-	TenantID     string   `json:"tenant_id"`
-	ClientID     string   `json:"client_id"`
-	ClientSecret string   `json:"client_secret"`
+	Mode            AuthMode `json:"auth_mode"`
+	ManagedIdentity bool     `json:"managed_identity"`
+	TenantID        string   `json:"tenant_id"`
+	ClientID        string   `json:"client_id"`
+	ClientSecret    string   `json:"client_secret"`
 }
 
 // Finalize applies defaults, environment variable overrides, and validation.
@@ -46,6 +51,9 @@ func (c *AuthConfig) Finalize() error {
 func (c *AuthConfig) Merge(overlay *AuthConfig) {
 	if overlay.Mode != "" {
 		c.Mode = overlay.Mode
+	}
+	if overlay.ManagedIdentity {
+		c.ManagedIdentity = true
 	}
 	if overlay.TenantID != "" {
 		c.TenantID = overlay.TenantID
@@ -100,6 +108,9 @@ func (c *AuthConfig) loadDefaults() {
 func (c *AuthConfig) loadEnv() {
 	if v := os.Getenv(EnvAuthMode); v != "" {
 		c.Mode = AuthMode(v)
+	}
+	if v := os.Getenv(EnvAuthManagedIdentity); v == "true" || v == "1" {
+		c.ManagedIdentity = true
 	}
 	if v := os.Getenv(EnvAuthTenantID); v != "" {
 		c.TenantID = v
