@@ -8,7 +8,10 @@ import (
 	"log/slog"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/JaimeStill/herald/pkg/lifecycle"
 )
@@ -39,6 +42,47 @@ func New(cfg *Config, logger *slog.Logger) (System, error) {
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetimeDuration())
+
+	return &database{
+		conn:        db,
+		logger:      logger.With("system", "database"),
+		connTimeout: cfg.ConnTimeoutDuration(),
+	}, nil
+}
+
+// NewWithCredential creates a database system using an Azure token credential.
+// It configures a BeforeConnect hook that acquires a fresh Entra token on each
+// new connection. ConnMaxLifetime is set to TokenLifetime (default 45m) to force
+// connection recycling before token expiry.
+func NewWithCredential(
+	cfg *Config,
+	cred azcore.TokenCredential,
+	logger *slog.Logger,
+) (System, error) {
+	connConfig, err := pgx.ParseConfig(cfg.Dsn())
+	if err != nil {
+		return nil, fmt.Errorf("parse database config: %w", err)
+	}
+
+	beforeConnect := stdlib.OptionBeforeConnect(
+		func(ctx context.Context, cc *pgx.ConnConfig) error {
+			token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+				Scopes: []string{TokenScope},
+			})
+			if err != nil {
+				return fmt.Errorf("acquire database token: %w", err)
+			}
+
+			cc.Password = token.Token
+			return nil
+		},
+	)
+
+	db := stdlib.OpenDB(*connConfig, beforeConnect)
+
+	db.SetMaxOpenConns(cfg.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.MaxIdleConns)
+	db.SetConnMaxLifetime(cfg.TokenLifetimeDuration())
 
 	return &database{
 		conn:        db,
