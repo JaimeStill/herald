@@ -11,8 +11,6 @@ import (
 	"github.com/JaimeStill/document-context/pkg/image"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/JaimeStill/go-agents/pkg/agent"
-
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
 
 	"github.com/JaimeStill/herald/internal/prompts"
@@ -106,7 +104,7 @@ func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tem
 			}
 			defer pdfDoc.Close()
 
-			a, err := agent.New(&rt.Agent)
+			a, err := rt.NewAgent(gctx)
 			if err != nil {
 				return fmt.Errorf("page %d: create agent: %w", cs.Pages[i].PageNumber, err)
 			}

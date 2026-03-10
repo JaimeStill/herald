@@ -66,6 +66,30 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewAgentFactory(t *testing.T) {
+	infra, err := infrastructure.New(validConfig())
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	if infra.NewAgent == nil {
+		t.Fatal("NewAgent factory is nil")
+	}
+
+	a, err := infra.NewAgent(t.Context())
+	if err != nil {
+		t.Fatalf("NewAgent() error = %v", err)
+	}
+
+	if a.Model().Name != "llama3.1:8b" {
+		t.Errorf("model name = %q, want %q", a.Model().Name, "llama3.1:8b")
+	}
+
+	if a.Provider().Name() != "ollama" {
+		t.Errorf("provider name = %q, want %q", a.Provider().Name(), "ollama")
+	}
+}
+
 func TestNewDatabaseConnection(t *testing.T) {
 	infra, err := infrastructure.New(validConfig())
 	if err != nil {
