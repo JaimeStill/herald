@@ -9,8 +9,6 @@ import (
 	"github.com/JaimeStill/document-context/pkg/encoding"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/JaimeStill/go-agents/pkg/agent"
-
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
 
 	"github.com/JaimeStill/herald/internal/prompts"
@@ -79,7 +77,7 @@ func classifyPages(ctx context.Context, rt *Runtime, cs *ClassificationState) er
 				return gctx.Err()
 			}
 
-			a, err := agent.New(&rt.Agent)
+			a, err := rt.NewAgent(gctx)
 			if err != nil {
 				return fmt.Errorf("page %d: create agent: %w", i+1, err)
 			}

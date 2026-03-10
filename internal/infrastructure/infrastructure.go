@@ -3,6 +3,7 @@
 package infrastructure
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -28,6 +29,7 @@ type Infrastructure struct {
 	Storage    storage.System
 	Agent      gaconfig.AgentConfig
 	Credential azcore.TokenCredential
+	NewAgent   func(ctx context.Context) (agent.Agent, error)
 }
 
 // New creates an Infrastructure from the application configuration.
@@ -57,6 +59,11 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 		return nil, fmt.Errorf("agent validation failed: %w", err)
 	}
 
+	agentCfg := cfg.Agent
+	newAgent := func(ctx context.Context) (agent.Agent, error) {
+		return agent.New(&agentCfg)
+	}
+
 	return &Infrastructure{
 		Lifecycle:  lc,
 		Logger:     logger,
@@ -64,6 +71,7 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 		Storage:    store,
 		Agent:      cfg.Agent,
 		Credential: cred,
+		NewAgent:   newAgent,
 	}, nil
 }
 

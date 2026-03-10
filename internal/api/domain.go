@@ -30,7 +30,9 @@ func NewDomain(runtime *Runtime) *Domain {
 
 	classificationsSystem := classifications.New(
 		runtime.Database.Connection(),
-		runtime.Agent,
+		runtime.NewAgent,
+		runtime.Agent.Model.Name,
+		runtime.Agent.Provider.Name,
 		runtime.Logger,
 		runtime.Pagination,
 		runtime.Storage,

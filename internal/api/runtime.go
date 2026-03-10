@@ -22,6 +22,7 @@ func NewRuntime(cfg *config.Config, infra *infrastructure.Infrastructure) *Runti
 			Logger:     infra.Logger.With("module", "api"),
 			Database:   infra.Database,
 			Storage:    infra.Storage,
+			NewAgent:   infra.NewAgent,
 		},
 		Pagination: cfg.API.Pagination,
 	}

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/JaimeStill/go-agents/pkg/agent"
-
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
 
 	"github.com/JaimeStill/herald/internal/prompts"
@@ -45,7 +43,7 @@ func FinalizeNode(rt *Runtime) state.StateNode {
 }
 
 func synthesize(ctx context.Context, rt *Runtime, cs *ClassificationState) error {
-	a, err := agent.New(&rt.Agent)
+	a, err := rt.NewAgent(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: create agent: %w", ErrFinalizeFailed, err)
 	}

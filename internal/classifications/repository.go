@@ -18,7 +18,7 @@ import (
 	"github.com/JaimeStill/herald/pkg/repository"
 	"github.com/JaimeStill/herald/pkg/storage"
 
-	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
+	"github.com/JaimeStill/go-agents/pkg/agent"
 )
 
 const streamBufferSize = 32
@@ -34,7 +34,9 @@ type repo struct {
 // It internally constructs the workflow runtime from the provided dependencies.
 func New(
 	db *sql.DB,
-	agent gaconfig.AgentConfig,
+	newAgent func(ctx context.Context) (agent.Agent, error),
+	modelName string,
+	providerName string,
 	logger *slog.Logger,
 	pagination pagination.Config,
 	storage storage.System,
@@ -42,7 +44,9 @@ func New(
 	prompts prompts.System,
 ) System {
 	rt := &workflow.Runtime{
-		Agent:     agent,
+		NewAgent:  newAgent,
+		Model:     modelName,
+		Provider:  providerName,
 		Storage:   storage,
 		Documents: docs,
 		Prompts:   prompts,
@@ -162,8 +166,8 @@ func (r *repo) Classify(ctx context.Context, documentID uuid.UUID) (<-chan workf
 			string(result.State.Confidence),
 			markingsJSON,
 			result.State.Rationale,
-			r.rt.Agent.Model.Name,
-			r.rt.Agent.Provider.Name,
+			r.rt.Model,
+			r.rt.Provider,
 		}
 
 		c, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (Classification, error) {
