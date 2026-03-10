@@ -4,6 +4,7 @@ secrets.json
 
 # Binaries
 /bin/
+/server
 *.exe
 *.dll
 *.so
