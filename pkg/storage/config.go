@@ -10,6 +10,7 @@ import (
 type Config struct {
 	ContainerName    string `json:"container_name"`
 	ConnectionString string `json:"connection_string"`
+	ServiceURL       string `json:"service_url"`
 	MaxListSize      int32  `json:"max_list_size"`
 }
 
@@ -17,6 +18,7 @@ type Config struct {
 type Env struct {
 	ContainerName    string
 	ConnectionString string
+	ServiceURL       string
 	MaxListSize      string
 }
 
@@ -37,9 +39,13 @@ func (c *Config) Merge(overlay *Config) {
 	if overlay.ConnectionString != "" {
 		c.ConnectionString = overlay.ConnectionString
 	}
+	if overlay.ServiceURL != "" {
+		c.ServiceURL = overlay.ServiceURL
+	}
 	if overlay.MaxListSize != 0 {
 		c.MaxListSize = overlay.MaxListSize
 	}
+
 }
 
 func (c *Config) loadDefaults() {
@@ -65,6 +71,11 @@ func (c *Config) loadEnv(env *Env) {
 			c.ConnectionString = v
 		}
 	}
+	if env.ServiceURL != "" {
+		if v := os.Getenv(env.ServiceURL); v != "" {
+			c.ServiceURL = v
+		}
+	}
 	if env.MaxListSize != "" {
 		if v := os.Getenv(env.MaxListSize); v != "" {
 			if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -77,9 +88,6 @@ func (c *Config) loadEnv(env *Env) {
 func (c *Config) validate() error {
 	if c.ContainerName == "" {
 		return fmt.Errorf("container_name required")
-	}
-	if c.ConnectionString == "" {
-		return fmt.Errorf("connection_string required")
 	}
 	return nil
 }

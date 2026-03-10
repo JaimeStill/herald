@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
@@ -79,7 +80,31 @@ type azure struct {
 // It validates the connection string and creates the Azure client
 // but does not establish a connection until Start is called.
 func New(cfg *Config, logger *slog.Logger) (System, error) {
+	if cfg.ConnectionString == "" {
+		return nil, fmt.Errorf("connection_string required for connection string auth")
+	}
+
 	client, err := azblob.NewClientFromConnectionString(cfg.ConnectionString, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create storage client: %w", err)
+	}
+
+	return &azure{
+		client:    client,
+		container: cfg.ContainerName,
+		logger:    logger.With("system", "storage"),
+	}, nil
+}
+
+// NewWithCredential creates a storage system using an Azure token credential.
+// It requires ServiceURL in the config and creates the client via azblob.NewClient.
+// Connection is not established until Start is called.
+func NewWithCredential(cfg *Config, cred azcore.TokenCredential, logger *slog.Logger) (System, error) {
+	if cfg.ServiceURL == "" {
+		return nil, fmt.Errorf("service_url required for credential auth")
+	}
+
+	client, err := azblob.NewClient(cfg.ServiceURL, cred, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create storage client: %w", err)
 	}

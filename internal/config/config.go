@@ -39,6 +39,7 @@ var databaseEnv = &database.Env{
 var storageEnv = &storage.Env{
 	ContainerName:    "HERALD_STORAGE_CONTAINER_NAME",
 	ConnectionString: "HERALD_STORAGE_CONNECTION_STRING",
+	ServiceURL:       "HERALD_STORAGE_SERVICE_URL",
 	MaxListSize:      "HERALD_STORAGE_MAX_LIST_SIZE",
 }
 
