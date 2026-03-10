@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.97.106
+- Add token-based database authentication with `NewWithCredential` constructor, pgx `BeforeConnect` hook for Entra token injection, configurable `TokenLifetime` (default 45m), and `TokenScope` constant (#106)
+
 ## v0.4.0-dev.97.105
 - Add credential-based storage constructor with `NewWithCredential` for managed identity auth, `ServiceURL` config field with env var override, and relaxed config validation (#105)
 

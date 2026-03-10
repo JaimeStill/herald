@@ -34,6 +34,7 @@ var databaseEnv = &database.Env{
 	MaxIdleConns:    "HERALD_DB_MAX_IDLE_CONNS",
 	ConnMaxLifetime: "HERALD_DB_CONN_MAX_LIFETIME",
 	ConnTimeout:     "HERALD_DB_CONN_TIMEOUT",
+	TokenLifetime:   "HERALD_DB_TOKEN_LIFETIME",
 }
 
 var storageEnv = &storage.Env{

@@ -19,6 +19,7 @@ type Config struct {
 	MaxIdleConns    int    `json:"max_idle_conns"`
 	ConnMaxLifetime string `json:"conn_max_lifetime"`
 	ConnTimeout     string `json:"conn_timeout"`
+	TokenLifetime   string `json:"token_lifetime"`
 }
 
 // Env maps config fields to environment variable names for override injection.
@@ -33,6 +34,7 @@ type Env struct {
 	MaxIdleConns    string
 	ConnMaxLifetime string
 	ConnTimeout     string
+	TokenLifetime   string
 }
 
 // ConnMaxLifetimeDuration returns ConnMaxLifetime as a time.Duration.
@@ -44,6 +46,12 @@ func (c *Config) ConnMaxLifetimeDuration() time.Duration {
 // ConnTimeoutDuration returns ConnTimeout as a time.Duration.
 func (c *Config) ConnTimeoutDuration() time.Duration {
 	d, _ := time.ParseDuration(c.ConnTimeout)
+	return d
+}
+
+// TokenLifetimeDuration returns TokenLifetime as a time.Duration.
+func (c *Config) TokenLifetimeDuration() time.Duration {
+	d, _ := time.ParseDuration(c.TokenLifetime)
 	return d
 }
 
@@ -96,6 +104,9 @@ func (c *Config) Merge(overlay *Config) {
 	if overlay.ConnTimeout != "" {
 		c.ConnTimeout = overlay.ConnTimeout
 	}
+	if overlay.TokenLifetime != "" {
+		c.TokenLifetime = overlay.TokenLifetime
+	}
 }
 
 func (c *Config) loadDefaults() {
@@ -119,6 +130,9 @@ func (c *Config) loadDefaults() {
 	}
 	if c.ConnTimeout == "" {
 		c.ConnTimeout = "5s"
+	}
+	if c.TokenLifetime == "" {
+		c.TokenLifetime = "45m"
 	}
 }
 
@@ -179,6 +193,11 @@ func (c *Config) loadEnv(env *Env) {
 			c.ConnTimeout = v
 		}
 	}
+	if env.TokenLifetime != "" {
+		if v := os.Getenv(env.TokenLifetime); v != "" {
+			c.TokenLifetime = v
+		}
+	}
 }
 
 func (c *Config) validate() error {
@@ -193,6 +212,9 @@ func (c *Config) validate() error {
 	}
 	if _, err := time.ParseDuration(c.ConnTimeout); err != nil {
 		return fmt.Errorf("invalid conn_timeout: %w", err)
+	}
+	if _, err := time.ParseDuration(c.TokenLifetime); err != nil {
+		return fmt.Errorf("invalid token_lifetime: %w", err)
 	}
 	return nil
 }
