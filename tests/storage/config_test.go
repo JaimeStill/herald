@@ -1,7 +1,6 @@
 package storage_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/JaimeStill/herald/pkg/storage"
@@ -44,40 +43,19 @@ func TestFinalizeEnvOverrides(t *testing.T) {
 }
 
 func TestFinalizeValidation(t *testing.T) {
-	tests := []struct {
-		name    string
-		cfg     storage.Config
-		wantErr string
-	}{
-		{
-			name:    "missing connection_string",
-			cfg:     storage.Config{ContainerName: "docs"},
-			wantErr: "connection_string required",
-		},
-		{
-			name:    "missing container_name after clearing default",
-			cfg:     storage.Config{ConnectionString: "conn"},
-			wantErr: "",
-		},
-	}
+	t.Run("no connection_string is valid after validate relaxation", func(t *testing.T) {
+		cfg := storage.Config{ContainerName: "docs"}
+		if err := cfg.Finalize(nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.cfg.Finalize(nil)
-			if tt.wantErr == "" {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				return
-			}
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("error %q does not contain %q", err.Error(), tt.wantErr)
-			}
-		})
-	}
+	t.Run("missing container_name after clearing default", func(t *testing.T) {
+		cfg := storage.Config{ConnectionString: "conn"}
+		if err := cfg.Finalize(nil); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
 }
 
 func TestFinalizeMaxListSizeCap(t *testing.T) {
@@ -133,6 +111,23 @@ func TestFinalizeMaxListSizeEnvCapped(t *testing.T) {
 	}
 }
 
+func TestFinalizeServiceURLEnvOverride(t *testing.T) {
+	t.Setenv("TEST_SERVICE_URL", "https://myaccount.blob.core.windows.net")
+
+	env := &storage.Env{
+		ServiceURL: "TEST_SERVICE_URL",
+	}
+
+	cfg := storage.Config{}
+	if err := cfg.Finalize(env); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.ServiceURL != "https://myaccount.blob.core.windows.net" {
+		t.Errorf("service_url: got %s, want https://myaccount.blob.core.windows.net", cfg.ServiceURL)
+	}
+}
+
 func TestMerge(t *testing.T) {
 	base := storage.Config{
 		ContainerName:    "documents",
@@ -154,6 +149,25 @@ func TestMerge(t *testing.T) {
 	}
 	if base.MaxListSize != 100 {
 		t.Errorf("max_list_size: got %d, want 100", base.MaxListSize)
+	}
+}
+
+func TestMergeServiceURL(t *testing.T) {
+	base := storage.Config{
+		ContainerName: "documents",
+		MaxListSize:   50,
+	}
+
+	overlay := storage.Config{
+		ServiceURL: "https://myaccount.blob.core.windows.net",
+	}
+	base.Merge(&overlay)
+
+	if base.ServiceURL != "https://myaccount.blob.core.windows.net" {
+		t.Errorf("service_url: got %s, want https://myaccount.blob.core.windows.net", base.ServiceURL)
+	}
+	if base.ContainerName != "documents" {
+		t.Errorf("container_name should remain documents, got %s", base.ContainerName)
 	}
 }
 

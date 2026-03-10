@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.97.105
+- Add credential-based storage constructor with `NewWithCredential` for managed identity auth, `ServiceURL` config field with env var override, and relaxed config validation (#105)
+
 ## v0.4.0-dev.96.103
 - Add AuthConfig with typed AuthMode enum, Azure Identity credential provider factory, and Infrastructure/Runtime credential propagation (#103)
 
