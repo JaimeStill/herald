@@ -8,6 +8,7 @@ import (
 	"github.com/JaimeStill/herald/internal/api"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/internal/infrastructure"
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/module"
 )
 
@@ -22,7 +23,16 @@ func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modu
 		return nil, err
 	}
 
-	appModule, err := app.NewModule("/app")
+	var authCfg *app.ClientAuthConfig
+	if cfg.Auth.Mode == auth.ModeAzure {
+		authCfg = &app.ClientAuthConfig{
+			TenantID:  cfg.Auth.TenantID,
+			ClientID:  cfg.Auth.ClientID,
+			Authority: cfg.Auth.Authority,
+		}
+	}
+
+	appModule, err := app.NewModule("/app", authCfg)
 	if err != nil {
 		return nil, err
 	}

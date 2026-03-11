@@ -97,6 +97,26 @@ func (ts *TemplateSet) PageHandler(layout string, view ViewDef) http.HandlerFunc
 	}
 }
 
+// PageHandlerWithData returns an HTTP handler that renders the given view
+// with persistent data populated in ViewData.Data for every request.
+func (ts *TemplateSet) PageHandlerWithData(
+	layout string,
+	view ViewDef,
+	data any,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		d := ViewData{
+			Title:    view.Title,
+			Bundle:   view.Bundle,
+			BasePath: ts.basePath,
+			Data:     data,
+		}
+		if err := ts.Render(w, layout, view.Template, d); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
 // Render executes the named layout template with the given view data.
 func (ts *TemplateSet) Render(w http.ResponseWriter, layoutName, viewPath string, data ViewData) error {
 	t, ok := ts.views[viewPath]

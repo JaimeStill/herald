@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ .Title }} - Herald</title>
     <link rel="stylesheet" href="dist/{{ .Bundle }}.css" />
+    {{ if .Data }}
+    <script id="herald-config" type="application/json">
+      {{ .Data }}
+    </script>
+    {{ end }}
   </head>
 
   <body>
@@ -14,6 +19,9 @@
       <nav>
         <a href="prompts">Prompts</a>
       </nav>
+      {{ if .Data }}
+      <div id="user-menu"></div>
+      {{ end }}
     </header>
     <main id="app-content">{{ block "content" . }}{{ end }}</main>
 
