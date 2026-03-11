@@ -37,6 +37,9 @@ cd app && bun run watch
 
 # Terminal 2 — hot reload the Go server
 air
+
+# Terminal 2 — hot reload the Go server with Azure Entra auth
+HERALD_ENV=auth air
 ```
 
 The web client is available at `http://localhost:8080/app`.
@@ -56,6 +59,8 @@ To stop:
 ```bash
 docker compose -f docker-compose.yml -f compose/app.yml down
 ```
+
+The web client is available at `http://localhost:8080/app`.
 
 ## Tasks
 
@@ -84,3 +89,39 @@ Config loading follows a layered overlay pattern:
 4. `HERALD_*` environment variables — final overrides
 
 All environment variables use the `HERALD_` prefix (e.g., `HERALD_SERVER_PORT`, `HERALD_DB_HOST`).
+
+### Entra
+
+Azure Entra authentication is opt-in. To enable it locally, create a `config.auth.json` overlay and run with `HERALD_ENV=auth`.
+
+**App registration setup:**
+
+1. Register an app in Azure Entra ID (portal → App registrations → New registration)
+   - Name: `herald`
+   - Supported account types: Single tenant
+   - Redirect URI: **SPA** platform → `http://localhost:8080/app/`
+
+2. Expose an API (left sidebar)
+   - Set Application ID URI: `api://<client-id>` (default)
+   - Add a scope (e.g., `access`) — Admin and users can consent
+
+3. API permissions (left sidebar)
+   - Add your app's scope as a delegated permission (e.g., `api://<client-id>/access`)
+   - Grant admin consent
+
+4. Note the **Directory (tenant) ID** and **Application (client) ID** from the Overview page
+
+**Create `config.auth.json`:**
+
+```json
+{
+  "auth": {
+    "auth_mode": "azure",
+    "tenant_id": "<tenant-id>",
+    "client_id": "<client-id>",
+    "scope": "<scope-name>"
+  }
+}
+```
+
+The `scope` field is the bare scope name (e.g., `access`). The client composes the full `api://<client-id>/<scope>` format at runtime. When omitted, defaults to `access_as_user`.

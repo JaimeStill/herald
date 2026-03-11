@@ -50,6 +50,7 @@ type Config struct {
 	ClientID        string        `json:"client_id"`
 	ClientSecret    string        `json:"client_secret"`
 	Authority       string        `json:"authority"`
+	Scope           string        `json:"scope"`
 	CacheLocation   CacheLocation `json:"cache_location"`
 }
 
@@ -61,6 +62,7 @@ type Env struct {
 	ClientID        string
 	ClientSecret    string
 	Authority       string
+	Scope           string
 	CacheLocation   string
 }
 
@@ -96,6 +98,9 @@ func (c *Config) Merge(overlay *Config) {
 	}
 	if overlay.Authority != "" {
 		c.Authority = overlay.Authority
+	}
+	if overlay.Scope != "" {
+		c.Scope = overlay.Scope
 	}
 	if overlay.CacheLocation != "" {
 		c.CacheLocation = overlay.CacheLocation
@@ -177,6 +182,11 @@ func (c *Config) loadEnv(env *Env) {
 			c.Authority = v
 		}
 	}
+	if env.Scope != "" {
+		if v := os.Getenv(env.Scope); v != "" {
+			c.Scope = v
+		}
+	}
 	if env.CacheLocation != "" {
 		if v := os.Getenv(env.CacheLocation); v != "" {
 			c.CacheLocation = CacheLocation(v)
@@ -187,6 +197,9 @@ func (c *Config) loadEnv(env *Env) {
 func (c *Config) deriveDefaults() {
 	if c.Authority == "" && c.TenantID != "" {
 		c.Authority = DefaultAuthorityBase + c.TenantID + DefaultAuthorityPath
+	}
+	if c.Scope == "" {
+		c.Scope = "access_as_user"
 	}
 }
 

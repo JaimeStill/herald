@@ -29,6 +29,7 @@ func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modu
 			TenantID:      cfg.Auth.TenantID,
 			ClientID:      cfg.Auth.ClientID,
 			Authority:     cfg.Auth.Authority,
+			Scope:         cfg.Auth.Scope,
 			CacheLocation: cfg.Auth.CacheLocation,
 		}
 	}

@@ -31,6 +31,7 @@ var authEnv = &auth.Env{
 	ClientID:        "HERALD_AUTH_CLIENT_ID",
 	ClientSecret:    "HERALD_AUTH_CLIENT_SECRET",
 	Authority:       "HERALD_AUTH_AUTHORITY",
+	Scope:           "HERALD_AUTH_SCOPE",
 	CacheLocation:   "HERALD_AUTH_CACHE_LOCATION",
 }
 

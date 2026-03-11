@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
+import { Auth } from "@core";
 import { navigate } from "@core/router";
 import type { Document } from "@domains/documents";
 import { DocumentService } from "@domains/documents";
@@ -16,14 +17,26 @@ export class ReviewView extends LitElement {
 
   @property() documentId?: string;
   @state() private document?: Document;
+  @state() private blobUrl?: string;
   @state() private error?: string;
 
   async willUpdate(changed: Map<string, unknown>) {
     if (changed.has("documentId") && this.documentId) {
       this.document = undefined;
       this.error = undefined;
+      if (this.blobUrl) {
+        URL.revokeObjectURL(this.blobUrl);
+        this.blobUrl = undefined;
+      }
 
       await this.loadDocument(this.documentId);
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.blobUrl) {
+      URL.revokeObjectURL(this.blobUrl);
     }
   }
 
@@ -32,8 +45,21 @@ export class ReviewView extends LitElement {
 
     if (result.ok) {
       this.document = result.data;
+      await this.loadBlob(result.data.storage_key);
     } else {
       this.error = result.error;
+    }
+  }
+
+  private async loadBlob(storageKey: string) {
+    if (!Auth.isEnabled()) {
+      this.blobUrl = StorageService.view(storageKey);
+      return;
+    }
+
+    const result = await StorageService.download(storageKey);
+    if (result.ok) {
+      this.blobUrl = URL.createObjectURL(result.data);
     }
   }
 
@@ -67,7 +93,7 @@ export class ReviewView extends LitElement {
       <div class="panel pdf-panel">
         <hd-blob-viewer
           .title=${this.document.filename}
-          .src=${StorageService.view(this.document.storage_key)}
+          .src=${this.blobUrl}
         ></hd-blob-viewer>
       </div>
       <div class="panel classification-panel">
