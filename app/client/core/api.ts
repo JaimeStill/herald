@@ -1,3 +1,5 @@
+import { Auth } from "./auth";
+
 const BASE = "/api";
 
 /**
@@ -13,6 +15,12 @@ export interface ExecutionEvent {
   data: Record<string, unknown>;
 }
 
+async function authHeaders(): Promise<Record<string, string>> {
+  if (!Auth.isEnabled()) return {};
+  const token = await Auth.getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /**
  * Generic fetch wrapper. Prepends `/api` to the path.
  *
@@ -26,7 +34,22 @@ export async function request<T>(
   parse: (res: Response) => Promise<T> = (res) => res.json(),
 ): Promise<Result<T>> {
   try {
-    const res = await fetch(`${BASE}${path}`, init);
+    const headers = { ...init?.headers, ...(await authHeaders()) };
+    const opts: RequestInit = { ...init, headers };
+    let res = await fetch(`${BASE}${path}`, opts);
+
+    if (res.status === 401 && Auth.isEnabled()) {
+      const token = await Auth.getToken(true);
+      if (token) {
+        opts.headers = { ...opts.headers, Authorization: `Bearer ${token}` };
+        res = await fetch(`${BASE}${path}`, opts);
+      }
+      if (res.status === 401) {
+        await Auth.login();
+        return { ok: false, error: "Authentication required" };
+      }
+    }
+
     if (!res.ok) {
       const text = await res.text();
       return { ok: false, error: text || res.statusText };
@@ -53,13 +76,6 @@ export interface StreamOptions {
   signal?: AbortSignal;
 }
 
-/**
- * SSE client that returns an {@link AbortController} for cancellation.
- *
- * Parses `event:` and `data:` line pairs from the response stream.
- * Accepts optional `init` for non-GET requests (e.g., POST for classification).
- * Calls `onComplete` when the reader reports done; ignores `AbortError`.
- */
 export function stream(
   path: string,
   options: StreamOptions,
@@ -68,8 +84,27 @@ export function stream(
   const controller = new AbortController();
   const signal = options.signal ?? controller.signal;
 
-  fetch(`${BASE}${path}`, { ...init, signal })
-    .then(async (res) => {
+  (async () => {
+    try {
+      const headers = { ...init?.headers, ...(await authHeaders()) };
+      let opts: RequestInit = { ...init, headers, signal };
+      let res = await fetch(`${BASE}${path}`, opts);
+
+      if (res.status === 401 && Auth.isEnabled()) {
+        const token = await Auth.getToken(true);
+        if (token) {
+          opts = {
+            ...opts,
+            headers: { ...opts.headers, Authorization: `Bearer ${token}` },
+          };
+          res = await fetch(`${BASE}${path}`, opts);
+        }
+        if (res.status === 401) {
+          await Auth.login();
+          return;
+        }
+      }
+
       if (!res.ok) {
         const text = await res.text();
         options.onError?.(text || res.statusText);
@@ -106,12 +141,12 @@ export function stream(
       }
 
       options.onComplete?.();
-    })
-    .catch((err: Error) => {
-      if (err.name !== "AbortError") {
-        options.onError?.(err.message);
+    } catch (err: unknown) {
+      if ((err as Error).name !== "AbortError") {
+        options.onError?.((err as Error).message);
       }
-    });
+    }
+  })();
 
   return controller;
 }

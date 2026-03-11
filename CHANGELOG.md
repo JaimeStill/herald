@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.99.120
+- Wire bearer token injection into `request()` and `stream()` with 401 retry and silent token refresh; add configurable OAuth `Scope` field to auth config; fix OIDC verifier audience/issuer mismatch for Entra access tokens; add user menu with display name and logout to app header; fetch PDFs via authenticated blob download for iframe viewing; document Entra app registration setup in README (#120)
+
 ## v0.4.0-dev.99.119
 - Add MSAL auth service with login gate; create `Auth` singleton in `core/auth.ts` wrapping `@azure/msal-browser` for MSAL initialization, redirect login, and token acquisition; convert app bootstrap to async IIFE gating on authentication; add configurable `CacheLocation` typed enum to `pkg/auth` threaded through `ClientAuthConfig` (#119)
 

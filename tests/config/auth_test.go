@@ -145,6 +145,76 @@ func TestAuthConfigCacheLocationMergeEmptyPreserves(t *testing.T) {
 	}
 }
 
+func TestAuthConfigScopeDefault(t *testing.T) {
+	cfg := &auth.Config{ClientID: "client-456"}
+	if err := cfg.Finalize(nil); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.Scope != "access_as_user" {
+		t.Errorf("scope: got %q, want %q", cfg.Scope, "access_as_user")
+	}
+}
+
+func TestAuthConfigScopeDefaultNoClientID(t *testing.T) {
+	cfg := &auth.Config{}
+	if err := cfg.Finalize(nil); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.Scope != "access_as_user" {
+		t.Errorf("scope: got %q, want %q", cfg.Scope, "access_as_user")
+	}
+}
+
+func TestAuthConfigScopeExplicit(t *testing.T) {
+	cfg := &auth.Config{Scope: "access", ClientID: "client-456"}
+	if err := cfg.Finalize(nil); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.Scope != "access" {
+		t.Errorf("scope: got %q, want %q", cfg.Scope, "access")
+	}
+}
+
+func TestAuthConfigScopeEnvOverride(t *testing.T) {
+	t.Setenv("HERALD_AUTH_SCOPE", "custom_scope")
+
+	env := &auth.Env{Scope: "HERALD_AUTH_SCOPE"}
+
+	cfg := &auth.Config{}
+	if err := cfg.Finalize(env); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.Scope != "custom_scope" {
+		t.Errorf("scope: got %q, want %q", cfg.Scope, "custom_scope")
+	}
+}
+
+func TestAuthConfigScopeMerge(t *testing.T) {
+	base := &auth.Config{Scope: "access_as_user"}
+	overlay := &auth.Config{Scope: "access"}
+
+	base.Merge(overlay)
+
+	if base.Scope != "access" {
+		t.Errorf("scope: got %q, want %q", base.Scope, "access")
+	}
+}
+
+func TestAuthConfigScopeMergeEmptyPreserves(t *testing.T) {
+	base := &auth.Config{Scope: "access"}
+	overlay := &auth.Config{}
+
+	base.Merge(overlay)
+
+	if base.Scope != "access" {
+		t.Errorf("scope should be preserved: got %q", base.Scope)
+	}
+}
+
 func TestAuthConfigEnvOverrides(t *testing.T) {
 	t.Setenv("HERALD_AUTH_MODE", "azure")
 	t.Setenv("HERALD_AUTH_MANAGED_IDENTITY", "true")

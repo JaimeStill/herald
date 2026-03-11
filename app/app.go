@@ -34,6 +34,7 @@ type ClientAuthConfig struct {
 	ClientID      string             `json:"client_id"`
 	RedirectURI   string             `json:"redirect_uri"`
 	Authority     string             `json:"authority"`
+	Scope         string             `json:"scope"`
 	CacheLocation auth.CacheLocation `json:"cache_location"`
 }
 

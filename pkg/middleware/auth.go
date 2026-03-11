@@ -38,7 +38,8 @@ func Auth(cfg *auth.Config, logger *slog.Logger) func(http.Handler) http.Handler
 			}
 
 			verifier = provider.Verifier(&oidc.Config{
-				ClientID: cfg.ClientID,
+				ClientID:        "api://" + cfg.ClientID,
+				SkipIssuerCheck: true,
 			})
 		}
 

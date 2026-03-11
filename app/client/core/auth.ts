@@ -17,6 +17,7 @@ interface AuthConfig {
   client_id: string;
   redirect_uri: string;
   authority: string;
+  scope: string;
   cache_location?: string;
 }
 
@@ -28,7 +29,7 @@ function readConfig(): AuthConfig | null {
 }
 
 function scope(): string {
-  return `api://${config!.client_id}/access_as_user`;
+  return `api://${config!.client_id}/${config!.scope}`;
 }
 
 /**
