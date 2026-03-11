@@ -14,6 +14,7 @@ import (
 
 	"github.com/JaimeStill/go-agents/pkg/agent"
 	"github.com/JaimeStill/herald/internal/config"
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/lifecycle"
 	"github.com/JaimeStill/herald/pkg/storage"
@@ -129,7 +130,7 @@ func newAgentFactory(
 	if cred != nil && managedIdentity {
 		return func(ctx context.Context) (agent.Agent, error) {
 			tok, err := cred.GetToken(ctx, policy.TokenRequestOptions{
-				Scopes: []string{config.AgentScope},
+				Scopes: []string{auth.AgentScope},
 			})
 			if err != nil {
 				return nil, fmt.Errorf("acquire agent token: %w", err)

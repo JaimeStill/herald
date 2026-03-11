@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/storage"
 
@@ -22,6 +23,15 @@ const (
 	EnvHeraldVersion         = "HERALD_VERSION"
 	EnvHeraldAgentToken      = "HERALD_AGENT_TOKEN"
 )
+
+var authEnv = &auth.Env{
+	Mode:            "HERALD_AUTH_MODE",
+	ManagedIdentity: "HERALD_AUTH_MANAGED_IDENTITY",
+	TenantID:        "HERALD_AUTH_TENANT_ID",
+	ClientID:        "HERALD_AUTH_CLIENT_ID",
+	ClientSecret:    "HERALD_AUTH_CLIENT_SECRET",
+	Authority:       "HERALD_AUTH_AUTHORITY",
+}
 
 var databaseEnv = &database.Env{
 	Host:            "HERALD_DB_HOST",
@@ -47,7 +57,7 @@ var storageEnv = &storage.Env{
 // Config is the root configuration for the Herald service.
 type Config struct {
 	Agent           gaconfig.AgentConfig `json:"agent"`
-	Auth            AuthConfig           `json:"auth"`
+	Auth            auth.Config          `json:"auth"`
 	Server          ServerConfig         `json:"server"`
 	Database        database.Config      `json:"database"`
 	Storage         storage.Config       `json:"storage"`
@@ -133,7 +143,7 @@ func (c *Config) finalize() error {
 	if err := FinalizeAgent(&c.Agent); err != nil {
 		return fmt.Errorf("agent: %w", err)
 	}
-	if err := c.Auth.Finalize(); err != nil {
+	if err := c.Auth.Finalize(authEnv); err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
 	if err := c.Server.Finalize(); err != nil {

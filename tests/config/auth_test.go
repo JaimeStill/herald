@@ -5,16 +5,17 @@ import (
 	"testing"
 
 	"github.com/JaimeStill/herald/internal/config"
+	"github.com/JaimeStill/herald/pkg/auth"
 )
 
 func TestAuthConfigDefaults(t *testing.T) {
-	cfg := &config.AuthConfig{}
-	if err := cfg.Finalize(); err != nil {
+	cfg := &auth.Config{}
+	if err := cfg.Finalize(nil); err != nil {
 		t.Fatalf("finalize failed: %v", err)
 	}
 
-	if cfg.Mode != config.AuthModeNone {
-		t.Errorf("mode: got %q, want %q", cfg.Mode, config.AuthModeNone)
+	if cfg.Mode != auth.ModeNone {
+		t.Errorf("mode: got %q, want %q", cfg.Mode, auth.ModeNone)
 	}
 	if cfg.ManagedIdentity {
 		t.Error("managed_identity should default to false")
@@ -22,8 +23,8 @@ func TestAuthConfigDefaults(t *testing.T) {
 }
 
 func TestAuthConfigNoneCredential(t *testing.T) {
-	cfg := &config.AuthConfig{}
-	if err := cfg.Finalize(); err != nil {
+	cfg := &auth.Config{}
+	if err := cfg.Finalize(nil); err != nil {
 		t.Fatalf("finalize failed: %v", err)
 	}
 
@@ -39,18 +40,18 @@ func TestAuthConfigNoneCredential(t *testing.T) {
 func TestAuthConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		mode    config.AuthMode
+		mode    auth.Mode
 		wantErr string
 	}{
-		{"none is valid", config.AuthModeNone, ""},
-		{"azure is valid", config.AuthModeAzure, ""},
+		{"none is valid", auth.ModeNone, ""},
+		{"azure is valid", auth.ModeAzure, ""},
 		{"invalid mode", "bad", "invalid auth_mode"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &config.AuthConfig{Mode: tt.mode}
-			err := cfg.Finalize()
+			cfg := &auth.Config{Mode: tt.mode}
+			err := cfg.Finalize(nil)
 
 			if tt.wantErr == "" {
 				if err != nil {
@@ -76,13 +77,21 @@ func TestAuthConfigEnvOverrides(t *testing.T) {
 	t.Setenv("HERALD_AUTH_CLIENT_ID", "client-456")
 	t.Setenv("HERALD_AUTH_CLIENT_SECRET", "secret-789")
 
-	cfg := &config.AuthConfig{}
-	if err := cfg.Finalize(); err != nil {
+	env := &auth.Env{
+		Mode:            "HERALD_AUTH_MODE",
+		ManagedIdentity: "HERALD_AUTH_MANAGED_IDENTITY",
+		TenantID:        "HERALD_AUTH_TENANT_ID",
+		ClientID:        "HERALD_AUTH_CLIENT_ID",
+		ClientSecret:    "HERALD_AUTH_CLIENT_SECRET",
+	}
+
+	cfg := &auth.Config{}
+	if err := cfg.Finalize(env); err != nil {
 		t.Fatalf("finalize failed: %v", err)
 	}
 
-	if cfg.Mode != config.AuthModeAzure {
-		t.Errorf("mode: got %q, want %q", cfg.Mode, config.AuthModeAzure)
+	if cfg.Mode != auth.ModeAzure {
+		t.Errorf("mode: got %q, want %q", cfg.Mode, auth.ModeAzure)
 	}
 	if !cfg.ManagedIdentity {
 		t.Error("managed_identity: got false, want true")
@@ -117,8 +126,12 @@ func TestAuthConfigManagedIdentityEnvValues(t *testing.T) {
 				t.Setenv("HERALD_AUTH_MANAGED_IDENTITY", tt.value)
 			}
 
-			cfg := &config.AuthConfig{}
-			if err := cfg.Finalize(); err != nil {
+			env := &auth.Env{
+				ManagedIdentity: "HERALD_AUTH_MANAGED_IDENTITY",
+			}
+
+			cfg := &auth.Config{}
+			if err := cfg.Finalize(env); err != nil {
 				t.Fatalf("finalize failed: %v", err)
 			}
 
@@ -130,20 +143,20 @@ func TestAuthConfigManagedIdentityEnvValues(t *testing.T) {
 }
 
 func TestAuthConfigMerge(t *testing.T) {
-	base := &config.AuthConfig{
-		Mode:     config.AuthModeNone,
+	base := &auth.Config{
+		Mode:     auth.ModeNone,
 		TenantID: "base-tenant",
 	}
 
-	overlay := &config.AuthConfig{
-		Mode:     config.AuthModeAzure,
+	overlay := &auth.Config{
+		Mode:     auth.ModeAzure,
 		ClientID: "overlay-client",
 	}
 
 	base.Merge(overlay)
 
-	if base.Mode != config.AuthModeAzure {
-		t.Errorf("mode: got %q, want %q", base.Mode, config.AuthModeAzure)
+	if base.Mode != auth.ModeAzure {
+		t.Errorf("mode: got %q, want %q", base.Mode, auth.ModeAzure)
 	}
 	if base.TenantID != "base-tenant" {
 		t.Errorf("tenant_id: got %q, want %q (preserved from base)", base.TenantID, "base-tenant")
@@ -154,8 +167,8 @@ func TestAuthConfigMerge(t *testing.T) {
 }
 
 func TestAuthConfigMergeManagedIdentity(t *testing.T) {
-	base := &config.AuthConfig{Mode: config.AuthModeAzure}
-	overlay := &config.AuthConfig{ManagedIdentity: true}
+	base := &auth.Config{Mode: auth.ModeAzure}
+	overlay := &auth.Config{ManagedIdentity: true}
 
 	base.Merge(overlay)
 
@@ -165,11 +178,11 @@ func TestAuthConfigMergeManagedIdentity(t *testing.T) {
 }
 
 func TestAuthConfigMergeManagedIdentityFalsePreserves(t *testing.T) {
-	base := &config.AuthConfig{
-		Mode:            config.AuthModeAzure,
+	base := &auth.Config{
+		Mode:            auth.ModeAzure,
 		ManagedIdentity: true,
 	}
-	overlay := &config.AuthConfig{}
+	overlay := &auth.Config{}
 
 	base.Merge(overlay)
 
@@ -179,18 +192,18 @@ func TestAuthConfigMergeManagedIdentityFalsePreserves(t *testing.T) {
 }
 
 func TestAuthConfigMergeEmptyPreserves(t *testing.T) {
-	base := &config.AuthConfig{
-		Mode:            config.AuthModeAzure,
+	base := &auth.Config{
+		Mode:            auth.ModeAzure,
 		ManagedIdentity: true,
 		TenantID:        "tenant",
 		ClientID:        "client",
 		ClientSecret:    "secret",
 	}
 
-	overlay := &config.AuthConfig{}
+	overlay := &auth.Config{}
 	base.Merge(overlay)
 
-	if base.Mode != config.AuthModeAzure {
+	if base.Mode != auth.ModeAzure {
 		t.Errorf("mode should be preserved: got %q", base.Mode)
 	}
 	if !base.ManagedIdentity {
@@ -217,8 +230,8 @@ func TestAuthConfigFromLoad(t *testing.T) {
 		t.Fatalf("load failed: %v", err)
 	}
 
-	if cfg.Auth.Mode != config.AuthModeNone {
-		t.Errorf("auth mode: got %q, want %q", cfg.Auth.Mode, config.AuthModeNone)
+	if cfg.Auth.Mode != auth.ModeNone {
+		t.Errorf("auth mode: got %q, want %q", cfg.Auth.Mode, auth.ModeNone)
 	}
 }
 
@@ -241,8 +254,8 @@ func TestAuthConfigFromLoadWithOverlay(t *testing.T) {
 		t.Fatalf("load failed: %v", err)
 	}
 
-	if cfg.Auth.Mode != config.AuthModeAzure {
-		t.Errorf("auth mode: got %q, want %q", cfg.Auth.Mode, config.AuthModeAzure)
+	if cfg.Auth.Mode != auth.ModeAzure {
+		t.Errorf("auth mode: got %q, want %q", cfg.Auth.Mode, auth.ModeAzure)
 	}
 	if !cfg.Auth.ManagedIdentity {
 		t.Error("managed_identity: got false, want true (from overlay)")
@@ -273,7 +286,7 @@ func TestAuthConfigInvalidModeFromLoad(t *testing.T) {
 }
 
 func TestTokenCredentialUnsupportedMode(t *testing.T) {
-	cfg := &config.AuthConfig{Mode: "unsupported"}
+	cfg := &auth.Config{Mode: "unsupported"}
 	_, err := cfg.TokenCredential()
 	if err == nil {
 		t.Fatal("expected error for unsupported mode")

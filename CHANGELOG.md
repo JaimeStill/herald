@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.98.113
+- Add `pkg/auth/` package with unified auth config, User context helpers, and error sentinels; add JWT validation middleware using `go-oidc` for OIDC discovery and token verification; move auth config from `internal/config/` to `pkg/auth/` following package-owns-config pattern; document dependency criteria in project README (#113)
+
 ## v0.4.0-dev.97.108
 - Add `ManagedIdentity` flag to `AuthConfig` and wire credential-based constructors into infrastructure for database, storage, and agent services when managed identity is active (#108)
 
