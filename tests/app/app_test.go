@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewModule(t *testing.T) {
-	m, err := app.NewModule("/app")
+	m, err := app.NewModule("/app", nil)
 	if err != nil {
 		t.Fatalf("NewModule: %v", err)
 	}
@@ -20,7 +20,7 @@ func TestNewModule(t *testing.T) {
 }
 
 func TestShellTemplate(t *testing.T) {
-	m, err := app.NewModule("/app")
+	m, err := app.NewModule("/app", nil)
 	if err != nil {
 		t.Fatalf("NewModule: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestShellTemplate(t *testing.T) {
 }
 
 func TestDistAssetServing(t *testing.T) {
-	m, err := app.NewModule("/app")
+	m, err := app.NewModule("/app", nil)
 	if err != nil {
 		t.Fatalf("NewModule: %v", err)
 	}
@@ -79,8 +79,72 @@ func TestDistAssetServing(t *testing.T) {
 	}
 }
 
+func TestAuthConfigInjection(t *testing.T) {
+	authCfg := &app.ClientAuthConfig{
+		TenantID:  "test-tenant-id",
+		ClientID:  "test-client-id",
+		Authority: "https://login.microsoftonline.com/test-tenant-id/v2.0",
+	}
+
+	m, err := app.NewModule("/app", authCfg)
+	if err != nil {
+		t.Fatalf("NewModule: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/app/", nil)
+	m.Serve(rec, req)
+
+	body := rec.Body.String()
+
+	checks := []struct {
+		name    string
+		content string
+	}{
+		{"config script tag", `<script id="herald-config" type="application/json">`},
+		{"tenant_id", `"tenant_id":"test-tenant-id"`},
+		{"client_id", `"client_id":"test-client-id"`},
+		{"redirect_uri", `"redirect_uri":"/app/"`},
+		{"authority", `"authority":"https://login.microsoftonline.com/test-tenant-id/v2.0"`},
+		{"user-menu", `id="user-menu"`},
+	}
+
+	for _, check := range checks {
+		if !strings.Contains(body, check.content) {
+			t.Errorf("auth config missing %s: want %q in body", check.name, check.content)
+		}
+	}
+}
+
+func TestNoAuthConfigWhenNil(t *testing.T) {
+	m, err := app.NewModule("/app", nil)
+	if err != nil {
+		t.Fatalf("NewModule: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/app/", nil)
+	m.Serve(rec, req)
+
+	body := rec.Body.String()
+
+	absent := []struct {
+		name    string
+		content string
+	}{
+		{"config script tag", `herald-config`},
+		{"user-menu", `user-menu`},
+	}
+
+	for _, check := range absent {
+		if strings.Contains(body, check.content) {
+			t.Errorf("should not contain %s when auth is nil: found %q in body", check.name, check.content)
+		}
+	}
+}
+
 func TestSPAFallback(t *testing.T) {
-	m, err := app.NewModule("/app")
+	m, err := app.NewModule("/app", nil)
 	if err != nil {
 		t.Fatalf("NewModule: %v", err)
 	}

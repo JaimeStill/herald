@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.99.118
+- Inject browser-safe auth config into web app HTML template for MSAL.js initialization; add `ClientAuthConfig` struct, `PageHandlerWithData` method, and conditional `<script id="herald-config">` rendering when auth mode is azure (#118)
+
 ## v0.4.0-dev.98.114
 - Wire auth middleware into API module between CORS and Logger; populate `validated_by` from authenticated JWT user identity in classifications Validate and Update handlers with backward-compatible fallback to request body when auth is disabled (#114, #115)
 
