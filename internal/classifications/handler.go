@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/handlers"
 	"github.com/JaimeStill/herald/pkg/pagination"
 	"github.com/JaimeStill/herald/pkg/routes"
@@ -185,6 +186,10 @@ func (h *Handler) Validate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if user := auth.UserFromContext(r.Context()); user != nil {
+		cmd.ValidatedBy = user.Name
+	}
+
 	c, err := h.sys.Validate(r.Context(), id, cmd)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
@@ -207,6 +212,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
 		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
 		return
+	}
+
+	if user := auth.UserFromContext(r.Context()); user != nil {
+		cmd.UpdatedBy = user.Name
 	}
 
 	c, err := h.sys.Update(r.Context(), id, cmd)

@@ -17,6 +17,7 @@ import (
 
 	"github.com/JaimeStill/herald/internal/classifications"
 	"github.com/JaimeStill/herald/internal/workflow"
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/pagination"
 )
 
@@ -549,6 +550,58 @@ func TestHandlerValidate(t *testing.T) {
 			t.Errorf("status = %d, want 409", rec.Code)
 		}
 	})
+
+	t.Run("authenticated user overrides validated_by", func(t *testing.T) {
+		var capturedCmd classifications.ValidateCommand
+		sys := &mockSystem{
+			validateFn: func(_ context.Context, _ uuid.UUID, cmd classifications.ValidateCommand) (*classifications.Classification, error) {
+				capturedCmd = cmd
+				return &c, nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		body, _ := json.Marshal(classifications.ValidateCommand{ValidatedBy: "body-user"})
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/classifications/"+c.ID.String()+"/validate", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		ctx := auth.ContextWithUser(req.Context(), &auth.User{ID: "oid-123", Name: "JWT User", Email: "jwt@example.com"})
+		req = req.WithContext(ctx)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if capturedCmd.ValidatedBy != "JWT User" {
+			t.Errorf("validated_by = %q, want %q", capturedCmd.ValidatedBy, "JWT User")
+		}
+	})
+
+	t.Run("no auth user preserves body validated_by", func(t *testing.T) {
+		var capturedCmd classifications.ValidateCommand
+		sys := &mockSystem{
+			validateFn: func(_ context.Context, _ uuid.UUID, cmd classifications.ValidateCommand) (*classifications.Classification, error) {
+				capturedCmd = cmd
+				return &c, nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		body, _ := json.Marshal(classifications.ValidateCommand{ValidatedBy: "body-user"})
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/classifications/"+c.ID.String()+"/validate", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if capturedCmd.ValidatedBy != "body-user" {
+			t.Errorf("validated_by = %q, want %q", capturedCmd.ValidatedBy, "body-user")
+		}
+	})
 }
 
 func TestHandlerUpdate(t *testing.T) {
@@ -644,6 +697,66 @@ func TestHandlerUpdate(t *testing.T) {
 
 		if rec.Code != http.StatusConflict {
 			t.Errorf("status = %d, want 409", rec.Code)
+		}
+	})
+
+	t.Run("authenticated user overrides updated_by", func(t *testing.T) {
+		var capturedCmd classifications.UpdateCommand
+		sys := &mockSystem{
+			updateFn: func(_ context.Context, _ uuid.UUID, cmd classifications.UpdateCommand) (*classifications.Classification, error) {
+				capturedCmd = cmd
+				return &c, nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		body, _ := json.Marshal(classifications.UpdateCommand{
+			Classification: "TOP SECRET",
+			Rationale:      "Updated rationale.",
+			UpdatedBy:      "body-user",
+		})
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("PUT", "/classifications/"+c.ID.String(), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		ctx := auth.ContextWithUser(req.Context(), &auth.User{ID: "oid-456", Name: "JWT Reviewer", Email: "reviewer@example.com"})
+		req = req.WithContext(ctx)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if capturedCmd.UpdatedBy != "JWT Reviewer" {
+			t.Errorf("updated_by = %q, want %q", capturedCmd.UpdatedBy, "JWT Reviewer")
+		}
+	})
+
+	t.Run("no auth user preserves body updated_by", func(t *testing.T) {
+		var capturedCmd classifications.UpdateCommand
+		sys := &mockSystem{
+			updateFn: func(_ context.Context, _ uuid.UUID, cmd classifications.UpdateCommand) (*classifications.Classification, error) {
+				capturedCmd = cmd
+				return &c, nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		body, _ := json.Marshal(classifications.UpdateCommand{
+			Classification: "TOP SECRET",
+			Rationale:      "Updated rationale.",
+			UpdatedBy:      "body-user",
+		})
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("PUT", "/classifications/"+c.ID.String(), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if capturedCmd.UpdatedBy != "body-user" {
+			t.Errorf("updated_by = %q, want %q", capturedCmd.UpdatedBy, "body-user")
 		}
 	})
 }
