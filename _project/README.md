@@ -258,6 +258,17 @@ Key views: document management (upload, browse, classify, bulk operations), prom
 - **google/uuid**: UUID generation
 - **azure-sdk-for-go**: Azure Blob Storage client, Azure Identity (Entra auth)
 - **pdfcpu**: PDF page count extraction on upload
+- **go-oidc**: OIDC discovery, JWKS management, and JWT token verification (coreos/go-oidc)
+
+### Dependency Criteria
+
+External dependencies are acceptable when they meet all of the following:
+
+- **Purpose-built** — solves a specific, well-scoped problem (not a kitchen-sink framework)
+- **Authoritative source** — maintained by a reputable organization or established in the ecosystem
+- **Actively maintained** — recent releases, responsive to issues, not abandoned
+- **Production-ready** — stable API, used in production by major projects
+- **Not a supply chain risk** — minimal transitive dependencies, auditable codebase
 
 ### Frontend
 

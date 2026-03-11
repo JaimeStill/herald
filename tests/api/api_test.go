@@ -7,6 +7,7 @@ import (
 	"github.com/JaimeStill/herald/internal/api"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/internal/infrastructure"
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/middleware"
 	"github.com/JaimeStill/herald/pkg/pagination"
@@ -17,7 +18,7 @@ const azuriteConnString = "DefaultEndpointsProtocol=http;AccountName=heraldstore
 
 func validConfig() *config.Config {
 	return &config.Config{
-		Auth: config.AuthConfig{Mode: config.AuthModeNone},
+		Auth: auth.Config{Mode: auth.ModeNone},
 		Agent: gaconfig.AgentConfig{
 			Name: "test-agent",
 			Provider: &gaconfig.ProviderConfig{
