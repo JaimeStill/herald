@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.99.119
+- Add MSAL auth service with login gate; create `Auth` singleton in `core/auth.ts` wrapping `@azure/msal-browser` for MSAL initialization, redirect login, and token acquisition; convert app bootstrap to async IIFE gating on authentication; add configurable `CacheLocation` typed enum to `pkg/auth` threaded through `ClientAuthConfig` (#119)
+
 ## v0.4.0-dev.99.118
 - Inject browser-safe auth config into web app HTML template for MSAL.js initialization; add `ClientAuthConfig` struct, `PageHandlerWithData` method, and conditional `<script id="herald-config">` rendering when auth mode is azure (#118)
 

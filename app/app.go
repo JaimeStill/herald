@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/module"
 	"github.com/JaimeStill/herald/pkg/web"
 )
@@ -29,10 +30,11 @@ var views = []web.ViewDef{
 // injected into the HTML template for MSAL.js initialization. ClientSecret
 // is deliberately excluded — only fields safe for client exposure are included.
 type ClientAuthConfig struct {
-	TenantID    string `json:"tenant_id"`
-	ClientID    string `json:"client_id"`
-	RedirectURI string `json:"redirect_uri"`
-	Authority   string `json:"authority"`
+	TenantID      string             `json:"tenant_id"`
+	ClientID      string             `json:"client_id"`
+	RedirectURI   string             `json:"redirect_uri"`
+	Authority     string             `json:"authority"`
+	CacheLocation auth.CacheLocation `json:"cache_location"`
 }
 
 // NewModule creates the web app module configured for the given base path.

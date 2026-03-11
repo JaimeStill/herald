@@ -14,6 +14,16 @@ import (
 // AgentScope is the OAuth scope for acquiring Azure AI Foundry bearer tokens.
 const AgentScope = "https://cognitiveservices.azure.com/.default"
 
+// CacheLocation identifies the browser storage backend for MSAL token caching.
+type CacheLocation string
+
+const (
+	// LocalStorage persists MSAL tokens in the browser's localStorage.
+	LocalStorage CacheLocation = "localStorage"
+	// SessionStorage persists MSAL tokens in the browser's sessionStorage.
+	SessionStorage CacheLocation = "sessionStorage"
+)
+
 // Mode identifies the authentication strategy for Azure service connections.
 type Mode string
 
@@ -34,12 +44,13 @@ const (
 // (JWT validation via the Auth middleware). Mode controls both: ModeNone
 // disables all auth; ModeAzure enables credential creation and JWT validation.
 type Config struct {
-	Mode            Mode   `json:"auth_mode"`
-	ManagedIdentity bool   `json:"managed_identity"`
-	TenantID        string `json:"tenant_id"`
-	ClientID        string `json:"client_id"`
-	ClientSecret    string `json:"client_secret"`
-	Authority       string `json:"authority"`
+	Mode            Mode          `json:"auth_mode"`
+	ManagedIdentity bool          `json:"managed_identity"`
+	TenantID        string        `json:"tenant_id"`
+	ClientID        string        `json:"client_id"`
+	ClientSecret    string        `json:"client_secret"`
+	Authority       string        `json:"authority"`
+	CacheLocation   CacheLocation `json:"cache_location"`
 }
 
 // Env maps Config fields to environment variable names for override injection.
@@ -50,6 +61,7 @@ type Env struct {
 	ClientID        string
 	ClientSecret    string
 	Authority       string
+	CacheLocation   string
 }
 
 // Finalize applies defaults, environment variable overrides, derived defaults,
@@ -84,6 +96,9 @@ func (c *Config) Merge(overlay *Config) {
 	}
 	if overlay.Authority != "" {
 		c.Authority = overlay.Authority
+	}
+	if overlay.CacheLocation != "" {
+		c.CacheLocation = overlay.CacheLocation
 	}
 }
 
@@ -124,6 +139,9 @@ func (c *Config) loadDefaults() {
 	if c.Mode == "" {
 		c.Mode = ModeNone
 	}
+	if c.CacheLocation == "" {
+		c.CacheLocation = LocalStorage
+	}
 }
 
 func (c *Config) loadEnv(env *Env) {
@@ -159,6 +177,11 @@ func (c *Config) loadEnv(env *Env) {
 			c.Authority = v
 		}
 	}
+	if env.CacheLocation != "" {
+		if v := os.Getenv(env.CacheLocation); v != "" {
+			c.CacheLocation = CacheLocation(v)
+		}
+	}
 }
 
 func (c *Config) deriveDefaults() {
@@ -170,11 +193,20 @@ func (c *Config) deriveDefaults() {
 func (c *Config) validate() error {
 	switch c.Mode {
 	case ModeNone, ModeAzure:
-		return nil
 	default:
 		return fmt.Errorf(
 			"invalid auth_mode %q: must be %q or %q",
 			c.Mode, ModeNone, ModeAzure,
 		)
 	}
+	switch c.CacheLocation {
+	case LocalStorage, SessionStorage:
+	default:
+		return fmt.Errorf(
+			"invalid cache_location %q: must be %q or %q",
+			c.CacheLocation, LocalStorage, SessionStorage,
+		)
+	}
+
+	return nil
 }

@@ -7,3 +7,5 @@ export type {
   Result,
   StreamOptions,
 } from "./api";
+
+export { Auth } from "./auth";
