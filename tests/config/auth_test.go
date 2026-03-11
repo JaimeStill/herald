@@ -20,6 +20,9 @@ func TestAuthConfigDefaults(t *testing.T) {
 	if cfg.ManagedIdentity {
 		t.Error("managed_identity should default to false")
 	}
+	if cfg.CacheLocation != auth.LocalStorage {
+		t.Errorf("cache_location: got %q, want %q", cfg.CacheLocation, auth.LocalStorage)
+	}
 }
 
 func TestAuthConfigNoneCredential(t *testing.T) {
@@ -67,6 +70,78 @@ func TestAuthConfigValidation(t *testing.T) {
 				t.Errorf("error %q does not contain %q", err.Error(), tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestAuthConfigCacheLocationValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		location auth.CacheLocation
+		wantErr  string
+	}{
+		{"localStorage is valid", auth.LocalStorage, ""},
+		{"sessionStorage is valid", auth.SessionStorage, ""},
+		{"invalid cache_location", "bad", "invalid cache_location"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &auth.Config{CacheLocation: tt.location}
+			err := cfg.Finalize(nil)
+
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error %q does not contain %q", err.Error(), tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAuthConfigCacheLocationEnvOverride(t *testing.T) {
+	t.Setenv("HERALD_AUTH_CACHE_LOCATION", "sessionStorage")
+
+	env := &auth.Env{
+		CacheLocation: "HERALD_AUTH_CACHE_LOCATION",
+	}
+
+	cfg := &auth.Config{}
+	if err := cfg.Finalize(env); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.CacheLocation != auth.SessionStorage {
+		t.Errorf("cache_location: got %q, want %q", cfg.CacheLocation, auth.SessionStorage)
+	}
+}
+
+func TestAuthConfigCacheLocationMerge(t *testing.T) {
+	base := &auth.Config{CacheLocation: auth.LocalStorage}
+	overlay := &auth.Config{CacheLocation: auth.SessionStorage}
+
+	base.Merge(overlay)
+
+	if base.CacheLocation != auth.SessionStorage {
+		t.Errorf("cache_location: got %q, want %q", base.CacheLocation, auth.SessionStorage)
+	}
+}
+
+func TestAuthConfigCacheLocationMergeEmptyPreserves(t *testing.T) {
+	base := &auth.Config{CacheLocation: auth.SessionStorage}
+	overlay := &auth.Config{}
+
+	base.Merge(overlay)
+
+	if base.CacheLocation != auth.SessionStorage {
+		t.Errorf("cache_location should be preserved: got %q", base.CacheLocation)
 	}
 }
 

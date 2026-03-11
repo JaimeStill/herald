@@ -5,6 +5,7 @@
     "": {
       "name": "herald-app",
       "dependencies": {
+        "@azure/msal-browser": "^5.4.0",
         "lit": "^3.3.2",
       },
       "devDependencies": {
@@ -13,6 +14,10 @@
     },
   },
   "packages": {
+    "@azure/msal-browser": ["@azure/msal-browser@5.4.0", "", { "dependencies": { "@azure/msal-common": "16.2.0" } }, "sha512-GvRbLNk26oPOPpnry4Ym8wtXrmdozGm2Sry5EKfui0siwnEuAKWEeMLLyosDo5nVEIIDO1C2t/+HpVzqqCWlfQ=="],
+
+    "@azure/msal-common": ["@azure/msal-common@16.2.0", "", {}, "sha512-ge0nGzTLmEE5lg7tSCbTBrYqMGkpFQeQEtqfcKPuGJn/FPFf8Xz51uDfZsm5xpstNZGMYPhHvnYbL8OeNp/aLw=="],
+
     "@lit-labs/ssr-dom-shim": ["@lit-labs/ssr-dom-shim@1.5.1", "", {}, "sha512-Aou5UdlSpr5whQe8AA/bZG0jMj96CoJIWbGfZ91qieWu5AWUMKw8VR/pAkQkJYvBNhmCcWnZlyyk5oze8JIqYA=="],
 
     "@lit/reactive-element": ["@lit/reactive-element@2.1.2", "", { "dependencies": { "@lit-labs/ssr-dom-shim": "^1.5.0" } }, "sha512-pbCDiVMnne1lYUIaYNN5wrwQXDtHaYtg7YEFPeW+hws6U47WeFvISGUWekPGKWOP1ygrs0ef0o1VJMk1exos5A=="],

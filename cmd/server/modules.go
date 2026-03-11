@@ -26,9 +26,10 @@ func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modu
 	var authCfg *app.ClientAuthConfig
 	if cfg.Auth.Mode == auth.ModeAzure {
 		authCfg = &app.ClientAuthConfig{
-			TenantID:  cfg.Auth.TenantID,
-			ClientID:  cfg.Auth.ClientID,
-			Authority: cfg.Auth.Authority,
+			TenantID:      cfg.Auth.TenantID,
+			ClientID:      cfg.Auth.ClientID,
+			Authority:     cfg.Auth.Authority,
+			CacheLocation: cfg.Auth.CacheLocation,
 		}
 	}
 

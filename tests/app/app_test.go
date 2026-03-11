@@ -81,9 +81,10 @@ func TestDistAssetServing(t *testing.T) {
 
 func TestAuthConfigInjection(t *testing.T) {
 	authCfg := &app.ClientAuthConfig{
-		TenantID:  "test-tenant-id",
-		ClientID:  "test-client-id",
-		Authority: "https://login.microsoftonline.com/test-tenant-id/v2.0",
+		TenantID:      "test-tenant-id",
+		ClientID:      "test-client-id",
+		Authority:     "https://login.microsoftonline.com/test-tenant-id/v2.0",
+		CacheLocation: "localStorage",
 	}
 
 	m, err := app.NewModule("/app", authCfg)
@@ -106,6 +107,7 @@ func TestAuthConfigInjection(t *testing.T) {
 		{"client_id", `"client_id":"test-client-id"`},
 		{"redirect_uri", `"redirect_uri":"/app/"`},
 		{"authority", `"authority":"https://login.microsoftonline.com/test-tenant-id/v2.0"`},
+		{"cache_location", `"cache_location":"localStorage"`},
 		{"user-menu", `id="user-menu"`},
 	}
 
