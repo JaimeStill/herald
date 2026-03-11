@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.98.114
+- Wire auth middleware into API module between CORS and Logger; populate `validated_by` from authenticated JWT user identity in classifications Validate and Update handlers with backward-compatible fallback to request body when auth is disabled (#114, #115)
+
 ## v0.4.0-dev.98.113
 - Add `pkg/auth/` package with unified auth config, User context helpers, and error sentinels; add JWT validation middleware using `go-oidc` for OIDC discovery and token verification; move auth config from `internal/config/` to `pkg/auth/` following package-owns-config pattern; document dependency criteria in project README (#113)
 

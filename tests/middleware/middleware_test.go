@@ -1,12 +1,14 @@
 package middleware_test
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/middleware"
 )
 
@@ -220,6 +222,108 @@ func TestCORSConfigFinalizeEnv(t *testing.T) {
 	}
 	if !cfg.AllowCredentials {
 		t.Error("allow_credentials should be true")
+	}
+}
+
+func TestAuthModeNonePassthrough(t *testing.T) {
+	cfg := &auth.Config{Mode: auth.ModeNone}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	var handlerCalled bool
+	handler := middleware.Auth(cfg, logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	handler.ServeHTTP(rec, req)
+
+	if !handlerCalled {
+		t.Error("handler should be called when auth mode is none")
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", rec.Code)
+	}
+}
+
+func TestAuthModeNoneNoTokenRequired(t *testing.T) {
+	cfg := &auth.Config{Mode: auth.ModeNone}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	handler := middleware.Auth(cfg, logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if user := auth.UserFromContext(r.Context()); user != nil {
+			t.Error("user should not be in context when auth is disabled")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", rec.Code)
+	}
+}
+
+func TestAuthModeAzureMissingBearer(t *testing.T) {
+	cfg := &auth.Config{
+		Mode:     auth.ModeAzure,
+		TenantID: "test-tenant",
+		ClientID: "test-client",
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	var handlerCalled bool
+	handler := middleware.Auth(cfg, logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+	}))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	handler.ServeHTTP(rec, req)
+
+	if handlerCalled {
+		t.Error("handler should not be called without bearer token")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", rec.Code)
+	}
+
+	var body map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if body["error"] == "" {
+		t.Error("error response should contain an error message")
+	}
+}
+
+func TestAuthModeAzureInvalidBearer(t *testing.T) {
+	cfg := &auth.Config{
+		Mode:      auth.ModeAzure,
+		TenantID:  "test-tenant",
+		ClientID:  "test-client",
+		Authority: "http://localhost:0/invalid",
+	}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	var handlerCalled bool
+	handler := middleware.Auth(cfg, logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCalled = true
+	}))
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+	handler.ServeHTTP(rec, req)
+
+	if handlerCalled {
+		t.Error("handler should not be called with invalid token")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", rec.Code)
 	}
 }
 

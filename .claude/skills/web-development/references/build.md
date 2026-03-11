@@ -89,5 +89,5 @@ Key settings in `tsconfig.json`:
 
 - `target: "es2024"` — modern JavaScript output
 - `experimentalDecorators: true` — required for Lit decorators
-- `useDefineForClassFields: false` — required for Lit reactivity (class fields must use [[Set]] semantics)
+- `useDefineForClassFields: false` — required for Lit reactivity (class fields must use `[Set]` semantics)
 - `moduleResolution: "bundler"` — matches Bun's resolution strategy
