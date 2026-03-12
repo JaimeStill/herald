@@ -23,6 +23,9 @@ func TestAuthConfigDefaults(t *testing.T) {
 	if cfg.CacheLocation != auth.LocalStorage {
 		t.Errorf("cache_location: got %q, want %q", cfg.CacheLocation, auth.LocalStorage)
 	}
+	if cfg.AgentScope != "https://cognitiveservices.azure.com/.default" {
+		t.Errorf("agent_scope: got %q, want commercial default", cfg.AgentScope)
+	}
 }
 
 func TestAuthConfigNoneCredential(t *testing.T) {
@@ -427,6 +430,55 @@ func TestAuthConfigInvalidModeFromLoad(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid auth_mode") {
 		t.Errorf("error %q does not contain %q", err.Error(), "invalid auth_mode")
+	}
+}
+
+func TestAuthConfigAgentScopeEnvOverride(t *testing.T) {
+	t.Setenv("HERALD_AUTH_AGENT_SCOPE", "https://cognitiveservices.azure.us/.default")
+
+	env := &auth.Env{AgentScope: "HERALD_AUTH_AGENT_SCOPE"}
+
+	cfg := &auth.Config{}
+	if err := cfg.Finalize(env); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	want := "https://cognitiveservices.azure.us/.default"
+	if cfg.AgentScope != want {
+		t.Errorf("agent_scope: got %q, want %q", cfg.AgentScope, want)
+	}
+}
+
+func TestAuthConfigAgentScopeMerge(t *testing.T) {
+	base := &auth.Config{AgentScope: "https://cognitiveservices.azure.com/.default"}
+	overlay := &auth.Config{AgentScope: "https://cognitiveservices.azure.us/.default"}
+
+	base.Merge(overlay)
+
+	if base.AgentScope != "https://cognitiveservices.azure.us/.default" {
+		t.Errorf("agent_scope: got %q, want gov scope", base.AgentScope)
+	}
+}
+
+func TestAuthConfigAgentScopeMergeEmptyPreserves(t *testing.T) {
+	base := &auth.Config{AgentScope: "https://cognitiveservices.azure.us/.default"}
+	overlay := &auth.Config{}
+
+	base.Merge(overlay)
+
+	if base.AgentScope != "https://cognitiveservices.azure.us/.default" {
+		t.Errorf("agent_scope should be preserved: got %q", base.AgentScope)
+	}
+}
+
+func TestAuthConfigAgentScopeExplicit(t *testing.T) {
+	cfg := &auth.Config{AgentScope: "https://cognitiveservices.azure.us/.default"}
+	if err := cfg.Finalize(nil); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.AgentScope != "https://cognitiveservices.azure.us/.default" {
+		t.Errorf("agent_scope: got %q, want explicit gov scope", cfg.AgentScope)
 	}
 }
 

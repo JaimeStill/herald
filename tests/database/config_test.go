@@ -26,6 +26,7 @@ func TestFinalizeDefaults(t *testing.T) {
 		{"max_idle_conns", cfg.MaxIdleConns, 5},
 		{"conn_max_lifetime", cfg.ConnMaxLifetime, "15m"},
 		{"conn_timeout", cfg.ConnTimeout, "5s"},
+		{"token_scope", cfg.TokenScope, "https://ossrdbms-aad.database.windows.net/.default"},
 	}
 
 	for _, tt := range tests {
@@ -200,6 +201,67 @@ func TestDsn(t *testing.T) {
 
 	if dsn != expected {
 		t.Errorf("dsn:\ngot  %s\nwant %s", dsn, expected)
+	}
+}
+
+func TestTokenScopeEnvOverride(t *testing.T) {
+	t.Setenv("TEST_DB_TOKEN_SCOPE", "https://ossrdbms-aad.database.windows.us/.default")
+
+	env := &database.Env{
+		TokenScope: "TEST_DB_TOKEN_SCOPE",
+	}
+
+	cfg := database.Config{Name: "testdb", User: "testuser"}
+	if err := cfg.Finalize(env); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	want := "https://ossrdbms-aad.database.windows.us/.default"
+	if cfg.TokenScope != want {
+		t.Errorf("token_scope: got %q, want %q", cfg.TokenScope, want)
+	}
+}
+
+func TestTokenScopeMerge(t *testing.T) {
+	base := database.Config{
+		TokenScope: "https://ossrdbms-aad.database.windows.net/.default",
+	}
+	overlay := database.Config{
+		TokenScope: "https://ossrdbms-aad.database.windows.us/.default",
+	}
+
+	base.Merge(&overlay)
+
+	if base.TokenScope != "https://ossrdbms-aad.database.windows.us/.default" {
+		t.Errorf("token_scope: got %q, want gov scope", base.TokenScope)
+	}
+}
+
+func TestTokenScopeMergeEmptyPreserves(t *testing.T) {
+	base := database.Config{
+		TokenScope: "https://ossrdbms-aad.database.windows.us/.default",
+	}
+	overlay := database.Config{}
+
+	base.Merge(&overlay)
+
+	if base.TokenScope != "https://ossrdbms-aad.database.windows.us/.default" {
+		t.Errorf("token_scope should be preserved: got %q", base.TokenScope)
+	}
+}
+
+func TestTokenScopeExplicit(t *testing.T) {
+	cfg := database.Config{
+		Name:       "testdb",
+		User:       "testuser",
+		TokenScope: "https://ossrdbms-aad.database.windows.us/.default",
+	}
+	if err := cfg.Finalize(nil); err != nil {
+		t.Fatalf("finalize failed: %v", err)
+	}
+
+	if cfg.TokenScope != "https://ossrdbms-aad.database.windows.us/.default" {
+		t.Errorf("token_scope: got %q, want explicit gov scope", cfg.TokenScope)
 	}
 }
 

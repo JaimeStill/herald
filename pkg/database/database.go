@@ -16,9 +16,6 @@ import (
 	"github.com/JaimeStill/herald/pkg/lifecycle"
 )
 
-// TokenScope is the OAuth2 scope for Azure Database for PostgreSQL Entra authentication.
-const TokenScope = "https://ossrdbms-aad.database.windows.net/.default"
-
 // System manages database connections and lifecycle coordination.
 type System interface {
 	// Connection returns the underlying database connection pool.
@@ -70,7 +67,7 @@ func NewWithCredential(
 	beforeConnect := stdlib.OptionBeforeConnect(
 		func(ctx context.Context, cc *pgx.ConnConfig) error {
 			token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
-				Scopes: []string{TokenScope},
+				Scopes: []string{cfg.TokenScope},
 			})
 			if err != nil {
 				return fmt.Errorf("acquire database token: %w", err)

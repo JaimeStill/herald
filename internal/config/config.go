@@ -32,6 +32,7 @@ var authEnv = &auth.Env{
 	ClientSecret:    "HERALD_AUTH_CLIENT_SECRET",
 	Authority:       "HERALD_AUTH_AUTHORITY",
 	Scope:           "HERALD_AUTH_SCOPE",
+	AgentScope:      "HERALD_AUTH_AGENT_SCOPE",
 	CacheLocation:   "HERALD_AUTH_CACHE_LOCATION",
 }
 
@@ -47,6 +48,7 @@ var databaseEnv = &database.Env{
 	ConnMaxLifetime: "HERALD_DB_CONN_MAX_LIFETIME",
 	ConnTimeout:     "HERALD_DB_CONN_TIMEOUT",
 	TokenLifetime:   "HERALD_DB_TOKEN_LIFETIME",
+	TokenScope:      "HERALD_DB_TOKEN_SCOPE",
 }
 
 var storageEnv = &storage.Env{
