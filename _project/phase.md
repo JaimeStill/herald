@@ -30,8 +30,8 @@ Make Herald deployable to IL4/IL6 Azure Government environments. Add Azure Entra
 | 2 | Azure Identity Credential Infrastructure | [#96](https://github.com/JaimeStill/herald/issues/96) | Complete | None |
 | 3 | Managed Identity for Azure Services | [#97](https://github.com/JaimeStill/herald/issues/97) | Complete | #96 |
 | 4 | API Authentication Middleware | [#98](https://github.com/JaimeStill/herald/issues/98) | Complete | #96 |
-| 5 | Web Client MSAL.js Integration | [#99](https://github.com/JaimeStill/herald/issues/99) | Active | #98 |
-| 6 | Deployment Configuration | [#100](https://github.com/JaimeStill/herald/issues/100) | Open | #95, #96, #97, #98 |
+| 5 | Web Client MSAL.js Integration | [#99](https://github.com/JaimeStill/herald/issues/99) | Complete | #98 |
+| 6 | Deployment Configuration | [#100](https://github.com/JaimeStill/herald/issues/100) | Active | #95, #96, #97, #98 |
 
 ## Dependency Graph
 
