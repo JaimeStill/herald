@@ -12,11 +12,13 @@ RUN go mod download
 COPY . .
 COPY --from=client /src/app/dist/ ./app/dist/
 RUN CGO_ENABLED=0 go build -o /herald ./cmd/server
+RUN CGO_ENABLED=0 go build -o /migrate ./cmd/migrate
 
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates curl imagemagick ghostscript
 RUN addgroup -S herald && adduser -S herald -G herald
 COPY --from=build /herald /usr/local/bin/herald
+COPY --from=build /migrate /usr/local/bin/migrate
 WORKDIR /app
 USER herald
 EXPOSE 8080

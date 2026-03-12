@@ -26,8 +26,8 @@ Create Azure Container Apps deployment manifests and environment-specific config
 
 | # | Title | Issue | Status | Dependencies |
 |---|-------|-------|--------|--------------|
-| 1 | Make AgentScope configurable for Azure Government | [#124](https://github.com/JaimeStill/herald/issues/124) | Open | None |
-| 2 | Add Bicep deployment manifests for Container Apps infrastructure | [#125](https://github.com/JaimeStill/herald/issues/125) | Open | #124 |
+| 1 | Make AgentScope configurable for Azure Government | [#124](https://github.com/JaimeStill/herald/issues/124) | Done | None |
+| 2 | Add Bicep deployment manifests for Container Apps infrastructure | [#125](https://github.com/JaimeStill/herald/issues/125) | Done | #124 |
 | 3 | Add deployment documentation | [#126](https://github.com/JaimeStill/herald/issues/126) | Open | #124, #125 |
 
 Sub-issues are strictly sequential: 1 → 2 → 3.

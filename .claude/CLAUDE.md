@@ -76,6 +76,10 @@ Config loading: `config.json` (base) → `config.<HERALD_ENV>.json` (overlay) �
 
 All env vars use the `HERALD_` prefix (e.g., `HERALD_SERVER_PORT`, `HERALD_DB_HOST`).
 
+## Versioning
+
+All version references across the project (ARM parameter files, config defaults, tags) must align with the current phase version target from `_project/phase.md`. ARM parameter files use four-part versions: `major.minor.patch.build`. The fourth position tracks deployment iterations — `0` for the phase release, `> 0` for dev builds (e.g., `0.4.0.0` is the v0.4.0 release, `0.4.0.3` is the third dev iteration).
+
 ## Go Conventions
 
 - **Naming**: Short, singular, lowercase package names. No type stuttering.
