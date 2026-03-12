@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "0.4.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus"
+    },
+    "prefix": {
+      "value": "herald"
+    },
+    "containerImage": {
+      "value": "ghcr.io/jaimestill/herald:v0.4.0"
+    },
+    "postgresAdminLogin": {
+      "value": "heraldadmin"
+    },
+    "cognitiveCustomDomain": {
+      "value": "herald-ai-prod"
+    }
+  }
+}

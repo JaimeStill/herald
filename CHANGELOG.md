@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.100.125
+- Add modular Bicep infrastructure-as-code for Azure Container Apps deployment — ten modules (identity, logging, PostgreSQL, storage, cognitive services, optional ACR, environment, app, migration job, role assignments) orchestrated by `main.bicep` with `useAcr` boolean for GHCR/ACR registry switching; update Dockerfile to build both `herald` and `migrate` binaries; add deployment guide at `_project/deployment.md` (#125)
+
 ## v0.4.0-dev.100.124
 - Make `AgentScope` and `TokenScope` configurable for Azure Government; convert hardcoded OAuth scope constants to config fields with commercial defaults, overridable via `HERALD_AUTH_AGENT_SCOPE` and `HERALD_DB_TOKEN_SCOPE` env vars (#124)
 
