@@ -20,6 +20,7 @@ type Config struct {
 	ConnMaxLifetime string `json:"conn_max_lifetime"`
 	ConnTimeout     string `json:"conn_timeout"`
 	TokenLifetime   string `json:"token_lifetime"`
+	TokenScope      string `json:"token_scope"`
 }
 
 // Env maps config fields to environment variable names for override injection.
@@ -35,6 +36,7 @@ type Env struct {
 	ConnMaxLifetime string
 	ConnTimeout     string
 	TokenLifetime   string
+	TokenScope      string
 }
 
 // ConnMaxLifetimeDuration returns ConnMaxLifetime as a time.Duration.
@@ -107,6 +109,9 @@ func (c *Config) Merge(overlay *Config) {
 	if overlay.TokenLifetime != "" {
 		c.TokenLifetime = overlay.TokenLifetime
 	}
+	if overlay.TokenScope != "" {
+		c.TokenScope = overlay.TokenScope
+	}
 }
 
 func (c *Config) loadDefaults() {
@@ -133,6 +138,9 @@ func (c *Config) loadDefaults() {
 	}
 	if c.TokenLifetime == "" {
 		c.TokenLifetime = "45m"
+	}
+	if c.TokenScope == "" {
+		c.TokenScope = "https://ossrdbms-aad.database.windows.net/.default"
 	}
 }
 
@@ -196,6 +204,11 @@ func (c *Config) loadEnv(env *Env) {
 	if env.TokenLifetime != "" {
 		if v := os.Getenv(env.TokenLifetime); v != "" {
 			c.TokenLifetime = v
+		}
+	}
+	if env.TokenScope != "" {
+		if v := os.Getenv(env.TokenScope); v != "" {
+			c.TokenScope = v
 		}
 	}
 }

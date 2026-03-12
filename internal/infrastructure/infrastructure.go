@@ -14,7 +14,6 @@ import (
 
 	"github.com/JaimeStill/go-agents/pkg/agent"
 	"github.com/JaimeStill/herald/internal/config"
-	"github.com/JaimeStill/herald/pkg/auth"
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/lifecycle"
 	"github.com/JaimeStill/herald/pkg/storage"
@@ -57,7 +56,12 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 		return nil, fmt.Errorf("agent validation failed: %w", err)
 	}
 
-	newAgent := newAgentFactory(cfg.Agent, cred, cfg.Auth.ManagedIdentity)
+	newAgent := newAgentFactory(
+		cfg.Agent,
+		cred,
+		cfg.Auth.ManagedIdentity,
+		cfg.Auth.AgentScope,
+	)
 
 	return &Infrastructure{
 		Lifecycle:  lc,
@@ -126,11 +130,12 @@ func newAgentFactory(
 	agentCfg gaconfig.AgentConfig,
 	cred azcore.TokenCredential,
 	managedIdentity bool,
+	agentScope string,
 ) func(ctx context.Context) (agent.Agent, error) {
 	if cred != nil && managedIdentity {
 		return func(ctx context.Context) (agent.Agent, error) {
 			tok, err := cred.GetToken(ctx, policy.TokenRequestOptions{
-				Scopes: []string{auth.AgentScope},
+				Scopes: []string{agentScope},
 			})
 			if err != nil {
 				return nil, fmt.Errorf("acquire agent token: %w", err)

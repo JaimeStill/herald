@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.100.124
+- Make `AgentScope` and `TokenScope` configurable for Azure Government; convert hardcoded OAuth scope constants to config fields with commercial defaults, overridable via `HERALD_AUTH_AGENT_SCOPE` and `HERALD_DB_TOKEN_SCOPE` env vars (#124)
+
 ## v0.4.0-dev.99.120
 - Wire bearer token injection into `request()` and `stream()` with 401 retry and silent token refresh; add configurable OAuth `Scope` field to auth config; fix OIDC verifier audience/issuer mismatch for Entra access tokens; add user menu with display name and logout to app header; fetch PDFs via authenticated blob download for iframe viewing; document Entra app registration setup in README (#120)
 

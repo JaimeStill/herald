@@ -11,9 +11,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
-// AgentScope is the OAuth scope for acquiring Azure AI Foundry bearer tokens.
-const AgentScope = "https://cognitiveservices.azure.com/.default"
-
 // CacheLocation identifies the browser storage backend for MSAL token caching.
 type CacheLocation string
 
@@ -51,6 +48,7 @@ type Config struct {
 	ClientSecret    string        `json:"client_secret"`
 	Authority       string        `json:"authority"`
 	Scope           string        `json:"scope"`
+	AgentScope      string        `json:"agent_scope"`
 	CacheLocation   CacheLocation `json:"cache_location"`
 }
 
@@ -63,6 +61,7 @@ type Env struct {
 	ClientSecret    string
 	Authority       string
 	Scope           string
+	AgentScope      string
 	CacheLocation   string
 }
 
@@ -101,6 +100,9 @@ func (c *Config) Merge(overlay *Config) {
 	}
 	if overlay.Scope != "" {
 		c.Scope = overlay.Scope
+	}
+	if overlay.AgentScope != "" {
+		c.AgentScope = overlay.AgentScope
 	}
 	if overlay.CacheLocation != "" {
 		c.CacheLocation = overlay.CacheLocation
@@ -147,6 +149,9 @@ func (c *Config) loadDefaults() {
 	if c.CacheLocation == "" {
 		c.CacheLocation = LocalStorage
 	}
+	if c.AgentScope == "" {
+		c.AgentScope = "https://cognitiveservices.azure.com/.default"
+	}
 }
 
 func (c *Config) loadEnv(env *Env) {
@@ -185,6 +190,11 @@ func (c *Config) loadEnv(env *Env) {
 	if env.Scope != "" {
 		if v := os.Getenv(env.Scope); v != "" {
 			c.Scope = v
+		}
+	}
+	if env.AgentScope != "" {
+		if v := os.Getenv(env.AgentScope); v != "" {
+			c.AgentScope = v
 		}
 	}
 	if env.CacheLocation != "" {
