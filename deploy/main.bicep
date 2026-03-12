@@ -50,6 +50,14 @@ param cognitiveModelName string = 'gpt-5-mini'
 @description('AI model version')
 param cognitiveModelVersion string = '2025-08-07'
 
+@description('AI model deployment SKU')
+@allowed(['GlobalStandard', 'DataZoneStandard', 'DataZoneProvisionedManaged', 'GlobalProvisionedManaged'])
+param cognitiveDeploymentSku string = 'GlobalStandard'
+
+@description('Cognitive Services Entra token scope (override for Azure Government)')
+#disable-next-line no-hardcoded-env-urls
+param cognitiveTokenScope string = 'https://cognitiveservices.azure.com/.default'
+
 // --- Container App ---
 
 @description('Container image reference (e.g., ghcr.io/jaimestill/herald:v0.4.0)')
@@ -94,6 +102,13 @@ param entraClientId string = ''
 // Modules
 // ============================================================================
 
+// Deployment order: identity → logging → postgres → storage → cognitive
+//                   → registry (conditional) → environment → roles → app / migrationJob
+//
+// Explicit dependsOn chain prevents ARM from parallelizing module deployments,
+// which avoids race conditions where a resource reports "provisioned" before it
+// is fully ready to accept child operations.
+
 module identity 'modules/identity.bicep' = {
   name: '${prefix}-identity'
   params: {
@@ -105,6 +120,7 @@ module identity 'modules/identity.bicep' = {
 
 module logging 'modules/logging.bicep' = {
   name: '${prefix}-logging'
+  dependsOn: [identity]
   params: {
     name: '${prefix}-logs'
     location: location
@@ -114,6 +130,7 @@ module logging 'modules/logging.bicep' = {
 
 module postgres 'modules/postgres.bicep' = {
   name: '${prefix}-postgres'
+  dependsOn: [logging]
   params: {
     name: '${prefix}-db'
     location: location
@@ -130,6 +147,7 @@ module postgres 'modules/postgres.bicep' = {
 
 module storage 'modules/storage.bicep' = {
   name: '${prefix}-storage'
+  dependsOn: [postgres]
   params: {
     name: replace('${prefix}storage', '-', '')
     location: location
@@ -139,6 +157,7 @@ module storage 'modules/storage.bicep' = {
 
 module cognitive 'modules/cognitive.bicep' = {
   name: '${prefix}-cognitive'
+  dependsOn: [storage]
   params: {
     name: '${prefix}-ai'
     location: location
@@ -146,12 +165,14 @@ module cognitive 'modules/cognitive.bicep' = {
     deploymentName: cognitiveDeploymentName
     modelName: cognitiveModelName
     modelVersion: cognitiveModelVersion
+    deploymentSkuName: cognitiveDeploymentSku
     tags: tags
   }
 }
 
 module registry 'modules/registry.bicep' = if (useAcr) {
   name: '${prefix}-registry'
+  dependsOn: [cognitive]
   params: {
     name: replace('${prefix}registry', '-', '')
     location: location
@@ -164,6 +185,7 @@ var acrLoginServer = registry.?outputs.?loginServer ?? ''
 
 module environment 'modules/environment.bicep' = {
   name: '${prefix}-environment'
+  dependsOn: [cognitive]
   params: {
     name: '${prefix}-env'
     location: location
@@ -175,6 +197,7 @@ module environment 'modules/environment.bicep' = {
 
 module roles 'modules/roles.bicep' = {
   name: '${prefix}-roles'
+  dependsOn: [environment]
   params: {
     principalId: identity.outputs.principalId
     storageAccountId: storage.outputs.id
@@ -231,7 +254,7 @@ var baseEnvVars = [
   { name: 'HERALD_STORAGE_CONTAINER_NAME', value: 'documents' }
   { name: 'HERALD_AUTH_MODE', value: authEnabled ? 'azure' : 'none' }
   { name: 'HERALD_AUTH_MANAGED_IDENTITY', value: 'true' }
-  { name: 'HERALD_AUTH_AGENT_SCOPE', value: 'https://cognitiveservices.azure.com/.default' }
+  { name: 'HERALD_AUTH_AGENT_SCOPE', value: cognitiveTokenScope }
   { name: 'HERALD_AGENT_PROVIDER_NAME', value: 'azure' }
   { name: 'HERALD_AGENT_BASE_URL', value: cognitive.outputs.endpoint }
   { name: 'HERALD_AGENT_DEPLOYMENT', value: cognitive.outputs.modelDeploymentName }
@@ -281,7 +304,7 @@ var migrationDsn = 'postgres://${postgresAdminLogin}:${postgresAdminPassword}@${
 
 module migrationJob 'modules/migration-job.bicep' = {
   name: '${prefix}-migration-job'
-  dependsOn: [roles]
+  dependsOn: [app]
   params: {
     name: '${prefix}-migrate'
     location: location
@@ -289,6 +312,7 @@ module migrationJob 'modules/migration-job.bicep' = {
     identityId: identity.outputs.id
     containerImage: containerImage
     registries: registries
+    registrySecrets: useAcr ? [] : ghcrSecrets
     databaseDsn: migrationDsn
     tags: tags
   }

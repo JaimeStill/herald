@@ -6,7 +6,7 @@ Herald deploys as a single Azure Container App with managed identity connecting 
 
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) with Bicep (`az bicep install`)
 - An Azure subscription with permission to create resources
-- A GHCR personal access token with `read:packages` scope (commercial deployments)
+- A GHCR token with `read:packages` scope (commercial deployments — see [GHCR Authentication](#ghcr-authentication))
 - An Entra app registration (if enabling authentication — see [Entra Configuration](#entra-configuration))
 
 ## Architecture
@@ -88,6 +88,27 @@ Non-secret parameters are stored in `deploy/main.parameters.json`. Secret values
 | `entraClientId` | — | Entra app registration client ID (when auth enabled) |
 | `tags` | `{}` | Resource tags |
 
+## GHCR Authentication
+
+Commercial deployments pull the container image from GHCR. The `ghcrPassword` parameter accepts any token with `read:packages` scope.
+
+**Using the GitHub CLI token:**
+
+```bash
+gh auth token
+```
+
+If the token lacks the `read:packages` scope, refresh it:
+
+```bash
+gh auth refresh --scopes read:packages
+gh auth token
+```
+
+**Using a classic PAT:** Generate one at GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) with the `read:packages` scope.
+
+In both cases, `ghcrUsername` is your GitHub username.
+
 ## Commercial Deployment (GHCR)
 
 ### 1. Validate Templates
@@ -114,16 +135,15 @@ az deployment group create \
   --parameters \
     postgresAdminPassword='<password>' \
     ghcrUsername='<github-username>' \
-    ghcrPassword='<ghcr-pat>'
-```
-
-To enable authentication, add:
-
-```bash
+    ghcrPassword='<ghcr-pat>' \ # use ="$(gh auth token)" to source from gh CLI
     authEnabled=true \
     tenantId='<entra-tenant-id>' \
     entraClientId='<entra-client-id>'
 ```
+
+> If you encounter an "InsufficientQuota" message, try `location='eastus2'` or another region with quota availability.
+>
+> `{"code": "InsufficientQuota", "message": "This operation require 10 new capacity in quota One Thousand Tokens Per Minute - gpt-5-mini - GlobalStandard, which is bigger than the current available capacity 0. The current quota usage is 1000 and the quota limit is 1000 for quota One Thousand Tokens Per Minute - gpt-5-mini - GlobalStandard."}`
 
 ### 4. Run Migrations
 
@@ -188,7 +208,11 @@ az deployment group create \
   --parameters \
     postgresAdminPassword='<password>' \
     useAcr=true \
-    containerImage='<acr-name>.azurecr.us/herald:<tag>'
+    containerImage='<acr-name>.azurecr.us/herald:<tag>' \
+    authEnabled=true \
+    tenantId='<entra-tenant-id>' \
+    entraClientId='<entra-client-id>'
+
 ```
 
 When `useAcr=true`:
@@ -253,7 +277,7 @@ Cognitive Services soft-delete may retain the account. Purge if needed:
 ```bash
 az cognitiveservices account purge \
   --resource-group HeraldResourceGroup \
-  --name herald-ai \
+  --name herald-ai-prod \
   --location eastus
 ```
 
