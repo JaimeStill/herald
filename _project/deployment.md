@@ -76,6 +76,8 @@ Non-secret parameters are stored in `deploy/main.parameters.json`. Secret values
 | `cognitiveDeploymentName` | `gpt-5-mini` | Model deployment name |
 | `cognitiveModelName` | `gpt-5-mini` | Model name |
 | `cognitiveModelVersion` | `2025-08-07` | Model version |
+| `cognitiveDeploymentSku` | `GlobalStandard` | Model deployment SKU (`GlobalStandard`, `DataZoneStandard`, `DataZoneProvisionedManaged`, `GlobalProvisionedManaged`) |
+| `cognitiveTokenScope` | `https://cognitiveservices.azure.com/.default` | Cognitive Services Entra token scope (override for Azure Government) |
 | `containerCpu` | `1.0` | CPU cores |
 | `containerMemory` | `2Gi` | Memory |
 | `minReplicas` | `1` | Minimum replicas |
@@ -151,6 +153,26 @@ az deployment group create \
 az containerapp job start \
   --name herald-migrate \
   --resource-group HeraldResourceGroup
+```
+
+The command returns an execution name (e.g., `herald-migrate-u49u1qp`). Check the status:
+
+```bash
+az containerapp job execution show \
+  --name herald-migrate \
+  --resource-group HeraldResourceGroup \
+  --job-execution-name <execution-name> \
+  --output table
+```
+
+If the status is `Failed`, inspect the logs:
+
+```bash
+az containerapp job logs show \
+  --name herald-migrate \
+  --resource-group HeraldResourceGroup \
+  --execution <execution-name> \
+  --container herald-migrate
 ```
 
 ### 5. Verify

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0-dev.100.126
+- Parameterize `cognitiveTokenScope` and `cognitiveDeploymentSku` for Azure Government flexibility; establish sequential `dependsOn` chain across all Bicep modules to prevent ARM race conditions during initial provisioning; fix migration job missing GHCR registry secrets; fix `postgres.bicep` database charset bug; remove `uuid-ossp` extension from migrations (`gen_random_uuid` is built-in since PostgreSQL 13 and not allow-listed on Azure Flexible Server) (#126)
+
 ## v0.4.0-dev.100.125
 - Add modular Bicep infrastructure-as-code for Azure Container Apps deployment — ten modules (identity, logging, PostgreSQL, storage, cognitive services, optional ACR, environment, app, migration job, role assignments) orchestrated by `main.bicep` with `useAcr` boolean for GHCR/ACR registry switching; update Dockerfile to build both `herald` and `migrate` binaries; add deployment guide at `_project/deployment.md` (#125)
 
