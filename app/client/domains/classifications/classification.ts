@@ -10,6 +10,21 @@ export const WORKFLOW_STAGES: readonly WorkflowStage[] = [
 ];
 
 /**
+ * Pagination and filter criteria for classification queries.
+ * Mirrors Go `classifications.SearchRequest` (embedded PageRequest + Filters).
+ */
+export interface SearchRequest {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  sort?: string;
+  classification?: string;
+  confidence?: string;
+  document_id?: string;
+  validated_by?: string;
+}
+
+/**
  * Classification result for a document.
  * Mirrors Go `classifications.Classification` struct.
  * Validation fields are omitted when the classification has not been validated.

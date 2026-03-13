@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.4.0
+
+### Authentication
+
+- Add `pkg/auth/` package with unified auth config, User context helpers, error sentinels, and JWT validation middleware using `go-oidc` for OIDC discovery and token verification (#113)
+- Wire auth middleware into API module between CORS and Logger with backward-compatible fallback when auth is disabled (#114)
+- Populate `validated_by` from authenticated JWT user identity in classifications Validate and Update handlers (#115)
+- Inject browser-safe auth config into web app HTML template for MSAL.js initialization via `ClientAuthConfig` struct and conditional `<script id="herald-config">` rendering (#118)
+- Add MSAL auth service with login gate wrapping `@azure/msal-browser` for initialization, redirect login, and token acquisition (#119)
+- Wire bearer token injection into API `request()` and `stream()` with 401 retry, silent token refresh, authenticated blob download for iframe viewing, and user menu with display name and logout (#120)
+
+### Managed Identity
+
+- Add AuthConfig with typed AuthMode enum, Azure Identity credential provider factory, and Infrastructure/Runtime credential propagation (#103)
+- Add credential-based storage constructor with `NewWithCredential` for managed identity auth and `ServiceURL` config field (#105)
+- Add token-based database authentication with `NewWithCredential` constructor, pgx `BeforeConnect` hook for Entra token injection, and configurable `TokenLifetime` (#106)
+- Add agent factory closure to `workflow.Runtime` for auth-mode-aware agent creation, replacing direct `agent.New` calls with `rt.NewAgent(ctx)` (#107)
+- Wire `ManagedIdentity` flag into infrastructure for database, storage, and agent services (#108)
+- Upgrade go-agents to v0.4.0 for native managed identity support (#126)
+
+### Deployment
+
+- Harden Dockerfile with ImageMagick, Ghostscript, non-root user, and HEALTHCHECK; add Docker Compose production overlay (#101)
+- Add modular Bicep infrastructure-as-code for Azure Container Apps deployment — ten modules orchestrated by `main.bicep` with GHCR/ACR registry switching; build both `herald` and `migrate` binaries (#125)
+- Add deployment guide at `deploy/README.md` with prerequisites, architecture, module chain, and troubleshooting runbook (#125, #126)
+- Add configurable `cognitiveDeploymentCapacity` parameter for token rate limits (#126)
+
+### Configuration
+
+- Make `AgentScope` and `TokenScope` configurable for Azure Government with commercial defaults and `HERALD_AUTH_AGENT_SCOPE` / `HERALD_DB_TOKEN_SCOPE` env var overrides (#124)
+- Fix `HERALD_AGENT_BASE_URL` to append `/openai` for OpenAI-kind Cognitive Services accounts (#126)
+- Fix `HERALD_DB_USER` to use Entra admin principal name instead of managed identity client ID (#126)
+
+### Observability
+
+- Add centralized error logging to `StreamingObserver` via logger injection (#126)
+
+### Web Client
+
+- Remove `PageRequest` from `@core` — all domains now define their own `SearchRequest` with domain-specific filters; `toQueryString` retained as generic utility
+
+---
+
+*Dev release history preserved below for reference.*
+
 ## v0.4.0-dev.100.126
 - Upgrade go-agents to v0.4.0 for native managed identity support — remove manual token acquisition factory from infrastructure, add `HERALD_AGENT_RESOURCE` and `HERALD_AGENT_CLIENT_ID` env vars, remove `AgentScope` from auth config
 - Fix `HERALD_AGENT_BASE_URL` to append `/openai` for OpenAI-kind Cognitive Services accounts

@@ -160,14 +160,6 @@ export interface PageResult<T> {
   total_pages: number;
 }
 
-/** Pagination and filtering parameters for list endpoints. */
-export interface PageRequest {
-  page?: number;
-  page_size?: number;
-  search?: string;
-  sort?: string;
-}
-
 /** Converts pagination params to a query string (e.g., `?page=1&page_size=20`). */
 export function toQueryString<T extends object>(params: T): string {
   const entries = Object.entries(params)
