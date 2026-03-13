@@ -9,7 +9,7 @@
       "value": "herald"
     },
     "containerImage": {
-      "value": "ghcr.io/jaimestill/herald:v0.4.0"
+      "value": "ghcr.io/jaimestill/herald:0.4.0"
     },
     "postgresAdminLogin": {
       "value": "heraldadmin"
