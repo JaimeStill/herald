@@ -39,7 +39,7 @@ param postgresTokenScope string = 'https://ossrdbms-aad.database.windows.net/.de
 // --- Cognitive Services ---
 
 @description('Cognitive Services custom subdomain (globally unique)')
-param cognitiveCustomDomain string = 'herald-ai-prod'
+param cognitiveCustomDomain string
 
 @description('AI model deployment name')
 param cognitiveDeploymentName string = 'gpt-5-mini'
@@ -49,6 +49,17 @@ param cognitiveModelName string = 'gpt-5-mini'
 
 @description('AI model version')
 param cognitiveModelVersion string = '2025-08-07'
+
+@description('AI model deployment SKU')
+@allowed(['GlobalStandard', 'DataZoneStandard', 'DataZoneProvisionedManaged', 'GlobalProvisionedManaged'])
+param cognitiveDeploymentSku string = 'GlobalStandard'
+
+@description('AI model deployment capacity (TPM in thousands, e.g., 1000 = 1M TPM)')
+param cognitiveDeploymentCapacity int = 1000
+
+@description('Cognitive Services Entra token scope (override for Azure Government)')
+#disable-next-line no-hardcoded-env-urls
+param cognitiveTokenScope string = 'https://cognitiveservices.azure.com/.default'
 
 // --- Container App ---
 
@@ -94,6 +105,13 @@ param entraClientId string = ''
 // Modules
 // ============================================================================
 
+// Deployment order: identity → logging → postgres → storage → cognitive
+//                   → registry (conditional) → environment → roles → app / migrationJob
+//
+// Explicit dependsOn chain prevents ARM from parallelizing module deployments,
+// which avoids race conditions where a resource reports "provisioned" before it
+// is fully ready to accept child operations.
+
 module identity 'modules/identity.bicep' = {
   name: '${prefix}-identity'
   params: {
@@ -105,6 +123,7 @@ module identity 'modules/identity.bicep' = {
 
 module logging 'modules/logging.bicep' = {
   name: '${prefix}-logging'
+  dependsOn: [identity]
   params: {
     name: '${prefix}-logs'
     location: location
@@ -114,6 +133,7 @@ module logging 'modules/logging.bicep' = {
 
 module postgres 'modules/postgres.bicep' = {
   name: '${prefix}-postgres'
+  dependsOn: [logging]
   params: {
     name: '${prefix}-db'
     location: location
@@ -130,6 +150,7 @@ module postgres 'modules/postgres.bicep' = {
 
 module storage 'modules/storage.bicep' = {
   name: '${prefix}-storage'
+  dependsOn: [postgres]
   params: {
     name: replace('${prefix}storage', '-', '')
     location: location
@@ -139,6 +160,7 @@ module storage 'modules/storage.bicep' = {
 
 module cognitive 'modules/cognitive.bicep' = {
   name: '${prefix}-cognitive'
+  dependsOn: [storage]
   params: {
     name: '${prefix}-ai'
     location: location
@@ -146,12 +168,15 @@ module cognitive 'modules/cognitive.bicep' = {
     deploymentName: cognitiveDeploymentName
     modelName: cognitiveModelName
     modelVersion: cognitiveModelVersion
+    deploymentSkuName: cognitiveDeploymentSku
+    deploymentSkuCapacity: cognitiveDeploymentCapacity
     tags: tags
   }
 }
 
 module registry 'modules/registry.bicep' = if (useAcr) {
   name: '${prefix}-registry'
+  dependsOn: [cognitive]
   params: {
     name: replace('${prefix}registry', '-', '')
     location: location
@@ -164,6 +189,7 @@ var acrLoginServer = registry.?outputs.?loginServer ?? ''
 
 module environment 'modules/environment.bicep' = {
   name: '${prefix}-environment'
+  dependsOn: [cognitive]
   params: {
     name: '${prefix}-env'
     location: location
@@ -175,6 +201,7 @@ module environment 'modules/environment.bicep' = {
 
 module roles 'modules/roles.bicep' = {
   name: '${prefix}-roles'
+  dependsOn: [environment]
   params: {
     principalId: identity.outputs.principalId
     storageAccountId: storage.outputs.id
@@ -224,19 +251,20 @@ var baseEnvVars = [
   { name: 'HERALD_DB_HOST', value: postgres.outputs.fqdn }
   { name: 'HERALD_DB_PORT', value: '5432' }
   { name: 'HERALD_DB_NAME', value: postgres.outputs.databaseName }
-  { name: 'HERALD_DB_USER', value: identity.outputs.clientId }
+  { name: 'HERALD_DB_USER', value: '${prefix}-identity' }
   { name: 'HERALD_DB_SSL_MODE', value: 'require' }
   { name: 'HERALD_DB_TOKEN_SCOPE', value: postgresTokenScope }
   { name: 'HERALD_STORAGE_SERVICE_URL', value: storage.outputs.blobEndpoint }
   { name: 'HERALD_STORAGE_CONTAINER_NAME', value: 'documents' }
   { name: 'HERALD_AUTH_MODE', value: authEnabled ? 'azure' : 'none' }
   { name: 'HERALD_AUTH_MANAGED_IDENTITY', value: 'true' }
-  { name: 'HERALD_AUTH_AGENT_SCOPE', value: 'https://cognitiveservices.azure.com/.default' }
   { name: 'HERALD_AGENT_PROVIDER_NAME', value: 'azure' }
-  { name: 'HERALD_AGENT_BASE_URL', value: cognitive.outputs.endpoint }
+  { name: 'HERALD_AGENT_BASE_URL', value: '${cognitive.outputs.endpoint}openai' }
   { name: 'HERALD_AGENT_DEPLOYMENT', value: cognitive.outputs.modelDeploymentName }
   { name: 'HERALD_AGENT_API_VERSION', value: '2025-04-01-preview' }
   { name: 'HERALD_AGENT_AUTH_TYPE', value: 'managed_identity' }
+  { name: 'HERALD_AGENT_RESOURCE', value: cognitiveTokenScope }
+  { name: 'HERALD_AGENT_CLIENT_ID', value: identity.outputs.clientId }
   { name: 'AZURE_CLIENT_ID', value: identity.outputs.clientId }
 ]
 
@@ -281,7 +309,7 @@ var migrationDsn = 'postgres://${postgresAdminLogin}:${postgresAdminPassword}@${
 
 module migrationJob 'modules/migration-job.bicep' = {
   name: '${prefix}-migration-job'
-  dependsOn: [roles]
+  dependsOn: [app]
   params: {
     name: '${prefix}-migrate'
     location: location
@@ -289,6 +317,7 @@ module migrationJob 'modules/migration-job.bicep' = {
     identityId: identity.outputs.id
     containerImage: containerImage
     registries: registries
+    registrySecrets: useAcr ? [] : ghcrSecrets
     databaseDsn: migrationDsn
     tags: tags
   }

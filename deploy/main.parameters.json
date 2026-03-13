@@ -3,7 +3,7 @@
   "contentVersion": "0.4.0.0",
   "parameters": {
     "location": {
-      "value": "eastus"
+      "value": "centralus"
     },
     "prefix": {
       "value": "herald"
@@ -16,6 +16,15 @@
     },
     "cognitiveCustomDomain": {
       "value": "herald-ai-prod"
+    },
+    "authEnabled": {
+      "value": true
+    },
+    "tenantId": {
+      "value": "64819121-d17e-4216-a81e-fa8528635fb8"
+    },
+    "entraClientId": {
+      "value": "52e63088-b087-4d03-8b61-0152660e963d"
     }
   }
 }

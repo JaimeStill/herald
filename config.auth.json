@@ -2,7 +2,6 @@
   "auth": {
     "auth_mode": "azure",
     "tenant_id": "64819121-d17e-4216-a81e-fa8528635fb8",
-    "client_id": "52e63088-b087-4d03-8b61-0152660e963d",
-    "scope": "access"
+    "client_id": "52e63088-b087-4d03-8b61-0152660e963d"
   }
 }

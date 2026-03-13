@@ -1,7 +1,16 @@
 # Changelog
 
+## v0.4.0-dev.100.126
+- Upgrade go-agents to v0.4.0 for native managed identity support — remove manual token acquisition factory from infrastructure, add `HERALD_AGENT_RESOURCE` and `HERALD_AGENT_CLIENT_ID` env vars, remove `AgentScope` from auth config
+- Fix `HERALD_AGENT_BASE_URL` to append `/openai` for OpenAI-kind Cognitive Services accounts
+- Fix `HERALD_DB_USER` to use Entra admin principal name instead of managed identity client ID
+- Add centralized error logging to `StreamingObserver` via logger injection
+- Add `cognitiveDeploymentCapacity` parameter for configurable token rate limits (default 1M TPM)
+- Make `cognitiveCustomDomain` a required Bicep parameter
+- Add `deploy/main.secrets.json` (gitignored) for static secret parameters (`postgresAdminPassword`, `ghcrUsername`) (#126)
+
 ## v0.4.0-dev.100.125
-- Add modular Bicep infrastructure-as-code for Azure Container Apps deployment — ten modules (identity, logging, PostgreSQL, storage, cognitive services, optional ACR, environment, app, migration job, role assignments) orchestrated by `main.bicep` with `useAcr` boolean for GHCR/ACR registry switching; update Dockerfile to build both `herald` and `migrate` binaries; add deployment guide at `_project/deployment.md` (#125)
+- Add modular Bicep infrastructure-as-code for Azure Container Apps deployment — ten modules (identity, logging, PostgreSQL, storage, cognitive services, optional ACR, environment, app, migration job, role assignments) orchestrated by `main.bicep` with `useAcr` boolean for GHCR/ACR registry switching; update Dockerfile to build both `herald` and `migrate` binaries; add deployment guide at `deploy/README.md` (#125)
 
 ## v0.4.0-dev.100.124
 - Make `AgentScope` and `TokenScope` configurable for Azure Government; convert hardcoded OAuth scope constants to config fields with commercial defaults, overridable via `HERALD_AUTH_AGENT_SCOPE` and `HERALD_DB_TOKEN_SCOPE` env vars (#124)

@@ -16,6 +16,9 @@ param containerImage string
 @description('Registry configuration array')
 param registries array
 
+@description('Additional secrets (e.g., registry credentials)')
+param registrySecrets array = []
+
 @secure()
 @description('Full PostgreSQL DSN for migrations')
 param databaseDsn string
@@ -46,12 +49,12 @@ resource job 'Microsoft.App/jobs@2025-07-01' = {
       replicaTimeout: 300
       replicaRetryLimit: 0
       registries: registries
-      secrets: [
+      secrets: concat(registrySecrets, [
         {
           name: 'db-dsn'
           value: databaseDsn
         }
-      ]
+      ])
     }
     template: {
       containers: [
@@ -60,6 +63,8 @@ resource job 'Microsoft.App/jobs@2025-07-01' = {
           image: containerImage
           command: [
             '/usr/local/bin/migrate'
+          ]
+          args: [
             '-up'
           ]
           resources: {

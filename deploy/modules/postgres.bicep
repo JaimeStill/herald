@@ -77,12 +77,13 @@ resource database 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2025-08-0
   parent: server
   name: databaseName
   properties: {
-    charset: databaseName
+    charset: 'UTF8'
     collation: 'en_US.utf8'
   }
 }
 
 resource entraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@2025-08-01' = {
+  dependsOn: [database]
   parent: server
   name: entraAdminPrincipalId
   properties: {
@@ -93,6 +94,7 @@ resource entraAdmin 'Microsoft.DBforPostgreSQL/flexibleServers/administrators@20
 }
 
 resource allowAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2025-08-01' = if (allowAzureServices) {
+  dependsOn: [entraAdmin]
   parent: server
   name: 'AllowAzureServices'
   properties: {

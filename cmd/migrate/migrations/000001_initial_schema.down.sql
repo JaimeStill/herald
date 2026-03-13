@@ -1,2 +1,1 @@
 DROP TABLE IF EXISTS documents;
-DROP EXTENSION IF EXISTS "uuid-ossp";

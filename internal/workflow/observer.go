@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -16,14 +17,16 @@ import (
 // from stalling graph execution.
 type StreamingObserver struct {
 	events chan ExecutionEvent
+	logger *slog.Logger
 	mu     sync.Mutex
 	closed bool
 }
 
 // NewStreamingObserver creates a StreamingObserver with the given channel buffer size.
-func NewStreamingObserver(bufferSize int) *StreamingObserver {
+func NewStreamingObserver(bufferSize int, logger *slog.Logger) *StreamingObserver {
 	return &StreamingObserver{
 		events: make(chan ExecutionEvent, bufferSize),
+		logger: logger,
 	}
 }
 
@@ -57,7 +60,7 @@ func (o *StreamingObserver) OnEvent(ctx context.Context, event observability.Eve
 	case observability.EventNodeStart:
 		execEvent = handleNodeStart(event)
 	case observability.EventNodeComplete:
-		execEvent = handleNodeComplete(event)
+		execEvent = o.handleNodeComplete(event)
 	}
 
 	if execEvent != nil {
@@ -92,6 +95,7 @@ func (o *StreamingObserver) SendError(err error, nodeName string) {
 	if o.closed {
 		return
 	}
+	o.logger.Error("workflow error", "node", nodeName, "error", err)
 	data := map[string]any{"message": err.Error()}
 	if nodeName != "" {
 		data["node"] = nodeName
@@ -121,12 +125,13 @@ func handleNodeStart(event observability.Event) *ExecutionEvent {
 	}
 }
 
-func handleNodeComplete(event observability.Event) *ExecutionEvent {
+func (o *StreamingObserver) handleNodeComplete(event observability.Event) *ExecutionEvent {
 	data, err := formatting.FromMap[NodeCompleteData](event.Data)
 	if err != nil {
 		return nil
 	}
 	if data.Error {
+		o.logger.Error("node failed", "node", data.Node, "error", data.ErrorMessage)
 		return &ExecutionEvent{
 			Type:      Error,
 			Timestamp: event.Timestamp,
