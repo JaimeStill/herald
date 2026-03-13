@@ -29,7 +29,7 @@ param modelFormat string = 'OpenAI'
 param deploymentSkuName string = 'GlobalStandard'
 
 @description('Deployment SKU capacity (TPM in thousands)')
-param deploymentSkuCapacity int = 10
+param deploymentSkuCapacity int = 1000
 
 @description('Resource tags')
 param tags object = {}

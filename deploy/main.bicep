@@ -54,6 +54,9 @@ param cognitiveModelVersion string = '2025-08-07'
 @allowed(['GlobalStandard', 'DataZoneStandard', 'DataZoneProvisionedManaged', 'GlobalProvisionedManaged'])
 param cognitiveDeploymentSku string = 'GlobalStandard'
 
+@description('AI model deployment capacity (TPM in thousands, e.g., 1000 = 1M TPM)')
+param cognitiveDeploymentCapacity int = 1000
+
 @description('Cognitive Services Entra token scope (override for Azure Government)')
 #disable-next-line no-hardcoded-env-urls
 param cognitiveTokenScope string = 'https://cognitiveservices.azure.com/.default'
@@ -166,6 +169,7 @@ module cognitive 'modules/cognitive.bicep' = {
     modelName: cognitiveModelName
     modelVersion: cognitiveModelVersion
     deploymentSkuName: cognitiveDeploymentSku
+    deploymentSkuCapacity: cognitiveDeploymentCapacity
     tags: tags
   }
 }
