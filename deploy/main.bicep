@@ -39,7 +39,7 @@ param postgresTokenScope string = 'https://ossrdbms-aad.database.windows.net/.de
 // --- Cognitive Services ---
 
 @description('Cognitive Services custom subdomain (globally unique)')
-param cognitiveCustomDomain string = 'herald-ai-prod'
+param cognitiveCustomDomain string
 
 @description('AI model deployment name')
 param cognitiveDeploymentName string = 'gpt-5-mini'
