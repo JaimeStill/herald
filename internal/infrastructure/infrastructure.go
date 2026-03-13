@@ -6,11 +6,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"maps"
 	"os"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 
 	"github.com/JaimeStill/go-agents/pkg/agent"
 	"github.com/JaimeStill/herald/internal/config"
@@ -56,12 +54,10 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 		return nil, fmt.Errorf("agent validation failed: %w", err)
 	}
 
-	newAgent := newAgentFactory(
-		cfg.Agent,
-		cred,
-		cfg.Auth.ManagedIdentity,
-		cfg.Auth.AgentScope,
-	)
+	agentCfg := cfg.Agent
+	newAgent := func(ctx context.Context) (agent.Agent, error) {
+		return agent.New(&agentCfg)
+	}
 
 	return &Infrastructure{
 		Lifecycle:  lc,
@@ -126,34 +122,3 @@ func initManagedSystems(
 	return db, store, nil
 }
 
-func newAgentFactory(
-	agentCfg gaconfig.AgentConfig,
-	cred azcore.TokenCredential,
-	managedIdentity bool,
-	agentScope string,
-) func(ctx context.Context) (agent.Agent, error) {
-	if cred != nil && managedIdentity {
-		return func(ctx context.Context) (agent.Agent, error) {
-			tok, err := cred.GetToken(ctx, policy.TokenRequestOptions{
-				Scopes: []string{agentScope},
-			})
-			if err != nil {
-				return nil, fmt.Errorf("acquire agent token: %w", err)
-			}
-
-			pc := agentCfg.Provider
-			opts := maps.Clone(pc.Options)
-			opts["token"] = tok.Token
-			opts["auth_type"] = "bearer"
-			pc.Options = opts
-
-			cloned := agentCfg
-			cloned.Provider = pc
-			return agent.New(&cloned)
-		}
-	}
-
-	return func(ctx context.Context) (agent.Agent, error) {
-		return agent.New(&agentCfg)
-	}
-}

@@ -46,10 +46,9 @@ type Config struct {
 	TenantID        string        `json:"tenant_id"`
 	ClientID        string        `json:"client_id"`
 	ClientSecret    string        `json:"client_secret"`
-	Authority       string        `json:"authority"`
-	Scope           string        `json:"scope"`
-	AgentScope      string        `json:"agent_scope"`
-	CacheLocation   CacheLocation `json:"cache_location"`
+	Authority     string        `json:"authority"`
+	Scope         string        `json:"scope"`
+	CacheLocation CacheLocation `json:"cache_location"`
 }
 
 // Env maps Config fields to environment variable names for override injection.
@@ -59,10 +58,9 @@ type Env struct {
 	TenantID        string
 	ClientID        string
 	ClientSecret    string
-	Authority       string
-	Scope           string
-	AgentScope      string
-	CacheLocation   string
+	Authority     string
+	Scope         string
+	CacheLocation string
 }
 
 // Finalize applies defaults, environment variable overrides, derived defaults,
@@ -100,9 +98,6 @@ func (c *Config) Merge(overlay *Config) {
 	}
 	if overlay.Scope != "" {
 		c.Scope = overlay.Scope
-	}
-	if overlay.AgentScope != "" {
-		c.AgentScope = overlay.AgentScope
 	}
 	if overlay.CacheLocation != "" {
 		c.CacheLocation = overlay.CacheLocation
@@ -149,9 +144,6 @@ func (c *Config) loadDefaults() {
 	if c.CacheLocation == "" {
 		c.CacheLocation = LocalStorage
 	}
-	if c.AgentScope == "" {
-		c.AgentScope = "https://cognitiveservices.azure.com/.default"
-	}
 }
 
 func (c *Config) loadEnv(env *Env) {
@@ -190,11 +182,6 @@ func (c *Config) loadEnv(env *Env) {
 	if env.Scope != "" {
 		if v := os.Getenv(env.Scope); v != "" {
 			c.Scope = v
-		}
-	}
-	if env.AgentScope != "" {
-		if v := os.Getenv(env.AgentScope); v != "" {
-			c.AgentScope = v
 		}
 	}
 	if env.CacheLocation != "" {

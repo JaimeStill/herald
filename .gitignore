@@ -1,5 +1,6 @@
 secrets.json
 notes.md
+deploy/main.json
 
 .playwright-cli
 

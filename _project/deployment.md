@@ -48,7 +48,7 @@ Herald uses a **user-assigned managed identity** rather than system-assigned. Th
 
 ### Migration Job
 
-A Container Apps Job configured for manual trigger. Uses the same container image as the app but overrides the command to `/usr/local/bin/migrate -up`. The database DSN is stored as a Container Apps secret. Migrations are idempotent — safe to run on every deployment.
+A Container Apps Job configured for manual trigger. Uses the same container image as the app with `/usr/local/bin/migrate` as the entrypoint and `-up` as the default argument. The database DSN is stored as a Container Apps secret. Migrations are idempotent — safe to run on every deployment. The command can be overridden at execution time for other operations (force version, rollback, etc.).
 
 ### PostgreSQL Authentication
 
@@ -175,6 +175,17 @@ az containerapp job logs show \
   --container herald-migrate
 ```
 
+To run a different migrate command (e.g., force a version after a dirty state), override the command:
+
+```bash
+az containerapp job start \
+  --name herald-migrate \
+  --resource-group HeraldResourceGroup \
+  --command "/usr/local/bin/migrate -force <version>"
+```
+
+Available flags: `-up`, `-down`, `-force <version>`, `-steps <n>`, `-version`.
+
 ### 5. Verify
 
 ```bash
@@ -197,30 +208,43 @@ If authentication is enabled, add the Container App's auto-generated FQDN to the
 2. In Azure Portal → App registrations → Herald → Authentication
 3. Add `https://<app-fqdn>/app/` as a SPA redirect URI
 
+## Azure Government
+
+Override these parameters when deploying to Azure Government (IL4/IL6):
+
+| Parameter | Commercial (default) | Azure Government |
+|-----------|---------------------|-----------------|
+| `postgresTokenScope` | `https://ossrdbms-aad.database.windows.net/.default` | `https://ossrdbms-aad.database.usgovcloudapi.net/.default` |
+| `cognitiveTokenScope` | `https://cognitiveservices.azure.com/.default` | `https://cognitiveservices.usgovcloudapi.net/.default` |
+
+The Herald server also requires the `HERALD_AUTH_AUTHORITY` environment variable for Entra OIDC discovery. In Azure Government, set this to `https://login.microsoftonline.us` (handled automatically when the auth config's `Authority` field is set — see `pkg/auth/config.go`).
+
 ## IL6 Deployment
 
 IL6 environments have no access to GHCR. Herald uses Azure Container Registry with managed identity pull instead.
 
 ### Transfer via CDS
 
-A GitHub Enterprise proxy repo connected to the cross-domain solution handles the transfer:
+The `s2va/herald` proxy repo on GitHub Enterprise handles cross-domain transfers. On each tag push, its workflow:
 
-1. GHE workflow pulls the GHCR image and `deploy/` directory
-2. Bundles everything into a `.tar` uploaded to CDS blob storage
-3. IL6 side retrieves the `.tar`
+1. Checks out `JaimeStill/herald` at the tagged version for the `deploy/` directory
+2. Pulls the GHCR image and saves it as a tarball
+3. Bundles the image tarball and `deploy/` manifests into a single `herald-<tag>.tar.gz`
+4. Uploads the bundle to CDS blob storage via Portage and requests transfer via `s2va/cds-manifest`
 
 ### IL6 Side
 
-**Import the image to ACR:**
+Extract the CDS bundle and import the image to ACR:
 
 ```bash
+tar xzf herald-<tag>.tar.gz
 az acr login -n <acr-name>
-docker load -i herald-<tag>.tar
+docker load -i image.tar
 docker tag ghcr.io/jaimestill/herald:<tag> <acr-name>.azurecr.us/herald:<tag>
 docker push <acr-name>.azurecr.us/herald:<tag>
 ```
 
-**Deploy:**
+Deploy with `useAcr=true` and Azure Government token scope overrides:
 
 ```bash
 az deployment group create \
@@ -231,10 +255,11 @@ az deployment group create \
     postgresAdminPassword='<password>' \
     useAcr=true \
     containerImage='<acr-name>.azurecr.us/herald:<tag>' \
+    postgresTokenScope='https://ossrdbms-aad.database.usgovcloudapi.net/.default' \
+    cognitiveTokenScope='https://cognitiveservices.usgovcloudapi.net/.default' \
     authEnabled=true \
     tenantId='<entra-tenant-id>' \
     entraClientId='<entra-client-id>'
-
 ```
 
 When `useAcr=true`:
@@ -262,7 +287,7 @@ When `authEnabled=true`, the following environment variables are injected into t
 | `HERALD_AUTH_MANAGED_IDENTITY` | `true` | Uses managed identity for token acquisition |
 | `HERALD_AUTH_TENANT_ID` | `tenantId` param | Entra tenant for OIDC discovery |
 | `HERALD_AUTH_CLIENT_ID` | `entraClientId` param | App registration audience for token validation |
-| `HERALD_AUTH_AGENT_SCOPE` | `https://cognitiveservices.azure.com/.default` | Scope for AI Foundry access tokens |
+| `HERALD_AUTH_AGENT_SCOPE` | `cognitiveTokenScope` param | Scope for AI Foundry access tokens |
 
 ### What Bicep Cannot Configure
 
@@ -299,8 +324,161 @@ Cognitive Services soft-delete may retain the account. Purge if needed:
 ```bash
 az cognitiveservices account purge \
   --resource-group HeraldResourceGroup \
-  --name herald-ai-prod \
-  --location eastus
+  --name <cognitive-account-name> \
+  --location <region>
+```
+
+## Diagnostics
+
+### Container App
+
+**Check app status and FQDN:**
+
+```bash
+az containerapp show \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --query "{state: properties.runningStatus, fqdn: properties.configuration.ingress.fqdn}" \
+  --output json
+```
+
+**View app logs (last 50 lines):**
+
+```bash
+az containerapp logs show \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --tail 50
+```
+
+**Follow app logs in real time:**
+
+```bash
+az containerapp logs show \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --follow
+```
+
+**Inspect environment variables:**
+
+```bash
+az containerapp show \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --query "properties.template.containers[0].env" \
+  --output json
+```
+
+**List revision history:**
+
+```bash
+az containerapp revision list \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --output table
+```
+
+### Migration Job
+
+**List all executions:**
+
+```bash
+az containerapp job execution list \
+  --name herald-migrate \
+  --resource-group HeraldResourceGroup \
+  --output table
+```
+
+**Check execution status:**
+
+```bash
+az containerapp job execution show \
+  --name herald-migrate \
+  --resource-group HeraldResourceGroup \
+  --job-execution-name <execution-name> \
+  --output table
+```
+
+**View execution logs:**
+
+```bash
+az containerapp job logs show \
+  --name herald-migrate \
+  --resource-group HeraldResourceGroup \
+  --execution <execution-name> \
+  --container herald-migrate
+```
+
+### PostgreSQL
+
+**Check server state:**
+
+```bash
+az postgres flexible-server show \
+  --resource-group HeraldResourceGroup \
+  --name herald-db \
+  --query "{state: state, fqdn: fullyQualifiedDomainName, version: version}" \
+  --output json
+```
+
+**Connect via psql** (requires firewall rule for your IP):
+
+```bash
+# Add temporary firewall rule
+MY_IP=$(curl -s ifconfig.me)
+az postgres flexible-server firewall-rule create \
+  --resource-group HeraldResourceGroup \
+  --name herald-db \
+  --rule-name TempAccess \
+  --start-ip-address $MY_IP \
+  --end-ip-address $MY_IP
+
+# Connect
+PGPASSWORD='<password>' psql \
+  "host=herald-db.postgres.database.azure.com port=5432 dbname=herald user=<admin-login> sslmode=require"
+
+# Remove firewall rule when done
+az postgres flexible-server firewall-rule delete \
+  --resource-group HeraldResourceGroup \
+  --name herald-db \
+  --rule-name TempAccess \
+  --yes
+```
+
+### Cognitive Services
+
+**Check account and model deployment:**
+
+```bash
+az cognitiveservices account show \
+  --resource-group HeraldResourceGroup \
+  --name herald-ai \
+  --query "{endpoint: properties.endpoint, state: properties.provisioningState}" \
+  --output json
+
+az cognitiveservices account deployment list \
+  --resource-group HeraldResourceGroup \
+  --name herald-ai \
+  --output table
+```
+
+**List soft-deleted accounts** (useful when redeployments fail with `CustomDomainInUse`):
+
+```bash
+az cognitiveservices account list-deleted --output table
+```
+
+### Deployment Outputs
+
+**Retrieve all deployment outputs:**
+
+```bash
+az deployment group show \
+  --resource-group HeraldResourceGroup \
+  --name main \
+  --query "properties.outputs" \
+  --output json
 ```
 
 ## Environment Variables Reference

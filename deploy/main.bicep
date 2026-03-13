@@ -254,12 +254,13 @@ var baseEnvVars = [
   { name: 'HERALD_STORAGE_CONTAINER_NAME', value: 'documents' }
   { name: 'HERALD_AUTH_MODE', value: authEnabled ? 'azure' : 'none' }
   { name: 'HERALD_AUTH_MANAGED_IDENTITY', value: 'true' }
-  { name: 'HERALD_AUTH_AGENT_SCOPE', value: cognitiveTokenScope }
   { name: 'HERALD_AGENT_PROVIDER_NAME', value: 'azure' }
   { name: 'HERALD_AGENT_BASE_URL', value: cognitive.outputs.endpoint }
   { name: 'HERALD_AGENT_DEPLOYMENT', value: cognitive.outputs.modelDeploymentName }
   { name: 'HERALD_AGENT_API_VERSION', value: '2025-04-01-preview' }
   { name: 'HERALD_AGENT_AUTH_TYPE', value: 'managed_identity' }
+  { name: 'HERALD_AGENT_RESOURCE', value: cognitiveTokenScope }
+  { name: 'HERALD_AGENT_CLIENT_ID', value: identity.outputs.clientId }
   { name: 'AZURE_CLIENT_ID', value: identity.outputs.clientId }
 ]
 

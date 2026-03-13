@@ -63,6 +63,8 @@ resource job 'Microsoft.App/jobs@2025-07-01' = {
           image: containerImage
           command: [
             '/usr/local/bin/migrate'
+          ]
+          args: [
             '-up'
           ]
           resources: {

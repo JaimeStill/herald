@@ -1,14 +1,14 @@
 module github.com/JaimeStill/herald
 
-go 1.26.0
+go 1.26.1
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.20.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4
 	github.com/JaimeStill/document-context v0.1.1
-	github.com/JaimeStill/go-agents v0.3.0
-	github.com/JaimeStill/go-agents-orchestration v0.3.2
+	github.com/JaimeStill/go-agents v0.4.0
+	github.com/JaimeStill/go-agents-orchestration v0.3.3
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0

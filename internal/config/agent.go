@@ -14,6 +14,8 @@ const (
 	EnvAgentDeployment   = "HERALD_AGENT_DEPLOYMENT"
 	EnvAgentAPIVersion   = "HERALD_AGENT_API_VERSION"
 	EnvAgentAuthType     = "HERALD_AGENT_AUTH_TYPE"
+	EnvAgentResource     = "HERALD_AGENT_RESOURCE"
+	EnvAgentClientID     = "HERALD_AGENT_CLIENT_ID"
 	EnvAgentModelName    = "HERALD_AGENT_MODEL_NAME"
 )
 
@@ -61,6 +63,8 @@ func loadAgentEnv(c *gaconfig.AgentConfig) {
 	setOption(EnvAgentDeployment, "deployment")
 	setOption(EnvAgentAPIVersion, "api_version")
 	setOption(EnvAgentAuthType, "auth_type")
+	setOption(EnvAgentResource, "resource")
+	setOption(EnvAgentClientID, "client_id")
 }
 
 func validateAgent(c *gaconfig.AgentConfig) error {
