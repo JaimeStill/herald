@@ -122,7 +122,7 @@ func (r *repo) Classify(ctx context.Context, documentID uuid.UUID) (<-chan workf
 		return nil, fmt.Errorf("document %s: %w", documentID, err)
 	}
 
-	observer := workflow.NewStreamingObserver(streamBufferSize)
+	observer := workflow.NewStreamingObserver(streamBufferSize, r.rt.Logger)
 
 	go func() {
 		defer observer.Close()

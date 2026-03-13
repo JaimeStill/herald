@@ -247,7 +247,7 @@ var baseEnvVars = [
   { name: 'HERALD_DB_HOST', value: postgres.outputs.fqdn }
   { name: 'HERALD_DB_PORT', value: '5432' }
   { name: 'HERALD_DB_NAME', value: postgres.outputs.databaseName }
-  { name: 'HERALD_DB_USER', value: identity.outputs.clientId }
+  { name: 'HERALD_DB_USER', value: '${prefix}-identity' }
   { name: 'HERALD_DB_SSL_MODE', value: 'require' }
   { name: 'HERALD_DB_TOKEN_SCOPE', value: postgresTokenScope }
   { name: 'HERALD_STORAGE_SERVICE_URL', value: storage.outputs.blobEndpoint }
@@ -255,7 +255,7 @@ var baseEnvVars = [
   { name: 'HERALD_AUTH_MODE', value: authEnabled ? 'azure' : 'none' }
   { name: 'HERALD_AUTH_MANAGED_IDENTITY', value: 'true' }
   { name: 'HERALD_AGENT_PROVIDER_NAME', value: 'azure' }
-  { name: 'HERALD_AGENT_BASE_URL', value: cognitive.outputs.endpoint }
+  { name: 'HERALD_AGENT_BASE_URL', value: '${cognitive.outputs.endpoint}openai' }
   { name: 'HERALD_AGENT_DEPLOYMENT', value: cognitive.outputs.modelDeploymentName }
   { name: 'HERALD_AGENT_API_VERSION', value: '2025-04-01-preview' }
   { name: 'HERALD_AGENT_AUTH_TYPE', value: 'managed_identity' }

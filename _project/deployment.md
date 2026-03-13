@@ -481,6 +481,83 @@ az deployment group show \
   --output json
 ```
 
+## Troubleshooting
+
+### PostgreSQL Authentication Fails with Managed Identity
+
+**Symptom:** `failed SASL auth: FATAL: password authentication failed for user '<uuid>'`
+
+The `HERALD_DB_USER` must be the Entra admin **principal name** (e.g., `herald-identity`), not the managed identity client ID (UUID). The Bicep template sets `entraAdminPrincipalName: '${prefix}-identity'` — `HERALD_DB_USER` must match this value. The managed identity client ID is used for `AZURE_CLIENT_ID` and `HERALD_AGENT_CLIENT_ID`, not the database username.
+
+### Agent Vision Calls Return 404
+
+**Symptom:** `HTTP 404: Resource not found` on classify workflow
+
+The `HERALD_AGENT_BASE_URL` must include the `/openai` path segment for OpenAI-kind Cognitive Services accounts. The cognitive services endpoint output is `https://<subdomain>.openai.azure.com/` but the Azure OpenAI REST API expects `https://<subdomain>.openai.azure.com/openai/deployments/{deployment}/chat/completions`. The Bicep template appends `/openai` to the endpoint output.
+
+> **Note:** AIServices-kind accounts do not require the `/openai` segment. This only applies to OpenAI-kind accounts.
+
+### Cognitive Services `CustomDomainInUse`
+
+**Symptom:** Redeployment fails with `CustomDomainInUse` error
+
+Cognitive Services uses soft-delete — deleted accounts retain their subdomain for a recovery period. Purge the soft-deleted account before redeploying:
+
+```bash
+az cognitiveservices account list-deleted --output table
+
+az cognitiveservices account purge \
+  --resource-group <original-resource-group> \
+  --name <account-name> \
+  --location <region>
+```
+
+### Regional Quota and Availability
+
+PostgreSQL Burstable tier and Cognitive Services model quotas vary by subscription type and region. Visual Studio Professional subscriptions have restrictions in some regions. If provisioning fails with `LocationIsOfferRestricted` or `InsufficientQuota`, try a different region or SKU. The `cognitiveDeploymentSku` parameter accepts `GlobalStandard`, `DataZoneStandard`, `DataZoneProvisionedManaged`, or `GlobalProvisionedManaged`.
+
+### Dirty Migration State
+
+**Symptom:** Migration job fails with `dirty database version N`
+
+A previously failed migration leaves `schema_migrations` in a dirty state. Connect via psql (see [Diagnostics > PostgreSQL](#postgresql)) and reset:
+
+```sql
+-- Check current state
+SELECT * FROM schema_migrations;
+
+-- Reset dirty flag
+UPDATE schema_migrations SET dirty = false WHERE version = <N>;
+```
+
+Then re-run the migration job. If the schema is in an inconsistent state, you may need to manually fix it or drop `schema_migrations` and re-run all migrations from scratch.
+
+### Rollback
+
+Container Apps maintains a revision history. To roll back to a previous revision:
+
+```bash
+# List revisions
+az containerapp revision list \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --output table
+
+# Activate a previous revision
+az containerapp revision activate \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --revision <revision-name>
+
+# Route all traffic to the previous revision
+az containerapp ingress traffic set \
+  --name herald \
+  --resource-group HeraldResourceGroup \
+  --revision-weight <revision-name>=100
+```
+
+To roll back by redeploying with a previous image tag, re-run the Bicep deployment with `containerImage` set to the previous tag.
+
 ## Environment Variables Reference
 
 All `HERALD_*` environment variables injected into the Container App are composed in `main.bicep` from module outputs. They map directly to the constants defined in `internal/config/config.go`. See that file for the authoritative list of supported variables and their defaults.

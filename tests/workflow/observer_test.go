@@ -3,6 +3,7 @@ package workflow_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -10,8 +11,10 @@ import (
 	"github.com/JaimeStill/herald/internal/workflow"
 )
 
+var testLogger = slog.Default()
+
 func TestNewStreamingObserver(t *testing.T) {
-	obs := workflow.NewStreamingObserver(32)
+	obs := workflow.NewStreamingObserver(32, testLogger)
 	if obs == nil {
 		t.Fatal("NewStreamingObserver returned nil")
 	}
@@ -22,7 +25,7 @@ func TestNewStreamingObserver(t *testing.T) {
 }
 
 func TestOnEventNodeStart(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	defer obs.Close()
 
 	ts := time.Now()
@@ -56,7 +59,7 @@ func TestOnEventNodeStart(t *testing.T) {
 }
 
 func TestOnEventNodeComplete(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	defer obs.Close()
 
 	ts := time.Now()
@@ -84,7 +87,7 @@ func TestOnEventNodeComplete(t *testing.T) {
 }
 
 func TestOnEventNodeCompleteWithError(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	defer obs.Close()
 
 	obs.OnEvent(context.Background(), observability.Event{
@@ -116,7 +119,7 @@ func TestOnEventNodeCompleteWithError(t *testing.T) {
 }
 
 func TestOnEventIgnoresUnhandledTypes(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	defer obs.Close()
 
 	ignoredTypes := []observability.EventType{
@@ -145,7 +148,7 @@ func TestOnEventIgnoresUnhandledTypes(t *testing.T) {
 }
 
 func TestSendComplete(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	defer obs.Close()
 
 	data := map[string]any{"classification": "SECRET"}
@@ -166,7 +169,7 @@ func TestSendComplete(t *testing.T) {
 
 func TestSendError(t *testing.T) {
 	t.Run("with node name", func(t *testing.T) {
-		obs := workflow.NewStreamingObserver(8)
+		obs := workflow.NewStreamingObserver(8, testLogger)
 		defer obs.Close()
 
 		obs.SendError(fmt.Errorf("connection lost"), "classify")
@@ -188,7 +191,7 @@ func TestSendError(t *testing.T) {
 	})
 
 	t.Run("without node name", func(t *testing.T) {
-		obs := workflow.NewStreamingObserver(8)
+		obs := workflow.NewStreamingObserver(8, testLogger)
 		defer obs.Close()
 
 		obs.SendError(fmt.Errorf("general failure"), "")
@@ -208,13 +211,13 @@ func TestSendError(t *testing.T) {
 }
 
 func TestCloseIdempotent(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	obs.Close()
 	obs.Close() // second call should not panic
 }
 
 func TestCloseStopsEvents(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	obs.Close()
 
 	obs.OnEvent(context.Background(), observability.Event{
@@ -235,19 +238,19 @@ func TestCloseStopsEvents(t *testing.T) {
 }
 
 func TestSendCompleteAfterClose(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	obs.Close()
 	obs.SendComplete(map[string]any{"result": "test"}) // should not panic
 }
 
 func TestSendErrorAfterClose(t *testing.T) {
-	obs := workflow.NewStreamingObserver(8)
+	obs := workflow.NewStreamingObserver(8, testLogger)
 	obs.Close()
 	obs.SendError(fmt.Errorf("test"), "node") // should not panic
 }
 
 func TestNonBlockingSendOnFullBuffer(t *testing.T) {
-	obs := workflow.NewStreamingObserver(1) // buffer of 1
+	obs := workflow.NewStreamingObserver(1, testLogger) // buffer of 1
 	defer obs.Close()
 
 	// fill the buffer
