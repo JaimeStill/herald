@@ -1,7 +1,7 @@
 import { request, stream, toQueryString } from "@core";
-import type { PageRequest, PageResult, Result, StreamOptions } from "@core";
+import type { PageResult, Result, StreamOptions } from "@core";
 
-import type { Classification } from "./classification";
+import type { Classification, SearchRequest } from "./classification";
 
 /** Payload for marking a classification as validated. */
 export interface ValidateCommand {
@@ -25,7 +25,7 @@ const base = "/classifications";
 export const ClassificationService = {
   /** `GET /api/classifications` — paginated classification list. */
   async list(
-    params?: PageRequest,
+    params?: SearchRequest,
   ): Promise<Result<PageResult<Classification>>> {
     return await request<PageResult<Classification>>(
       `${base}${params ? toQueryString(params) : ""}`,
@@ -43,7 +43,7 @@ export const ClassificationService = {
   },
 
   /** `POST /api/classifications/search` — server-side filtered search. */
-  async search(body: PageRequest): Promise<Result<PageResult<Classification>>> {
+  async search(body: SearchRequest): Promise<Result<PageResult<Classification>>> {
     return await request<PageResult<Classification>>(`${base}/search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

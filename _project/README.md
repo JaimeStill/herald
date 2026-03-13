@@ -27,7 +27,7 @@ The architecture deliberately excludes: image caching (images are ephemeral duri
 | Phase 1 - Service Foundation | Go project scaffolding, Azure PostgreSQL schema/migrations, Azure Blob Storage integration, configuration system, module/routing infrastructure, document domain (upload single + batch, registration, metadata), storage abstraction, lifecycle coordination | v0.1.0 | Complete |
 | Phase 2 - Classification Engine | Agent configuration from external config, classification workflow state graph (init -> classify -> enhance? -> finalize), parallel per-page analysis with bounded concurrency, named prompt overrides (DB + API), single document classification endpoint, classification result schema with flattened workflow metadata | v0.2.0 | Complete |
 | Phase 3 - Web Client | Lit 3.x SPA with native Bun builds embedded in Go binary, Air hot reload for development, document management UI (upload single + batch, browse, search, filter, bulk classify), SSE streaming observer for classification progress, classification result viewing/validation/manual adjustment with PDF viewer, prompt modification management | v0.3.0 | Complete |
-| Phase 4 - Security and Deployment | Azure Entra authentication (opt-in JWT middleware + MSAL.js web client), managed identity for Azure services (Storage, PostgreSQL, AI Foundry), Docker containerization with ImageMagick 7.0+, Azure Container Apps deployment configuration, IL4/IL6 environment configuration | v0.4.0 | Active |
+| Phase 4 - Security and Deployment | Azure Entra authentication (opt-in JWT middleware + MSAL.js web client), managed identity for Azure services (Storage, PostgreSQL, AI Foundry), Docker containerization with ImageMagick 7.0+, Azure Container Apps deployment configuration, IL4/IL6 environment configuration | v0.4.0 | Complete |
 
 ## Architecture
 
@@ -54,25 +54,27 @@ herald/
 │       ├── types.go       # Shared types: ClassificationState, ClassificationPage, WorkflowResult
 │       └── prompts.go     # Prompt composition with instructions, specs, and running state
 ├── pkg/
+│   ├── auth/             # Auth config, User context helpers, JWT middleware (opt-in)
 │   ├── database/         # PostgreSQL connection management (pgx driver)
+│   ├── formatting/       # Formatting utilities
+│   ├── handlers/         # HTTP response utilities (RespondJSON, RespondError)
 │   ├── lifecycle/        # Startup/shutdown coordination
 │   ├── middleware/       # HTTP middleware (CORS, logging)
 │   ├── module/           # Modular HTTP routing (prefix-based modules)
 │   ├── pagination/       # PageRequest/PageResult pattern
 │   ├── query/            # SQL query builder with projections and sorting
 │   ├── repository/       # Database helpers (QueryOne, QueryMany, WithTx)
-│   ├── handlers/         # HTTP response utilities (RespondJSON, RespondError)
-│   ├── storage/          # Blob storage interface (Azure Blob Storage implementation)
 │   ├── routes/           # Route registration types
+│   ├── storage/          # Blob storage interface (Azure Blob Storage implementation)
 │   └── web/              # Template set, router, embedded asset serving
-├── web/
-│   └── app/              # Lit 3.x SPA
-│       ├── app.go        # Go module: embed dist/*, shell template, NewModule()
-│       ├── package.json  # Bun project (no Vite)
-│       ├── scripts/      # Bun build scripts (build.ts, watch.ts)
-│       ├── client/       # TypeScript source (native Bun build)
-│       ├── dist/         # Build output (app.js, app.css)
-│       └── server/       # Go HTML templates (layouts/app.html)
+├── app/                  # Lit 3.x SPA
+│   ├── app.go            # Go module: embed dist/*, shell template, NewModule()
+│   ├── package.json      # Bun project (no Vite)
+│   ├── scripts/          # Bun build scripts (build.ts, watch.ts)
+│   ├── client/           # TypeScript source (native Bun build)
+│   ├── dist/             # Build output (app.js, app.css)
+│   └── server/           # Go HTML templates (layouts/app.html)
+├── deploy/               # Bicep IaC deployment manifests for Azure Container Apps
 ├── config.json           # Base configuration
 ├── .air.toml             # Air hot reload configuration
 ├── Dockerfile
@@ -102,11 +104,13 @@ Herald follows the Layered Composition Architecture (LCA) established in agent-l
 
 ```go
 type Infrastructure struct {
-    Lifecycle *lifecycle.Coordinator
-    Logger    *slog.Logger
-    Database  database.System
-    Storage   storage.System          // Azure Blob Storage implementation
-    Agent     gaconfig.AgentConfig    // go-agents config for per-request agent creation
+    Lifecycle  *lifecycle.Coordinator
+    Logger     *slog.Logger
+    Database   database.System
+    Storage    storage.System                              // Azure Blob Storage implementation
+    Agent      gaconfig.AgentConfig                        // go-agents config for per-request agent creation
+    Credential azcore.TokenCredential                      // Azure managed identity (nil when auth disabled)
+    NewAgent   func(ctx context.Context) (agent.Agent, error) // Auth-mode-aware agent factory
 }
 ```
 
@@ -305,25 +309,25 @@ External dependencies are acceptable when they meet all of the following:
 - golang-migrate for schema management
 - Query builder pattern for dynamic filtering and sorting
 
-### Azure Entra ID (Phase 4)
+### Azure Entra ID
 
-- Service authentication: managed identity for Blob Storage, PostgreSQL, AI Foundry access
-- Web client authentication: OBO flow for user identity propagation
-- Token management: Azure Identity SDK with credential chain
+- Service authentication: user-assigned managed identity for Blob Storage, PostgreSQL, AI Foundry access
+- API authentication: opt-in JWT bearer middleware via go-oidc OIDC discovery and token verification
+- Web client authentication: MSAL.js with redirect login flow, token injection into API requests
+- User identity: JWT claims stored in `validated_by` for audit trail (no OBO — managed identity for service-to-service)
+- Token management: Azure Identity SDK credential chain, pgx BeforeConnect hook for database token refresh
 
 ### External Document Sources
 
 - Documents enter Herald exclusively through the upload API (single or batch)
 - External systems push documents to Herald; Herald does not pull
-- Document metadata fields for external system linkage TBD during Phase 1
+- Document metadata fields (`external_id`, `external_platform`) for external system linkage
 
 ## Open Questions
 
-1. **Enhance stage trigger conditions**: What quality thresholds trigger conditional enhancement? The classify node must report whether image quality was a limiting factor. Requires experimentation during Phase 2.
-2. **GPT-5-mini vs GPT-5.2 benchmarking**: Which model performs better at acceptable cost? Both confirmed available on IL6. Benchmarking during Phase 2.
-3. **Azure deployment target**: Container Apps vs AKS vs App Service? Deferred to Phase 4.
-4. **Bulk ingestion strategy**: Loading 1M documents requires a bulk ingestion approach feeding the upload API. Detailed strategy TBD.
-5. **Remove `PageRequest` from core**: Each domain now defines its own `SearchRequest` (pagination + domain-specific filters). Once classifications and prompts services migrate to their own `SearchRequest` types (during their respective view objectives), remove `PageRequest` and `toQueryString`'s dependency on it from `@app/core`.
+1. **Enhance stage trigger conditions**: What quality thresholds trigger conditional enhancement? The classify node must report whether image quality was a limiting factor.
+2. **GPT-5-mini vs GPT-5.2 benchmarking**: Which model performs better at acceptable cost? Both confirmed available on IL6.
+3. **Bulk ingestion strategy**: Loading 1M documents requires a bulk ingestion approach feeding the upload API. Detailed strategy TBD.
 
 ## Resolved Questions
 
@@ -331,3 +335,5 @@ External dependencies are acceptable when they meet all of the following:
 2. **Confidence scoring approach**: Categorical (HIGH/MEDIUM/LOW). Aligns with classify-docs' proven approach and is more interpretable for human validators.
 3. **Worker pool sizing**: Not applicable — no batch classification endpoint. Clients orchestrate parallel single-document classifications.
 4. **SSE vs WebSockets for classification progress**: SSE. Classification progress is unidirectional (server → client). SSE works over HTTP/1.1, requires no upgrade negotiation, operates behind standard load balancers and reverse proxies, and auto-reconnects natively. WebSockets would be justified only if the client needed bidirectional communication during classification. Cancel can be a separate REST endpoint. go-agents-orchestration already supports observer injection — the implementation point is `workflow.go`'s `cfg.Observer = "noop"`, swappable to a `StreamingObserver` ported from agent-lab. Full SSE implementation path documented in the Phase 2 review plan.
+5. **Azure deployment target**: Azure Container Apps. Single-service deployment, no cluster management needed. Bicep IaC with modular templates. Resolved in Phase 4.
+6. **Remove `PageRequest` from core**: Each domain defines its own `SearchRequest` with domain-specific filters. `PageRequest` removed from `@core`, `toQueryString` retained as a generic utility. Resolved in Phase 4.
