@@ -52,8 +52,9 @@ Herald uses a **user-assigned managed identity** rather than system-assigned. Th
 - Listens on port 8080 (TLS terminated at the platform level)
 - Liveness probe: `GET /healthz`
 - Readiness probe: `GET /readyz`
-- Default resources: 1.0 CPU, 2Gi memory (ImageMagick workloads need headroom)
+- Default resources: 2.0 CPU, 4Gi memory (ImageMagick workloads need headroom)
 - Scale: 1–3 replicas (configurable)
+- Ingress idle timeout: 240s (platform default). Active SSE streams are not affected. For longer idle periods, configure [Premium Ingress](https://learn.microsoft.com/en-us/azure/container-apps/premium-ingress) at the environment level.
 
 ### Migration Job
 
@@ -127,8 +128,8 @@ Create `deploy/main.secrets.json` from this template:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `containerImage` | — | Full image reference (e.g., `ghcr.io/jaimestill/herald:v0.4.0`) |
-| `containerCpu` | `1.0` | CPU cores |
-| `containerMemory` | `2Gi` | Memory |
+| `containerCpu` | `2.0` | CPU cores |
+| `containerMemory` | `4Gi` | Memory |
 | `minReplicas` | `1` | Minimum replica count |
 | `maxReplicas` | `3` | Maximum replica count |
 

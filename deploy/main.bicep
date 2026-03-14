@@ -67,10 +67,10 @@ param cognitiveTokenScope string = 'https://cognitiveservices.azure.com/.default
 param containerImage string
 
 @description('CPU cores for the Container App')
-param containerCpu string = '1.0'
+param containerCpu string = '2.0'
 
 @description('Memory for the Container App (ImageMagick workloads need headroom)')
-param containerMemory string = '2Gi'
+param containerMemory string = '4Gi'
 
 @description('Minimum replica count')
 param minReplicas int = 1

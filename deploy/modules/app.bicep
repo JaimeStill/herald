@@ -23,10 +23,10 @@ param secrets array = []
 param envVars array
 
 @description('CPU cores allocated to the container')
-param cpu string = '1.0'
+param cpu string = '2.0'
 
 @description('Memory allocated to the container')
-param memory string = '2Gi'
+param memory string = '4Gi'
 
 @description('Minimum number of replicas')
 param minReplicas int = 1
