@@ -303,9 +303,11 @@ If the new image includes schema changes, run migrations after the deployment co
 az group delete --name <resource-group> --yes
 ```
 
-Cognitive Services soft-delete may retain the account. Purge if needed:
+Cognitive Services soft-delete may retain the account. Check and purge:
 
 ```bash
+az cognitiveservices account list-deleted --output table
+
 az cognitiveservices account purge \
   --resource-group <resource-group> \
   --name <prefix>-ai \
