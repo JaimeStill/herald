@@ -1,113 +1,152 @@
-# Plan: Remove Migration Infrastructure, Add Standalone Binary Release
+# Plan: Simplify Bicep to ACR-Only Registry with Dual Auth Mode
 
 ## Context
 
-The migration web app approach (`appservice-migration.bicep`) doesn't work because the Dockerfile uses `ENTRYPOINT ["herald"]` and App Service's `appCommandLine` sets CMD, not the entrypoint. Rather than work around this, we're removing all migration infrastructure from the container image and Bicep entirely. The `migrate` binary becomes a standalone release artifact that operators run directly from their deployment machine. This is cleaner — migrations are a one-shot operation, not a long-running service.
+The GHCR registry path in the Bicep infrastructure has been causing ARM template evaluation issues — both branches of conditional expressions get evaluated, resulting in empty GHCR credentials polluting App Service deployments even when ACR is configured. Additionally, aligning commercial and IL6 deployments on a single ACR-based approach creates a single source of truth and eliminates an entire category of configuration complexity. Another IL6 capability uses managed identity + AcrPull with ACR successfully, suggesting the managed identity path should work once GHCR concerns are removed.
 
-This is part of the v0.4.1 release.
+## Changes
 
-## Changes to `/home/jaime/code/herald`
+### 1. `deploy/main.bicep` — Remove all GHCR infrastructure
 
-### 1. Dockerfile — Revert to ENTRYPOINT, remove migrate binary
+**Remove parameters:**
+- `ghcrUsername`
+- `ghcrPassword`
 
-- Change `CMD ["herald"]` back to `ENTRYPOINT ["herald"]`
-- Remove `RUN CGO_ENABLED=0 go build -o /migrate ./cmd/migrate`
-- Remove `COPY --from=build /migrate /usr/local/bin/migrate`
+**Remove variables:**
+- `ghcrRegistries`
+- `ghcrSecrets`
 
-### 2. `.github/workflows/release.yml` — No changes needed
+**Change `acrName` from optional to required** — remove default empty string. ACR is now always required.
 
-The existing release workflow handles the container image. Migration binaries are released independently.
+**Remove `useAcr` variable** — ACR is always used. Simplify `useAcrAdmin` and `useAcrManagedIdentity` to derive directly from `acrAuthMode`:
+```bicep
+var useAcrAdmin = acrAuthMode == 'acr_admin'
+var useAcrManagedIdentity = acrAuthMode == 'managed_identity'
+```
 
-### 3. `.github/workflows/migrate-release.yml` — New workflow for migrate binary releases
+**Simplify registry configuration** — no more GHCR fallback:
+```bicep
+var registries = useAcrAdmin ? acrAdminRegistries : acrManagedIdentityRegistries
+var containerAppSecrets = useAcrAdmin ? acrAdminSecrets : []
+```
 
-Triggered on tag push matching `migrate-v*` (e.g., `migrate-v0.1.0`). Builds the migrate binary for `linux-amd64` and `windows-amd64`, attaches both to a GitHub Release. Decoupled from the container image release cycle. Uses `taiki-e/create-gh-release-action` with `prefix: migrate-` so it reads from the `## migrate-v*` section of CHANGELOG.md.
+**Simplify roles module call:**
+```bicep
+assignAcrPull: useAcrManagedIdentity
+acrId: useAcrManagedIdentity ? acrId : ''
+```
 
-### 4. `CHANGELOG.md` — Add migrate release section convention
+**Simplify App Service module call** — remove `ghcrUsername`/`ghcrPassword` params.
 
-Add a `## migrate-v0.1.0` section (or similar) below the main `## v0.4.1` section. The `migrate-release.yml` workflow uses `prefix: migrate-` with `taiki-e/create-gh-release-action` to extract the correct changelog section for migrate-tagged releases.
+**ACR `existing` resource** — remove the `if (useAcr)` condition since ACR is always present:
+```bicep
+resource acr 'Microsoft.ContainerRegistry/registries@2025-11-01' existing = {
+  name: acrName
+}
+```
 
-### 4. `deploy/main.bicep` — Remove migration modules and DSN
+**Simplify ACR variable access** — no more safe-access operators for ACR since it's always present:
+```bicep
+var acrId = acr.id
+var acrLoginServer = acr.properties.loginServer
+```
 
-- Remove `migrationDsn` var
-- Remove `migrationJob` module (Container Apps)
-- Remove `appServiceMigration` module (App Service)
-- Remove `postgresAdminPassword` from the migration DSN composition (it's still needed as a Bicep parameter for PostgreSQL provisioning)
-- Remove `ghcrDockerSettings` if only used by the migration module (check if appservice.bicep also uses it — yes it does, so keep it)
+`listCredentials()` still needs the `useAcrAdmin` guard.
 
-### 5. Delete migration module files
+### 2. `deploy/modules/appservice.bicep` — Remove GHCR settings
 
-- `deploy/modules/migration-job.bicep`
-- `deploy/modules/appservice-migration.bicep`
+**Remove parameters:**
+- `ghcrUsername`
+- `ghcrPassword`
 
-### 6. `deploy/README.md` — Update migration docs
+**Remove `ghcrDockerSettings` variable.**
 
-- Remove Container Apps Job migration section
-- Remove App Service migration web app section
-- Add "Running Migrations" section documenting the standalone binary approach
-- Update architecture diagram to remove migration modules
+**Simplify `dockerSettings`:**
+```bicep
+var dockerSettings = useAcrAdmin ? acrAdminDockerSettings : []
+```
 
-### 7. `deploy/il6.md` — Update migration step
+### 3. `deploy/modules/app.bicep` — No changes needed
 
-- Replace the `az webapp restart` migration step with running the binary directly
-- Document DSN construction for the migration binary
+The Container App module receives `registries` and `secrets` arrays from main.bicep. The simplification happens upstream.
 
-### 8. `deploy/il6-bicep-updates.md` — Update with migration removal
+### 4. `deploy/main.parameters.json` — Update for ACR
 
-- Document removal of migration modules and DSN from main.bicep
-- Document the standalone binary approach
+Replace GHCR image reference with ACR. Add `acrName`:
+```json
+{
+  "location": { "value": "centralus" },
+  "prefix": { "value": "herald" },
+  "acrName": { "value": "heraldregistry" },
+  "containerImage": { "value": "heraldregistry.azurecr.io/herald:0.4.1" },
+  "postgresAdminLogin": { "value": "heraldadmin" },
+  "cognitiveCustomDomain": { "value": "herald-ai-prod" },
+  "authEnabled": { "value": true },
+  "tenantId": { "value": "<existing-tenant-id>" },
+  "entraClientId": { "value": "<existing-client-id>" }
+}
+```
 
-## Changes to `/home/jaime/code/_s2va/herald`
+### 5. `deploy/main.secrets.json` — Simplify
 
-### 9. `.github/workflows/cds-release.yaml` — Remove deploy manifests, add migrate binary
+Only `postgresAdminPassword` remains. No more GHCR credentials:
+```json
+{
+  "parameters": {
+    "postgresAdminPassword": { "value": "<password>" }
+  }
+}
+```
 
-- Remove the "Stage deploy manifests" step (`cp -r source/deploy/*`)
-- Add a Go build step to compile `migrate` for `windows-amd64` (IL6 deployment machine is Windows)
-- Stage the binary as `staging/migrate.exe`
-- Bundle now contains: `image.tar` + `migrate.exe` (no more `deploy/`)
+### 6. `deploy/README.md` — Significant cleanup
 
-### 10. `README.md` — Update bundle contents and IL6 instructions
+- Remove all GHCR references (parameter table, auth section, deployment commands)
+- Remove `ghcrUsername`/`ghcrPassword` from parameter tables
+- Change `acrName` description from "leave empty for GHCR" to required
+- Add `acrAuthMode` to parameter table
+- Update deployment commands to remove `ghcrPassword` CLI parameter
+- Update secrets template (remove GHCR credentials)
+- Simplify IL6 section (no more GHCR vs ACR distinction)
 
-- Update bundle description (no more deploy manifests)
-- Update extraction instructions to show migrate binary usage
-- Document the DSN and how to run migrations
+### 7. `deploy/il6.md` — Rewrite with updated Bicep details
 
-## New File
+Archive existing il6-*.md content, rewrite il6.md with:
+- Updated parameters template (no GHCR, `acrAuthMode` included)
+- Updated troubleshooting reflecting current state
+- Standalone migration binary workflow
+- Updated API version discovery table
 
-### `deploy/il6-migrate-changes.md`
+### 8. Archive il6-*.md files
 
-Comprehensive document with detailed code blocks capturing all changes needed on the IL6 side:
-- Remove `herald-migrate` App Service (if it was created)
-- Remove migration references from the IL6 Bicep files
-- Update `main.parameters.json` (remove migration-related params if any)
-- Document how to run `migrate.exe` directly with DSN
-- Update deployment steps in any IL6 guides
+Move `il6-triage.md`, `il6-diagnostics.md`, `il6-migrate-changes.md` content to an archive or delete — these are transient operational docs. The user has already been updating IL6 independently and will delete these once finalized.
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `deploy/main.bicep` | Remove GHCR params/vars, make `acrName` required, simplify conditionals |
+| `deploy/modules/appservice.bicep` | Remove GHCR params/vars, simplify docker settings |
+| `deploy/main.parameters.json` | ACR image reference, add `acrName` |
+| `deploy/README.md` | Remove GHCR docs, add `acrAuthMode`, update commands |
+| `deploy/il6.md` | Rewrite with updated infrastructure |
+
+## Files Unchanged
+
+| File | Reason |
+|------|--------|
+| `deploy/modules/app.bicep` | Receives arrays from main.bicep, no GHCR-specific logic |
+| `deploy/modules/appservice-plan.bicep` | No registry concerns |
+| `deploy/modules/roles.bicep` | Already correct — AcrPull only assigned for managed_identity mode |
+| `deploy/modules/*.bicep` (shared) | identity, logging, postgres, storage, cognitive — no registry concerns |
 
 ## Verification
 
-1. `az bicep build -f deploy/main.bicep` — compiles cleanly
-2. Deploy to commercial Azure with both `computeTarget` values — no migration resources created
-3. Build migrate binary locally: `CGO_ENABLED=0 go build -o migrate ./cmd/migrate`
-4. Run `./migrate -version` to verify it works standalone
-5. Verify the release workflow compiles (check YAML syntax)
-
-## Files Summary
-
-**Herald repo — modify:**
-- `Dockerfile`
-- `CHANGELOG.md`
-- `deploy/main.bicep`
-- `deploy/README.md`
-- `deploy/il6.md`
-- `deploy/il6-bicep-updates.md`
-
-**Herald repo — create:**
-- `.github/workflows/migrate-release.yml`
-- `deploy/il6-migrate-changes.md`
-
-**Herald repo — delete:**
-- `deploy/modules/migration-job.bicep`
-- `deploy/modules/appservice-migration.bicep`
-
-**CDS proxy repo — modify:**
-- `.github/workflows/cds-release.yaml`
-- `README.md`
+1. `az bicep build -f deploy/main.bicep` — compiles with no errors/warnings (except BCP422 for listCredentials)
+2. Purge commercial deployment: `az group delete --name HeraldDeploymentGroup --yes`
+3. Create fresh commercial deployment with `heraldgroup`:
+   - Create resource group + ACR
+   - Push image to ACR  
+   - Deploy with `computeTarget=containerapp` (default) and `acrAuthMode=managed_identity` (default)
+4. Verify `/healthz` and `/readyz`
+5. Test `computeTarget=appservice` on commercial
+6. Transfer to IL6 and deploy fresh

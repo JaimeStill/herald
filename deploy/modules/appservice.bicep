@@ -10,17 +10,30 @@ param appServicePlanId string
 @description('User-assigned managed identity resource ID')
 param identityId string
 
-@description('Container image reference (GHCR or ACR)')
+@description('User-assigned managed identity client ID (for ACR pull)')
+param identityClientId string
+
+@description('Container image reference')
 param containerImage string
 
 @description('Application environment variables')
 param envVars array
 
 @description('Use ACR with managed identity pull')
-param useAcr bool
+param useAcrManagedIdentity bool
 
-@description('GHCR Docker registry settings (required when useAcr is false)')
-param ghcrDockerSettings array = []
+@description('Use ACR with admin credentials')
+param useAcrAdmin bool
+
+@description('ACR login server')
+param acrLoginServer string
+
+@description('ACR admin username')
+param acrAdminUsername string = ''
+
+@secure()
+@description('ACR admin password')
+param acrAdminPassword string = ''
 
 @description('Resource tags')
 param tags object = {}
@@ -32,7 +45,23 @@ var websitesPort = [
   }
 ]
 
-var appSettings = concat(envVars, websitesPort, useAcr ? [] : ghcrDockerSettings)
+var acrAdminDockerSettings = [
+  {
+    name: 'DOCKER_REGISTRY_SERVER_URL'
+    value: 'https://${acrLoginServer}'
+  }
+  {
+    name: 'DOCKER_REGISTRY_SERVER_USERNAME'
+    value: acrAdminUsername
+  }
+  {
+    name: 'DOCKER_REGISTRY_SERVER_PASSWORD'
+    value: acrAdminPassword
+  }
+]
+
+var dockerSettings = useAcrAdmin ? acrAdminDockerSettings : []
+var appSettings = concat(envVars, websitesPort, dockerSettings)
 
 resource site 'Microsoft.Web/sites@2024-04-01' = {
   name: name
@@ -53,8 +82,8 @@ resource site 'Microsoft.Web/sites@2024-04-01' = {
       linuxFxVersion: 'DOCKER|${containerImage}'
       healthCheckPath: '/healthz'
       appSettings: appSettings
-      acrUseManagedIdentityCreds: useAcr
-      acrUserManagedIdentityID: useAcr ? identityId : ''
+      acrUseManagedIdentityCreds: useAcrManagedIdentity
+      acrUserManagedIdentityID: useAcrManagedIdentity ? identityClientId : ''
     }
   }
 }

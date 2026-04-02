@@ -81,23 +81,20 @@ param containerCpu string = '2.0'
 @description('Memory for the Container App (ImageMagick workloads need headroom)')
 param containerMemory string = '4Gi'
 
-@description('Minimum replica count')
-param minReplicas int = 1
+@description('Minimum replica count (0 enables scale-to-zero)')
+param minReplicas int = 0
 
 @description('Maximum replica count')
 param maxReplicas int = 3
 
 // --- Registry ---
 
-@description('Pre-existing ACR name in this resource group (leave empty for GHCR)')
-param acrName string = ''
+@description('Pre-existing ACR name in this resource group')
+param acrName string
 
-@description('GitHub username for GHCR authentication (ignored when useAcr is true)')
-param ghcrUsername string = ''
-
-@secure()
-@description('GitHub PAT for GHCR authentication (ignored when useAcr is true)')
-param ghcrPassword string = ''
+@description('ACR authentication mode (managed_identity or acr_admin)')
+@allowed(['managed_identity', 'acr_admin'])
+param acrAuthMode string = 'managed_identity'
 
 // --- Auth ---
 
@@ -188,14 +185,17 @@ module cognitive 'modules/cognitive.bicep' = {
   }
 }
 
-var useAcr = acrName != ''
+var useAcrAdmin = acrAuthMode == 'acr_admin'
+var useAcrManagedIdentity = acrAuthMode == 'managed_identity'
 
-resource acr 'Microsoft.ContainerRegistry/registries@2025-11-01' existing = if (useAcr) {
+resource acr 'Microsoft.ContainerRegistry/registries@2025-11-01' existing = {
   name: acrName
 }
 
-var acrId = acr.?id ?? ''
-var acrLoginServer = acr.?properties.?loginServer ?? ''
+var acrId = acr.id
+var acrLoginServer = acr.properties.loginServer
+var acrAdminUsername = useAcrAdmin ? acr.listCredentials().username : ''
+var acrAdminPassword = useAcrAdmin ? acr.listCredentials().passwords[0].value : ''
 
 module environment 'modules/environment.bicep' = if (isContainerApp) {
   name: '${prefix}-environment'
@@ -227,8 +227,8 @@ module roles 'modules/roles.bicep' = {
     principalId: identity.outputs.principalId
     storageAccountId: storage.outputs.id
     cognitiveAccountId: cognitive.outputs.id
-    assignAcrPull: useAcr
-    acrId: useAcr ? acrId : ''
+    assignAcrPull: useAcrManagedIdentity
+    acrId: acrId
   }
 }
 
@@ -236,47 +236,33 @@ module roles 'modules/roles.bicep' = {
 // Registry Configuration
 // ============================================================================
 
-// GHCR: password-based auth via secrets
-// ACR:  managed identity pull (no passwords)
-var ghcrRegistries = [
+// Container App registry configuration
+var acrManagedIdentityRegistries = [
   {
-    server: 'ghcr.io'
-    username: ghcrUsername
-    passwordSecretRef: 'ghcr-password'
-  }
-]
-
-var acrRegistries = [
-  {
-    server: useAcr ? acrLoginServer : ''
+    server: acrLoginServer
     identity: identity.outputs.id
   }
 ]
 
-var registries = useAcr ? acrRegistries : ghcrRegistries
-
-var ghcrSecrets = [
+var acrAdminRegistries = [
   {
-    name: 'ghcr-password'
-    value: ghcrPassword
+    server: acrLoginServer
+    username: acrAdminUsername
+    passwordSecretRef: 'acr-password'
   }
 ]
 
-// GHCR Docker settings for App Service (injected as app settings)
-var ghcrDockerSettings = [
+var registries = useAcrAdmin ? acrAdminRegistries : acrManagedIdentityRegistries
+
+var acrAdminSecrets = [
   {
-    name: 'DOCKER_REGISTRY_SERVER_URL'
-    value: 'https://ghcr.io'
-  }
-  {
-    name: 'DOCKER_REGISTRY_SERVER_USERNAME'
-    value: ghcrUsername
-  }
-  {
-    name: 'DOCKER_REGISTRY_SERVER_PASSWORD'
-    value: ghcrPassword
+    name: 'acr-password'
+    value: acrAdminPassword
   }
 ]
+
+var containerAppSecrets = useAcrAdmin ? acrAdminSecrets : []
+
 
 // ============================================================================
 // Environment Variables
@@ -328,7 +314,7 @@ module app 'modules/app.bicep' = if (isContainerApp) {
     identityId: identity.outputs.id
     containerImage: containerImage
     registries: registries
-    secrets: useAcr ? [] : ghcrSecrets
+    secrets: containerAppSecrets
     envVars: envVars
     cpu: containerCpu
     memory: containerMemory
@@ -350,10 +336,14 @@ module appService 'modules/appservice.bicep' = if (isAppService) {
     location: location
     appServicePlanId: appServicePlan.?outputs.?id ?? ''
     identityId: identity.outputs.id
+    identityClientId: identity.outputs.clientId
     containerImage: containerImage
     envVars: envVars
-    useAcr: useAcr
-    ghcrDockerSettings: useAcr ? [] : ghcrDockerSettings
+    useAcrManagedIdentity: useAcrManagedIdentity
+    useAcrAdmin: useAcrAdmin
+    acrLoginServer: acrLoginServer
+    acrAdminUsername: acrAdminUsername
+    acrAdminPassword: acrAdminPassword
     tags: tags
   }
 }
@@ -378,5 +368,5 @@ output storageBlobEndpoint string = storage.outputs.blobEndpoint
 @description('Cognitive Services endpoint')
 output cognitiveEndpoint string = cognitive.outputs.endpoint
 
-@description('ACR login server (empty when using GHCR)')
-output acrLoginServer string = useAcr ? acrLoginServer : ''
+@description('ACR login server')
+output acrLoginServer string = acrLoginServer
