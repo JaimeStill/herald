@@ -22,6 +22,12 @@ resource environment 'Microsoft.App/managedEnvironments@2025-07-01' = {
   location: location
   tags: tags
   properties: {
+    workloadProfiles: [
+      {
+        name: 'Consumption'
+        workloadProfileType: 'Consumption'
+      }
+    ]
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {

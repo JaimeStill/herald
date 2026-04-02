@@ -1,0 +1,42 @@
+name: Migrate Release
+
+on:
+  push:
+    tags:
+      - 'migrate-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build migrate binaries
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o dist/migrate-linux-amd64 ./cmd/migrate
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o dist/migrate-windows-amd64.exe ./cmd/migrate
+
+      - name: Create GitHub Release
+        uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          changelog: CHANGELOG.md
+          prefix: migrate-
+
+      - name: Upload release artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.ref_name }} \
+            dist/migrate-linux-amd64 \
+            dist/migrate-windows-amd64.exe

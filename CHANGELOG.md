@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.4.1
+
+### Deployment
+
+- Add `computeTarget` parameter to Bicep infrastructure for selecting between Container Apps (`containerapp`) and App Service for Containers (`appservice`) compute targets
+- Add App Service modules: `appservice-plan.bicep`, `appservice.bicep`
+- Add `Consumption` workload profile to Container App Environment for IL6 compatibility
+- Decouple ACR from Bicep — ACR is now created externally and referenced via `acrName` parameter
+- Rename container app from `{prefix}` to `{prefix}-app`
+- Remove migration infrastructure from container image and Bicep — migrations now use standalone `migrate` binary published as a separate release artifact
+
+### Container
+
+- Remove `migrate` binary from Docker image — image now only contains the `herald` server binary
+- Revert Dockerfile to `ENTRYPOINT ["herald"]`
+
+### CI/CD
+
+- Add `migrate-release.yml` workflow for independent migration binary releases triggered by `migrate-v*` tags
+- Produce `migrate-linux-amd64` and `migrate-windows-amd64.exe` release artifacts
+
+## migrate-v0.1.0
+
+Initial standalone migration binary release. Embeds all SQL migrations from `cmd/migrate/migrations/` (000001 through 000005). Replaces the in-image migration infrastructure from v0.4.0.
+
 ## v0.4.0
 
 ### Authentication

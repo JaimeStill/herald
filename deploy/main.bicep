@@ -61,7 +61,16 @@ param cognitiveDeploymentCapacity int = 1000
 #disable-next-line no-hardcoded-env-urls
 param cognitiveTokenScope string = 'https://cognitiveservices.azure.com/.default'
 
-// --- Container App ---
+// --- Compute Target ---
+
+@description('Compute target: containerapp (Container Apps) or appservice (App Service for Containers)')
+@allowed(['containerapp', 'appservice'])
+param computeTarget string = 'containerapp'
+
+@description('App Service Plan SKU (only used when computeTarget is appservice)')
+param appServiceSkuName string = 'P1v3'
+
+// --- Container ---
 
 @description('Container image reference (e.g., ghcr.io/jaimestill/herald:v0.4.0)')
 param containerImage string
@@ -80,8 +89,8 @@ param maxReplicas int = 3
 
 // --- Registry ---
 
-@description('Use Azure Container Registry instead of GHCR (for IL6 air-gapped environments)')
-param useAcr bool = false
+@description('Pre-existing ACR name in this resource group (leave empty for GHCR)')
+param acrName string = ''
 
 @description('GitHub username for GHCR authentication (ignored when useAcr is true)')
 param ghcrUsername string = ''
@@ -105,12 +114,17 @@ param entraClientId string = ''
 // Modules
 // ============================================================================
 
-// Deployment order: identity → logging → postgres → storage → cognitive
-//                   → registry (conditional) → environment → roles → app / migrationJob
+// Deployment order:
+//   Shared:        identity → logging → postgres → storage → cognitive
+//   containerapp:  → environment → roles → app
+//   appservice:    → appServicePlan → roles → appService
 //
 // Explicit dependsOn chain prevents ARM from parallelizing module deployments,
 // which avoids race conditions where a resource reports "provisioned" before it
 // is fully ready to accept child operations.
+
+var isContainerApp = computeTarget == 'containerapp'
+var isAppService = computeTarget == 'appservice'
 
 module identity 'modules/identity.bicep' = {
   name: '${prefix}-identity'
@@ -174,20 +188,16 @@ module cognitive 'modules/cognitive.bicep' = {
   }
 }
 
-module registry 'modules/registry.bicep' = if (useAcr) {
-  name: '${prefix}-registry'
-  dependsOn: [cognitive]
-  params: {
-    name: replace('${prefix}registry', '-', '')
-    location: location
-    tags: tags
-  }
+var useAcr = acrName != ''
+
+resource acr 'Microsoft.ContainerRegistry/registries@2025-11-01' existing = if (useAcr) {
+  name: acrName
 }
 
-var acrId = registry.?outputs.?id ?? ''
-var acrLoginServer = registry.?outputs.?loginServer ?? ''
+var acrId = acr.?id ?? ''
+var acrLoginServer = acr.?properties.?loginServer ?? ''
 
-module environment 'modules/environment.bicep' = {
+module environment 'modules/environment.bicep' = if (isContainerApp) {
   name: '${prefix}-environment'
   dependsOn: [cognitive]
   params: {
@@ -199,9 +209,20 @@ module environment 'modules/environment.bicep' = {
   }
 }
 
+module appServicePlan 'modules/appservice-plan.bicep' = if (isAppService) {
+  name: '${prefix}-plan'
+  dependsOn: [cognitive]
+  params: {
+    name: '${prefix}-plan'
+    location: location
+    skuName: appServiceSkuName
+    tags: tags
+  }
+}
+
 module roles 'modules/roles.bicep' = {
   name: '${prefix}-roles'
-  dependsOn: [environment]
+  dependsOn: [environment, appServicePlan]
   params: {
     principalId: identity.outputs.principalId
     storageAccountId: storage.outputs.id
@@ -237,6 +258,22 @@ var registries = useAcr ? acrRegistries : ghcrRegistries
 var ghcrSecrets = [
   {
     name: 'ghcr-password'
+    value: ghcrPassword
+  }
+]
+
+// GHCR Docker settings for App Service (injected as app settings)
+var ghcrDockerSettings = [
+  {
+    name: 'DOCKER_REGISTRY_SERVER_URL'
+    value: 'https://ghcr.io'
+  }
+  {
+    name: 'DOCKER_REGISTRY_SERVER_USERNAME'
+    value: ghcrUsername
+  }
+  {
+    name: 'DOCKER_REGISTRY_SERVER_PASSWORD'
     value: ghcrPassword
   }
 ]
@@ -278,16 +315,16 @@ var authEnvVars = authEnabled
 var envVars = concat(baseEnvVars, authEnvVars)
 
 // ============================================================================
-// Container App
+// Container App (when computeTarget == 'containerapp')
 // ============================================================================
 
-module app 'modules/app.bicep' = {
+module app 'modules/app.bicep' = if (isContainerApp) {
   name: '${prefix}-app'
   dependsOn: [roles]
   params: {
-    name: prefix
+    name: '${prefix}-app'
     location: location
-    environmentId: environment.outputs.id
+    environmentId: environment.?outputs.?id ?? ''
     identityId: identity.outputs.id
     containerImage: containerImage
     registries: registries
@@ -302,23 +339,21 @@ module app 'modules/app.bicep' = {
 }
 
 // ============================================================================
-// Migration Job
+// App Service (when computeTarget == 'appservice')
 // ============================================================================
 
-var migrationDsn = 'postgres://${postgresAdminLogin}:${postgresAdminPassword}@${postgres.outputs.fqdn}:5432/${postgres.outputs.databaseName}?sslmode=require'
-
-module migrationJob 'modules/migration-job.bicep' = {
-  name: '${prefix}-migration-job'
-  dependsOn: [app]
+module appService 'modules/appservice.bicep' = if (isAppService) {
+  name: '${prefix}-appservice'
+  dependsOn: [roles]
   params: {
-    name: '${prefix}-migrate'
+    name: '${prefix}-app'
     location: location
-    environmentId: environment.outputs.id
+    appServicePlanId: appServicePlan.?outputs.?id ?? ''
     identityId: identity.outputs.id
     containerImage: containerImage
-    registries: registries
-    registrySecrets: useAcr ? [] : ghcrSecrets
-    databaseDsn: migrationDsn
+    envVars: envVars
+    useAcr: useAcr
+    ghcrDockerSettings: useAcr ? [] : ghcrDockerSettings
     tags: tags
   }
 }
@@ -327,8 +362,12 @@ module migrationJob 'modules/migration-job.bicep' = {
 // Outputs
 // ============================================================================
 
-@description('Container App public URL')
-output appUrl string = 'https://${app.outputs.fqdn}'
+@description('Application public URL')
+var appFqdn = isContainerApp
+  ? (app.?outputs.?fqdn ?? '')
+  : (appService.?outputs.?defaultHostName ?? '')
+
+output appUrl string = 'https://${appFqdn}'
 
 @description('PostgreSQL server FQDN')
 output postgresHost string = postgres.outputs.fqdn

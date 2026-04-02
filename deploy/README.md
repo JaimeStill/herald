@@ -21,11 +21,11 @@ deploy/
     ├── postgres.bicep      # PostgreSQL Flexible Server + database + Entra admin
     ├── storage.bicep       # Storage Account + documents blob container
     ├── cognitive.bicep     # Cognitive Services (OpenAI) + model deployment
-    ├── registry.bicep      # Azure Container Registry (IL6 only)
-    ├── environment.bicep   # Container App Environment
-    ├── app.bicep           # Container App (Herald server)
-    ├── migration-job.bicep # Container Apps Job (database migrations)
-    └── roles.bicep         # Role assignments for managed identity
+    ├── environment.bicep        # Container App Environment (containerapp target)
+    ├── app.bicep                # Container App (containerapp target)
+    ├── appservice-plan.bicep    # App Service Plan (appservice target)
+    ├── appservice.bicep         # Web App for Containers (appservice target)
+    └── roles.bicep              # Role assignments for managed identity
 ```
 
 All modules are orchestrated by `main.bicep`. Resource names follow a `{prefix}-{component}` pattern (e.g., `herald-db`, `herald-identity`).
@@ -35,9 +35,12 @@ All modules are orchestrated by `main.bicep`. Resource names follow a `{prefix}-
 Modules deploy in a serialized chain to avoid ARM race conditions where a resource reports "provisioned" before it is fully ready to accept child operations:
 
 ```
-identity → logging → postgres → storage → cognitive
-  → registry (conditional) → environment → roles → app → migration job
+Shared:        identity → logging → postgres → storage → cognitive
+containerapp:  → environment → roles → app
+appservice:    → app service plan → roles → app service
 ```
+
+The `computeTarget` parameter selects which branch deploys.
 
 ### Managed Identity
 
@@ -56,9 +59,9 @@ Herald uses a **user-assigned managed identity** rather than system-assigned. Th
 - Scale: 1–3 replicas (configurable)
 - Ingress idle timeout: 240s (platform default). Active SSE streams are not affected. For longer idle periods, configure [Premium Ingress](https://learn.microsoft.com/en-us/azure/container-apps/premium-ingress) at the environment level.
 
-### Migration Job
+### Migrations
 
-A Container Apps Job configured for manual trigger. Uses the same container image as the app with `/usr/local/bin/migrate` as the entrypoint and `-up` as the default argument. The database DSN is stored as a Container Apps secret. Migrations are idempotent — safe to run on every deployment. The command can be overridden at execution time for other operations (force version, rollback, etc.).
+Database migrations are run using the standalone `migrate` binary, published as a [GitHub Release](https://github.com/JaimeStill/herald/releases) artifact under `migrate-v*` tags. The binary embeds all SQL migrations and connects directly to PostgreSQL via a DSN. See [Running Migrations](#running-migrations) for usage.
 
 ### PostgreSQL Authentication
 
@@ -99,6 +102,8 @@ Create `deploy/main.secrets.json` from this template:
 | `location` | — | Azure region (e.g., `eastus`) |
 | `prefix` | `herald` | Naming prefix for all resources |
 | `tags` | `{}` | Resource tags applied to all resources |
+| `computeTarget` | `containerapp` | Compute platform: `containerapp` or `appservice` |
+| `appServiceSkuName` | `P1v3` | App Service Plan SKU (only when `computeTarget` is `appservice`) |
 
 **PostgreSQL:**
 
@@ -137,7 +142,7 @@ Create `deploy/main.secrets.json` from this template:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `useAcr` | `false` | Deploy ACR for IL6 (see [IL6 Deployment](#il6-deployment)) |
+| `acrName` | `''` | Pre-existing ACR name in this resource group (see [IL6 Deployment](#il6-deployment)) |
 | `ghcrUsername` | — | GitHub username for GHCR pull |
 | `ghcrPassword` | — | GitHub PAT (**secure**, supply at deploy time) |
 
@@ -235,42 +240,7 @@ Authentication is controlled by `authEnabled`, `tenantId`, and `entraClientId` i
 
 ### 4. Run Migrations
 
-```bash
-az containerapp job start \
-  --name <prefix>-migrate \
-  --resource-group <resource-group>
-```
-
-The command returns an execution name (e.g., `herald-migrate-u49u1qp`). Check the status:
-
-```bash
-az containerapp job execution show \
-  --name <prefix>-migrate \
-  --resource-group <resource-group> \
-  --job-execution-name <execution-name> \
-  --output table
-```
-
-If the status is `Failed`, inspect the logs:
-
-```bash
-az containerapp job logs show \
-  --name <prefix>-migrate \
-  --resource-group <resource-group> \
-  --execution <execution-name> \
-  --container <prefix>-migrate
-```
-
-To run a different migrate command (e.g., force a version after a dirty state), override the command:
-
-```bash
-az containerapp job start \
-  --name <prefix>-migrate \
-  --resource-group <resource-group> \
-  --command "/usr/local/bin/migrate -force <version>"
-```
-
-Available flags: `-up`, `-down`, `-force <version>`, `-steps <n>`, `-version`.
+See [Running Migrations](#running-migrations).
 
 ### 5. Verify
 
@@ -278,7 +248,7 @@ Available flags: `-up`, `-down`, `-force <version>`, `-steps <n>`, `-version`.
 # Get the app URL
 az deployment group show \
   --resource-group <resource-group> \
-  --name <prefix> \
+  --name <prefix>-app \
   --query 'properties.outputs.appUrl.value' \
   --output tsv
 
@@ -296,6 +266,41 @@ If authentication is enabled, add the Container App's auto-generated FQDN to the
 3. Add `https://<app-fqdn>/app/` as a SPA redirect URI
 
 Multiple redirect URIs are supported — the same app registration can serve local development, staging, and production.
+
+## App Service Deployment
+
+To deploy using App Service for Containers instead of Container Apps, set `computeTarget` to `appservice` in the parameters file or via the CLI:
+
+```bash
+az deployment group create \
+  --resource-group <resource-group> \
+  --template-file deploy/main.bicep \
+  --parameters deploy/main.parameters.json \
+  --parameters deploy/main.secrets.json \
+  --parameters \
+    ghcrPassword="$(gh auth token)" \
+    computeTarget='appservice'
+```
+
+### Diagnostics
+
+**Check App Service status:**
+
+```bash
+az webapp show \
+  --name <prefix>-app \
+  --resource-group <resource-group> \
+  --query "{state: state, defaultHostName: defaultHostName}" \
+  --output json
+```
+
+**View app logs:**
+
+```bash
+az webapp log tail \
+  --name <prefix>-app \
+  --resource-group <resource-group>
+```
 
 ## Azure Government
 
@@ -323,17 +328,23 @@ A proxy repo on GitHub Enterprise handles cross-domain transfers. On each tag pu
 
 ### IL6 Side
 
-Extract the CDS bundle and import the image to ACR:
+Extract the CDS bundle, create ACR, and push the image before deploying:
 
 ```bash
 tar xzf herald-<tag>.tar.gz
+
+# Create resource group and ACR
+az group create --name <resource-group> --location <gov-region>
+az acr create --resource-group <resource-group> --name <acr-name> --sku Basic --admin-enabled false
+
+# Load and push image
 az acr login -n <acr-name>
 docker load -i image.tar
 docker tag ghcr.io/jaimestill/herald:<tag> <acr-name>.azurecr.us/herald:<tag>
 docker push <acr-name>.azurecr.us/herald:<tag>
 ```
 
-Deploy with `useAcr=true` and Azure Government token scope overrides:
+Deploy with the `acrName` parameter and Azure Government token scope overrides:
 
 ```bash
 az deployment group create \
@@ -342,18 +353,62 @@ az deployment group create \
   --parameters deploy/main.parameters.json \
   --parameters deploy/main.secrets.json \
   --parameters \
-    useAcr=true \
+    acrName='<acr-name>' \
     containerImage='<acr-name>.azurecr.us/herald:<tag>' \
     postgresTokenScope='https://ossrdbms-aad.database.usgovcloudapi.net/.default' \
     cognitiveTokenScope='https://cognitiveservices.usgovcloudapi.net/.default'
 ```
 
-When `useAcr=true`:
-- `registry.bicep` deploys an ACR in Herald's resource group
+When `acrName` is provided:
+- The Bicep template references the pre-existing ACR for registry configuration
 - AcrPull role is assigned to the managed identity
 - Container App pulls via managed identity (no registry passwords)
 
-Then run migrations and verify as in the commercial flow.
+Then run migrations (see [Running Migrations](#running-migrations)) and verify as in the commercial flow.
+
+For a detailed IL6 preparation guide, see [deploy/il6.md](il6.md).
+
+## Running Migrations
+
+Migrations use the standalone `migrate` binary, published as a GitHub Release artifact under `migrate-v*` tags. The binary embeds all SQL migrations and connects directly to PostgreSQL via a DSN.
+
+### Prerequisites
+
+The deployment machine must have network access to the PostgreSQL server. Add a temporary firewall rule:
+
+```bash
+MY_IP=$(curl -s ifconfig.me)
+az postgres flexible-server firewall-rule create \
+  --resource-group <resource-group> \
+  --name <prefix>-db \
+  --rule-name MigrateAccess \
+  --start-ip-address $MY_IP \
+  --end-ip-address $MY_IP
+```
+
+### Run Migrations
+
+Construct the DSN and run:
+
+```bash
+./migrate -dsn 'postgres://<admin-login>:<admin-password>@<prefix>-db.postgres.database.azure.com:5432/herald?sslmode=require' -up
+```
+
+Available flags: `-up`, `-down`, `-force <version>`, `-steps <n>`, `-version`.
+
+On Windows (IL6), use `migrate.exe` instead of `./migrate`.
+
+### Cleanup
+
+Remove the firewall rule after migrations complete:
+
+```bash
+az postgres flexible-server firewall-rule delete \
+  --resource-group <resource-group> \
+  --name <prefix>-db \
+  --rule-name MigrateAccess \
+  --yes
+```
 
 ## Operations
 
@@ -372,7 +427,7 @@ az deployment group create \
     containerImage='ghcr.io/jaimestill/herald:<new-tag>'
 ```
 
-If the new image includes schema changes, run the migration job after the deployment completes.
+If the new image includes schema changes, run migrations after the deployment completes (see [Running Migrations](#running-migrations)).
 
 > **Note:** Container Apps compares the image digest, not just the tag. Redeploying with the same tag but a different image SHA will trigger a new revision.
 
@@ -399,7 +454,7 @@ az cognitiveservices account purge \
 
 ```bash
 az containerapp show \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --query "{state: properties.runningStatus, fqdn: properties.configuration.ingress.fqdn}" \
   --output json
@@ -409,7 +464,7 @@ az containerapp show \
 
 ```bash
 az containerapp logs show \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --tail 50
 ```
@@ -418,7 +473,7 @@ az containerapp logs show \
 
 ```bash
 az containerapp logs show \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --follow
 ```
@@ -427,7 +482,7 @@ az containerapp logs show \
 
 ```bash
 az containerapp show \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --query "properties.template.containers[0].env" \
   --output json
@@ -437,40 +492,9 @@ az containerapp show \
 
 ```bash
 az containerapp revision list \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --output table
-```
-
-### Migration Job
-
-**List all executions:**
-
-```bash
-az containerapp job execution list \
-  --name <prefix>-migrate \
-  --resource-group <resource-group> \
-  --output table
-```
-
-**Check execution status:**
-
-```bash
-az containerapp job execution show \
-  --name <prefix>-migrate \
-  --resource-group <resource-group> \
-  --job-execution-name <execution-name> \
-  --output table
-```
-
-**View execution logs:**
-
-```bash
-az containerapp job logs show \
-  --name <prefix>-migrate \
-  --resource-group <resource-group> \
-  --execution <execution-name> \
-  --container <prefix>-migrate
 ```
 
 ### PostgreSQL
@@ -583,28 +607,20 @@ PostgreSQL Burstable tier and Cognitive Services model quotas vary by subscripti
 
 ### Dirty Migration State
 
-**Symptom:** Migration job fails with `dirty database version N`
+**Symptom:** Migration fails with `dirty database version N`
 
-A previously failed migration leaves `schema_migrations` in a dirty state. Connect via psql (see [Diagnostics > PostgreSQL](#postgresql)) and reset:
-
-```sql
--- Check current state
-SELECT * FROM schema_migrations;
-
--- Reset dirty flag
-UPDATE schema_migrations SET dirty = false WHERE version = <N>;
-```
-
-Then re-run the migration job. Alternatively, use the force command:
+A previously failed migration leaves `schema_migrations` in a dirty state. Force the version to recover:
 
 ```bash
-az containerapp job start \
-  --name <prefix>-migrate \
-  --resource-group <resource-group> \
-  --command "/usr/local/bin/migrate -force <N>"
+./migrate -dsn '<dsn>' -force <N>
 ```
 
-If the schema is in an inconsistent state, you may need to manually fix it or drop `schema_migrations` and re-run all migrations from scratch.
+Then re-run `./migrate -dsn '<dsn>' -up`. Alternatively, connect via psql and reset manually:
+
+```sql
+SELECT * FROM schema_migrations;
+UPDATE schema_migrations SET dirty = false WHERE version = <N>;
+```
 
 ### Rollback
 
@@ -613,19 +629,19 @@ Container Apps maintains a revision history. To roll back to a previous revision
 ```bash
 # List revisions
 az containerapp revision list \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --output table
 
 # Activate a previous revision
 az containerapp revision activate \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --revision <revision-name>
 
 # Route all traffic to the previous revision
 az containerapp ingress traffic set \
-  --name <prefix> \
+  --name <prefix>-app \
   --resource-group <resource-group> \
   --revision-weight <revision-name>=100
 ```

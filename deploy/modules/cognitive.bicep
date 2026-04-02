@@ -34,7 +34,7 @@ param deploymentSkuCapacity int = 1000
 @description('Resource tags')
 param tags object = {}
 
-resource account 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
+resource account 'Microsoft.CognitiveServices/accounts@2025-09-01' = {
   name: name
   location: location
   tags: tags
@@ -48,7 +48,7 @@ resource account 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   }
 }
 
-resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = {
+resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-09-01' = {
   parent: account
   name: deploymentName
   sku: {
