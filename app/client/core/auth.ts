@@ -62,11 +62,14 @@ export const Auth = {
     config = readConfig();
     if (!config) return;
 
+    const authorityHost = new URL(config.authority).hostname;
+
     const msalConfig: Configuration = {
       auth: {
         clientId: config.client_id,
         authority: config.authority,
         redirectUri: config.redirect_uri,
+        knownAuthorities: [authorityHost],
       },
       cache: {
         cacheLocation: config.cache_location ?? "localStorage",
