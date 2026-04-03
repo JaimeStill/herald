@@ -78,6 +78,24 @@ Verify:
    az acr show --name <acr-name> --query "adminUserEnabled" --output tsv
    ```
 
+### TLS Certificate Errors on IL6
+
+**Symptom:** `tls: failed to verify certificate: x509: certificate signed by unknown authority`
+
+IL6 uses DISA CA certificates not in the default Alpine CA bundle. The container cannot verify TLS connections to Entra endpoints (OIDC discovery, PostgreSQL token acquisition) without the root CA.
+
+1. Upload the DISA root CA `.cer` to App Service → Settings → Certificates → Public key certificates
+2. Verify these app settings are present (set by Bicep automatically):
+   - `WEBSITE_LOAD_CERTIFICATES` = `*`
+   - `SSL_CERT_DIR` = `/var/ssl/certs`
+3. Restart the App Service
+
+### PostgreSQL Token Audience Mismatch
+
+**Symptom:** `The access token doesn't have a valid audience claim. Acquire a new token for resource "https://ossrdbms-aad.database.<domain>/"`
+
+The PostgreSQL token scope requires a **trailing slash** on the resource URL before `/.default`. The scope should be `https://ossrdbms-aad.database.<il6-domain-root>//.default` (note the `//`). Without the trailing slash, the token audience doesn't match what PostgreSQL expects.
+
 ## Migrations
 
 ### Dirty Migration State

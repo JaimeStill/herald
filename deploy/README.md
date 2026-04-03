@@ -151,6 +151,7 @@ Create `deploy/main.secrets.json`:
 | `authEnabled` | `false` | Enable Entra authentication |
 | `tenantId` | — | Entra tenant ID (required when `authEnabled=true`) |
 | `entraClientId` | — | Entra app registration client ID (required when `authEnabled=true`) |
+| `authAuthority` | — | Entra authority base URL (override for non-commercial clouds) |
 
 ### Entra Configuration
 
@@ -430,3 +431,4 @@ All `HERALD_*` environment variables injected into the compute target are compos
 | `AZURE_CLIENT_ID` | `identity.outputs.clientId` | Yes |
 | `HERALD_AUTH_TENANT_ID` | `tenantId` param | Auth only |
 | `HERALD_AUTH_CLIENT_ID` | `entraClientId` param | Auth only |
+| `HERALD_AUTH_AUTHORITY` | `authAuthority` param | When set |

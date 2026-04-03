@@ -38,10 +38,18 @@ param acrAdminPassword string = ''
 @description('Resource tags')
 param tags object = {}
 
-var websitesPort = [
+var platformSettings = [
   {
     name: 'WEBSITES_PORT'
     value: '8080'
+  }
+  {
+    name: 'WEBSITE_LOAD_CERTIFICATES'
+    value: '*'
+  }
+  {
+    name: 'SSL_CERT_DIR'
+    value: '/var/ssl/certs'
   }
 ]
 
@@ -61,7 +69,7 @@ var acrAdminDockerSettings = [
 ]
 
 var dockerSettings = useAcrAdmin ? acrAdminDockerSettings : []
-var appSettings = concat(envVars, websitesPort, dockerSettings)
+var appSettings = concat(envVars, platformSettings, dockerSettings)
 
 resource site 'Microsoft.Web/sites@2024-04-01' = {
   name: name

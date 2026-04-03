@@ -43,8 +43,10 @@ az account get-access-token `
 
 | Parameter | Commercial Default | IL6 Override |
 |-----------|-------------------|--------------|
-| `postgresTokenScope` | `https://ossrdbms-aad.database.windows.net/.default` | `https://ossrdbms-aad.database.<il6-domain-root>/.default` |
+| `postgresTokenScope` | `https://ossrdbms-aad.database.windows.net/.default` | `https://ossrdbms-aad.database.<il6-domain-root>//.default` |
 | `cognitiveTokenScope` | `https://cognitiveservices.azure.com/.default` | `https://cognitiveservices.azure.<il6-domain-root>/.default` |
+
+> **Important:** The PostgreSQL token scope requires a **trailing slash** on the resource URL before `/.default` (resulting in `//`). Without it, the token audience doesn't match what PostgreSQL expects. Cognitive Services does not require the trailing slash.
 
 > **Note:** The PostgreSQL scope uses `ossrdbms-aad.database.<root>` while Cognitive Services uses `cognitiveservices.azure.<root>` — the patterns differ.
 
@@ -233,7 +235,7 @@ Create `deploy\main.parameters.json` with IL6-specific values:
       "value": "<strong-password>"
     },
     "postgresTokenScope": {
-      "value": "https://ossrdbms-aad.database.<il6-domain-root>/.default"
+      "value": "https://ossrdbms-aad.database.<il6-domain-root>//.default"
     },
     "cognitiveCustomDomain": {
       "value": "<unique-subdomain>"
@@ -264,6 +266,9 @@ Create `deploy\main.parameters.json` with IL6-specific values:
     },
     "entraClientId": {
       "value": "<client-id>"
+    },
+    "authAuthority": {
+      "value": "https://login.microsoftonline.<il6-domain-root>"
     }
   }
 }
@@ -303,7 +308,17 @@ az postgres flexible-server firewall-rule delete `
   --yes
 ```
 
-### 7. Verify
+### 7. Upload TLS Certificate
+
+IL6 uses DISA CA certificates not included in the default Alpine CA bundle. Upload the root CA certificate to enable TLS connections to Entra endpoints (OIDC discovery, token acquisition):
+
+1. In Azure Portal → App Service (`herald-app`) → Settings → Certificates
+2. Public key certificates (.cer) → Add certificate
+3. Upload the DISA root CA `.cer` file
+
+The Bicep template automatically sets `WEBSITE_LOAD_CERTIFICATES=*` and `SSL_CERT_DIR=/var/ssl/certs` to make the certificate available to the container.
+
+### 8. Verify
 
 ```powershell
 $appFqdn = az containerapp show `
@@ -329,7 +344,7 @@ Invoke-RestMethod -Uri "https://$appFqdn/healthz"
 Invoke-RestMethod -Uri "https://$appFqdn/readyz"
 ```
 
-### 8. Post-Deploy: Entra Redirect URI
+### 9. Post-Deploy: Entra Redirect URI
 
 1. In Azure Portal → App registrations → `herald` → Authentication
 2. Add platform → **Single-page application**
