@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.2
+
+### Authentication
+
+- Fix Azure Government auth by composing authority URL from base + tenant ID — `HERALD_AUTH_AUTHORITY` now accepts the base URL (e.g., `https://login.microsoftonline.us`) and derives the full OIDC authority
+- Add `knownAuthorities` to MSAL config to prevent instance discovery against commercial endpoints
+- Add `authAuthority` Bicep parameter for injecting `HERALD_AUTH_AUTHORITY` on non-commercial clouds
+
 ## v0.4.1
 
 ### Deployment

@@ -30,8 +30,8 @@ const (
 	// ModeAzure enables Azure identity credentials via the azidentity SDK.
 	ModeAzure Mode = "azure"
 
-	// DefaultAuthorityBase is the commercial Azure AD authority URL prefix.
-	DefaultAuthorityBase = "https://login.microsoftonline.com/"
+	// DefaultAuthorityBase is the commercial Azure AD authority URL.
+	DefaultAuthorityBase = "https://login.microsoftonline.com"
 	// DefaultAuthorityPath is the OIDC v2.0 endpoint suffix.
 	DefaultAuthorityPath = "/v2.0"
 )
@@ -192,8 +192,12 @@ func (c *Config) loadEnv(env *Env) {
 }
 
 func (c *Config) deriveDefaults() {
-	if c.Authority == "" && c.TenantID != "" {
-		c.Authority = DefaultAuthorityBase + c.TenantID + DefaultAuthorityPath
+	if c.TenantID != "" {
+		base := DefaultAuthorityBase
+		if c.Authority != "" {
+			base = c.Authority
+		}
+		c.Authority = base + "/" + c.TenantID + DefaultAuthorityPath
 	}
 	if c.Scope == "" {
 		c.Scope = "access_as_user"

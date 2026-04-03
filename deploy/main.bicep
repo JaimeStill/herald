@@ -107,6 +107,9 @@ param tenantId string = ''
 @description('Entra app registration client ID (required when authEnabled is true)')
 param entraClientId string = ''
 
+@description('Entra authority base URL (override for Azure Government, e.g., https://login.microsoftonline.us)')
+param authAuthority string = ''
+
 // ============================================================================
 // Modules
 // ============================================================================
@@ -298,7 +301,13 @@ var authEnvVars = authEnabled
     ]
   : []
 
-var envVars = concat(baseEnvVars, authEnvVars)
+var authorityEnvVars = authAuthority != ''
+  ? [
+      { name: 'HERALD_AUTH_AUTHORITY', value: authAuthority }
+    ]
+  : []
+
+var envVars = concat(baseEnvVars, authEnvVars, authorityEnvVars)
 
 // ============================================================================
 // Container App (when computeTarget == 'containerapp')
