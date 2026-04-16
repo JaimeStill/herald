@@ -17,11 +17,11 @@
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Skill(api-cartographer)",
-      "Skill(tau:dev-workflow)",
-      "Skill(tau:github-cli)",
-      "Skill(tau:go-patterns)",
-      "Skill(tau:project-management)",
-      "Skill(tau:skill-creator)",
+      "Skill(dev-workflow:dev-workflow)",
+      "Skill(github-cli:github-cli)",
+      "Skill(go-patterns:go-patterns)",
+      "Skill(project-management:project-management)",
+      "Skill(skill-creator:skill-creator)",
       "WebSearch"
     ],
     "deny": ["Read(secrets.json)"]
