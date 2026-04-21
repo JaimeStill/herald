@@ -7,6 +7,7 @@ import type { Prompt } from "@domains/prompts";
 import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
 import labelStyles from "@styles/labels.module.css";
+import scrollStyles from "@styles/scroll.module.css";
 import styles from "./prompt-form.module.css";
 
 /**
@@ -17,7 +18,13 @@ import styles from "./prompt-form.module.css";
  */
 @customElement("hd-prompt-form")
 export class PromptForm extends LitElement {
-  static styles = [buttonStyles, inputStyles, labelStyles, styles];
+  static styles = [
+    buttonStyles,
+    inputStyles,
+    labelStyles,
+    scrollStyles,
+    styles,
+  ];
 
   @property({ type: Object }) prompt: Prompt | null = null;
 
@@ -112,7 +119,7 @@ export class PromptForm extends LitElement {
     return html`
       <details class="defaults">
         <summary>Default Prompt</summary>
-        <div class="defaults-content">
+        <div class="defaults-content scroll-y">
           ${this.spec
             ? html`
                 <h4>Specification</h4>
@@ -147,7 +154,7 @@ export class PromptForm extends LitElement {
         complete prompt. Override the default instructions below to customize
         behavior.
       </div>
-      <form class="form-body" @submit=${this.handleSubmit}>
+      <form class="form-body scroll-y" @submit=${this.handleSubmit}>
         <div class="field">
           <label class="label" for="name">Name</label>
           <input

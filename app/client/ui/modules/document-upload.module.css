@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
 }
 
 .drop-zone {
@@ -14,6 +16,7 @@
   border: 2px dashed var(--divider);
   border-radius: var(--radius-md);
   cursor: pointer;
+  flex-shrink: 0;
   transition:
     border-color 0.15s,
     background 0.15s;
@@ -47,6 +50,8 @@
   border-radius: var(--radius-md);
   padding: var(--space-3);
   background: var(--bg-1);
+  flex: 1;
+  min-height: 0;
 }
 
 .queue-header {
@@ -55,6 +60,15 @@
   align-items: center;
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--divider);
+  flex-shrink: 0;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  min-height: 0;
 }
 
 .queue-title {

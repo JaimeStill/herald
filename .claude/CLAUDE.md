@@ -88,6 +88,15 @@ All version references across the project (ARM parameter files, config defaults,
 - **Parameters**: More than two → use a struct.
 - **Interfaces**: Define where consumed, not where implemented. Keep minimal.
 
+## Web Client Conventions
+
+See `.claude/skills/web-development/` for full conventions. Key points that are easy to miss:
+
+- **Cascade layers**: `tokens, reset, base, theme, app`. The `base` layer (`design/core/base.css`) holds cross-cutting primitives like the universal `scrollbar-gutter: stable` rule.
+- **Scroll containers**: Never declare `overflow-y: auto` (or `overflow-x: auto`) directly in a component's CSS. Import `@styles/scroll.module.css` and apply `.scroll-y` / `.scroll-x` in the template. The utility bundles `overflow`, `scrollbar-gutter: stable`, and axis padding — layout still lives in the component's own CSS (`flex: 1; min-height: 0;`, `max-height: ...`, etc.).
+- **Flex sizing for scroll**: A scroll container still needs `flex: 1; min-height: 0;` from its parent flex column; the utility does not fix missing flex constraints.
+- **Shared styles**: `@styles/*` for reusable modules (`badge`, `buttons`, `cards`, `inputs`, `labels`, `scroll`). Component `*.module.css` provides layout-specific overrides.
+
 ## Gotchas
 
 - **Middleware order**: First-registered middleware runs outermost (CORS before Logger)

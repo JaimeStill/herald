@@ -7,6 +7,7 @@ import type { UploadEntry } from "@domains/documents";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
+import scrollStyles from "@styles/scroll.module.css";
 import styles from "./document-upload.module.css";
 
 /**
@@ -17,7 +18,7 @@ import styles from "./document-upload.module.css";
  */
 @customElement("hd-document-upload")
 export class DocumentUpload extends LitElement {
-  static styles = [buttonStyles, badgeStyles, styles];
+  static styles = [buttonStyles, badgeStyles, scrollStyles, styles];
 
   @state() private queue: UploadEntry[] = [];
   @state() private uploading = false;
@@ -267,7 +268,9 @@ export class DocumentUpload extends LitElement {
           </span>
           ${this.renderQueueActions()}
         </div>
-        ${this.queue.map((entry, i) => this.renderQueueEntry(entry, i))}
+        <div class="queue-list scroll-y">
+          ${this.queue.map((entry, i) => this.renderQueueEntry(entry, i))}
+        </div>
       </div>
     `;
   }

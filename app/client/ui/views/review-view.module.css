@@ -21,7 +21,6 @@
   padding: var(--space-4);
   border: 1px solid var(--divider);
   border-radius: var(--radius-md);
-  overflow-y: auto;
 }
 
 .loading,

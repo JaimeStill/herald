@@ -2,20 +2,27 @@
 
 ## Cascade Layers
 
-Herald uses four layers with explicit precedence. Tokens are lowest priority (easily overridden), app is highest.
+Herald uses five layers with explicit precedence. Tokens are lowest priority (easily overridden), app is highest.
 
 ```css
 /* design/index.css */
-@layer tokens, reset, theme, app;
+@layer tokens, reset, base, theme, app;
 
 @import url(./core/tokens.css);
 @import url(./core/reset.css);
+@import url(./core/base.css);
 @import url(./core/theme.css);
 
 @import url(./app/app.css);
 ```
 
 `app.css` is in the `app` layer (highest priority) and handles the application shell layout.
+
+### The `base` layer
+
+`design/core/base.css` holds cross-cutting primitives that aren't resets but need to apply broadly — currently a universal `scrollbar-gutter: stable` rule. Because `scrollbar-gutter` is a no-op on elements whose `overflow` is not `auto`/`scroll`/`hidden`, a `*` selector is safe and ensures every scroll container in the light DOM reserves scrollbar space consistently (no layout shift when content crosses the scroll threshold).
+
+Light-DOM rules don't pierce shadow DOM, so components get the same guarantee through `scroll.module.css` (see Shared Component Styles below).
 
 ## Design Tokens
 
@@ -97,6 +104,7 @@ Reusable CSS modules in `app/client/design/styles/` imported via `@styles/*`. Co
 | `cards.module.css` | `.card` | Flex column container with gap, padding, border, radius, transition |
 | `inputs.module.css` | `.input` | Text inputs, selects, and textareas with focus/disabled states |
 | `labels.module.css` | `.label` | Uppercase monospace section labels (form field labels, section headers) |
+| `scroll.module.css` | `.scroll-y`, `.scroll-x` | Scroll container utilities — bundle `overflow-*: auto`, `scrollbar-gutter: stable`, and padding on the scroll axis so the scrollbar has breathing room from content |
 
 Usage pattern:
 
@@ -149,19 +157,46 @@ body {
 }
 ```
 
-View pattern for scrollable content — the critical pieces are `flex: 1`, `min-height: 0`, and `overflow-y: auto` on the scrollable child:
+### Scroll containers use the `.scroll-y` / `.scroll-x` utility
+
+Never declare `overflow-y: auto` (or `overflow-x: auto`) directly on a scroll container. Import `scroll.module.css` and apply `.scroll-y` in the template instead. The utility bundles three concerns that belong together:
+
+- `overflow-*: auto` — the scroll behavior.
+- `scrollbar-gutter: stable` — reserves the scrollbar track so content doesn't shift horizontally when the scrollbar appears/disappears.
+- `padding-*` on the scroll axis — keeps the scrollbar visually separated from content.
+
+Component CSS still owns the layout (`flex: 1; min-height: 0;`, `max-height: ...`, grid layout, etc.). The utility only provides scroll behavior, which keeps the component rule focused on layout intent and the utility focused on scroll ergonomics.
+
+**Component CSS** — layout only, no `overflow`:
 
 ```css
 :host {
   display: flex;
   flex-direction: column;
-}
-
-.scrollable {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  /* no overflow-y — .scroll-y provides it */
 }
 ```
 
-Without `min-height: 0` on flex children, content overflows instead of scrolling. This is the most common CSS bug in the application.
+**Component TypeScript** — import the shared module and attach the class:
+
+```ts
+import scrollStyles from "@styles/scroll.module.css";
+import styles from "./my-list.module.css";
+
+static styles = [scrollStyles, styles];
+
+render() {
+  return html`<div class="list scroll-y">...</div>`;
+}
+```
+
+Use `.scroll-x` for horizontal scroll containers; the two utilities don't compose on the same element (a container should scroll on one axis).
+
+Without `min-height: 0` on flex children, content overflows instead of scrolling even with `.scroll-y` applied. This is still the most common CSS bug in the application — the utility doesn't obviate the flex-sizing requirement.
