@@ -29,6 +29,7 @@ export class DocumentGrid extends LitElement {
 
   @state() private documents: PageResult<Document> | null = null;
   @state() private page = 1;
+  @state() private pageSize = 12;
   @state() private search = "";
   @state() private status = "";
   @state() private sort = "-UploadedAt";
@@ -60,7 +61,7 @@ export class DocumentGrid extends LitElement {
   private async fetchDocuments() {
     const req: SearchRequest = {
       page: this.page,
-      page_size: 12,
+      page_size: this.pageSize,
       sort: this.sort,
     };
 
@@ -95,6 +96,12 @@ export class DocumentGrid extends LitElement {
 
   private handlePageChange(e: CustomEvent<{ page: number }>) {
     this.page = e.detail.page;
+    this.fetchDocuments();
+  }
+
+  private handlePageSizeChange(e: CustomEvent<{ size: number }>) {
+    this.pageSize = e.detail.size;
+    this.page = 1;
     this.fetchDocuments();
   }
 
@@ -289,7 +296,9 @@ export class DocumentGrid extends LitElement {
       <hd-pagination
         .page=${this.documents?.page ?? 1}
         .totalPages=${this.documents?.total_pages ?? 1}
+        .size=${this.pageSize}
         @page-change=${this.handlePageChange}
+        @page-size-change=${this.handlePageSizeChange}
       ></hd-pagination>
       ${this.deleteDocument
         ? html`

@@ -5,13 +5,39 @@
 .pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: var(--space-3);
   padding-top: var(--space-3);
   border-top: 1px solid var(--divider);
 }
 
-.page-indicator {
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.page-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.label {
   font-size: var(--text-sm);
   color: var(--color-1);
+}
+
+.page-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-1);
+}
+
+.page-input {
+  width: auto;
+  padding: var(--space-2) var(--space-1);
+  text-align: center;
 }
