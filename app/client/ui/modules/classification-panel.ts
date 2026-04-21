@@ -10,6 +10,7 @@ import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
 import labelStyles from "@styles/labels.module.css";
+import scrollStyles from "@styles/scroll.module.css";
 import styles from "./classification-panel.module.css";
 
 type PanelMode = "view" | "validate" | "update";
@@ -22,7 +23,14 @@ type PanelMode = "view" | "validate" | "update";
  */
 @customElement("hd-classification-panel")
 export class ClassificationPanel extends LitElement {
-  static styles = [badgeStyles, buttonStyles, inputStyles, labelStyles, styles];
+  static styles = [
+    badgeStyles,
+    buttonStyles,
+    inputStyles,
+    labelStyles,
+    scrollStyles,
+    styles,
+  ];
 
   @property() documentId = "";
 
@@ -162,7 +170,7 @@ export class ClassificationPanel extends LitElement {
     const c = this.classification!;
 
     return html`
-      <div class="panel-body">
+      <div class="panel-body scroll-y">
         <div class="section">
           <span class="label">Classification</span>
           <div class="classification-value">
@@ -212,7 +220,7 @@ export class ClassificationPanel extends LitElement {
 
   private renderValidateMode() {
     return html`
-      <form class="panel-body" @submit=${this.handleValidate}>
+      <form class="panel-body scroll-y" @submit=${this.handleValidate}>
         <p>Confirm that the classification is correct.</p>
 
         <div class="field">
@@ -254,7 +262,7 @@ export class ClassificationPanel extends LitElement {
     const c = this.classification!;
 
     return html`
-      <form class="panel-body" @submit=${this.handleUpdate}>
+      <form class="panel-body scroll-y" @submit=${this.handleUpdate}>
         <p>Manually update the classification result.</p>
 
         <div class="field">

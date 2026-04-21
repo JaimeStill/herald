@@ -8,12 +8,13 @@ import { DocumentService } from "@domains/documents";
 import { StorageService } from "@domains/storage";
 
 import buttonStyles from "@styles/buttons.module.css";
+import scrollStyles from "@styles/scroll.module.css";
 import styles from "./review-view.module.css";
 
 /** Route-level view for reviewing a document's classification result. */
 @customElement("hd-review-view")
 export class ReviewView extends LitElement {
-  static styles = [buttonStyles, styles];
+  static styles = [buttonStyles, scrollStyles, styles];
 
   @property() documentId?: string;
   @state() private document?: Document;
@@ -96,7 +97,7 @@ export class ReviewView extends LitElement {
           .src=${this.blobUrl}
         ></hd-blob-viewer>
       </div>
-      <div class="panel classification-panel">
+      <div class="panel classification-panel scroll-y">
         <hd-classification-panel
           .documentId=${this.documentId ?? ""}
           @validate=${this.handleClassificationChange}

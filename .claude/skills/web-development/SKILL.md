@@ -69,7 +69,7 @@ Stateless API wrappers that mirror Go domain handlers. Each domain has a PascalC
 
 ### CSS — [references/css.md](references/css.md)
 
-Four cascade layers (`tokens, reset, theme, app`), design tokens as CSS custom properties using `light-dark()` (penetrate shadow DOM naturally), component styles via `*.module.css` → `CSSStyleSheet`, shared styles via `@styles/*` alias, global CSS via side-effect import, and app-shell scroll architecture (body never scrolls, views own scroll regions).
+Five cascade layers (`tokens, reset, base, theme, app`), design tokens as CSS custom properties using `light-dark()` (penetrate shadow DOM naturally), component styles via `*.module.css` → `CSSStyleSheet`, shared styles via `@styles/*` alias (including `.scroll-y` / `.scroll-x` utilities — the default for every scroll container), global CSS via side-effect import, and app-shell scroll architecture (body never scrolls, views own scroll regions).
 
 ### API — [references/api.md](references/api.md)
 
@@ -237,6 +237,7 @@ declare global {
 - Pure elements importing stateful infrastructure — services, context, or router utilities. Elements can import immutable domain infrastructure (types, constants, formatters) but never anything that holds or mutates state.
 - Using `height: 100%` in flex containers — use `flex: 1` with `min-height: 0`
 - Forgetting `min-height: 0` on flex children that need scroll boundaries
+- Declaring `overflow-y: auto` (or `overflow-x: auto`) directly in a component's CSS — use the `.scroll-y` / `.scroll-x` utility from `@styles/scroll.module.css` so the scrollbar gutter and spacing stay consistent across the app
 - Using inline `style` attributes — use CSS classes and custom properties
 - Accessing `this.id` or `this.title` on components — conflicts with `HTMLElement` built-ins
 - Importing `*.module.css` with `?inline` suffix — Herald uses the naming convention, not query params
@@ -256,3 +257,4 @@ declare global {
 - Domain types and constants in pure elements — immutable domain knowledge is fine, stateful behavior is not
 - Monospace font (`--font-mono`) on interactive elements (buttons, inputs, selects)
 - `light-dark()` for color tokens instead of duplicated `@media (prefers-color-scheme)` blocks
+- `.scroll-y` / `.scroll-x` from `@styles/scroll.module.css` as the default for every scroll container — layout lives in the component CSS (`flex: 1; min-height: 0;`), scroll behavior lives in the utility

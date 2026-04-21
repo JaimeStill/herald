@@ -7,6 +7,7 @@ import type { Prompt, SearchRequest } from "@domains/prompts";
 
 import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
+import scrollStyles from "@styles/scroll.module.css";
 import styles from "./prompt-list.module.css";
 
 /**
@@ -16,7 +17,7 @@ import styles from "./prompt-list.module.css";
  */
 @customElement("hd-prompt-list")
 export class PromptList extends LitElement {
-  static styles = [buttonStyles, inputStyles, styles];
+  static styles = [buttonStyles, inputStyles, scrollStyles, styles];
 
   @property({ type: Object }) selected: Prompt | null = null;
 
@@ -193,7 +194,7 @@ export class PromptList extends LitElement {
     }
 
     return html`
-      <div class="list">
+      <div class="list scroll-y">
         ${this.prompts.data.map(
           (prompt) => html`
             <hd-prompt-card

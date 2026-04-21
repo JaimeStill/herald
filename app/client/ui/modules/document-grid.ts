@@ -10,6 +10,7 @@ import type { Document, SearchRequest } from "@domains/documents";
 
 import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
+import scrollStyles from "@styles/scroll.module.css";
 import styles from "./document-grid.module.css";
 
 interface ClassifyProgress {
@@ -24,7 +25,7 @@ interface ClassifyProgress {
  */
 @customElement("hd-document-grid")
 export class DocumentGrid extends LitElement {
-  static styles = [buttonStyles, inputStyles, styles];
+  static styles = [buttonStyles, inputStyles, scrollStyles, styles];
 
   @state() private documents: PageResult<Document> | null = null;
   @state() private page = 1;
@@ -261,7 +262,7 @@ export class DocumentGrid extends LitElement {
     }
 
     return html`
-      <div class="grid">
+      <div class="grid scroll-y">
         ${this.documents.data.map((doc) => {
           const progress = this.classifying.get(doc.id);
           return html`

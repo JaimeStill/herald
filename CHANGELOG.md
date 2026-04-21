@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.0-dev.132.133
+
+### Web Client
+
+- Fix `hd-document-upload` queue overflowing the viewport with many queued files — host/drop-zone flex sized so the module participates in the view's flex column, new `.queue-list` wrapper scrolls the entries while the File Queue header (title, count, Clear/Upload) stays pinned (#133)
+
+### Design System
+
+- Add `design/core/base.css` in a new `base` cascade layer (between `reset` and `theme`) with `* { scrollbar-gutter: stable; }` for universal light-DOM scrollbar-track reservation (#133)
+- Add `design/styles/scroll.module.css` with `.scroll-y` / `.scroll-x` utilities — bundle `overflow-*: auto`, `scrollbar-gutter: stable`, and axis padding so scroll containers share consistent ergonomics across shadow DOM (#133)
+- Migrate all scroll containers (`document-grid`, `prompt-list`, `classification-panel`, `prompt-form` body and defaults, `review-view` classification panel, `document-upload` queue list) to the `.scroll-y` utility (#133)
+- Add `declare module "*.css"` to `client/css.d.ts` so side-effect imports of non-module CSS (e.g. `@design/index.css`) type-check under `tsc --noEmit` (#133)
+
 ## v0.5.0-dev.132.136
 
 ### Dependencies

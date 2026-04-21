@@ -1,0 +1,11 @@
+.scroll-y {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-inline-end: var(--space-2);
+}
+
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+  padding-block-end: var(--space-2);
+}
