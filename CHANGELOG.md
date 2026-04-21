@@ -80,58 +80,6 @@ Initial standalone migration binary release. Embeds all SQL migrations from `cmd
 
 - Remove `PageRequest` from `@core` — all domains now define their own `SearchRequest` with domain-specific filters; `toQueryString` retained as generic utility
 
----
-
-*Dev release history preserved below for reference.*
-
-## v0.4.0-dev.100.126
-- Upgrade go-agents to v0.4.0 for native managed identity support — remove manual token acquisition factory from infrastructure, add `HERALD_AGENT_RESOURCE` and `HERALD_AGENT_CLIENT_ID` env vars, remove `AgentScope` from auth config
-- Fix `HERALD_AGENT_BASE_URL` to append `/openai` for OpenAI-kind Cognitive Services accounts
-- Fix `HERALD_DB_USER` to use Entra admin principal name instead of managed identity client ID
-- Add centralized error logging to `StreamingObserver` via logger injection
-- Add `cognitiveDeploymentCapacity` parameter for configurable token rate limits (default 1M TPM)
-- Make `cognitiveCustomDomain` a required Bicep parameter
-- Add `deploy/main.secrets.json` (gitignored) for static secret parameters (`postgresAdminPassword`, `ghcrUsername`) (#126)
-
-## v0.4.0-dev.100.125
-- Add modular Bicep infrastructure-as-code for Azure Container Apps deployment — ten modules (identity, logging, PostgreSQL, storage, cognitive services, optional ACR, environment, app, migration job, role assignments) orchestrated by `main.bicep` with `useAcr` boolean for GHCR/ACR registry switching; update Dockerfile to build both `herald` and `migrate` binaries; add deployment guide at `deploy/README.md` (#125)
-
-## v0.4.0-dev.100.124
-- Make `AgentScope` and `TokenScope` configurable for Azure Government; convert hardcoded OAuth scope constants to config fields with commercial defaults, overridable via `HERALD_AUTH_AGENT_SCOPE` and `HERALD_DB_TOKEN_SCOPE` env vars (#124)
-
-## v0.4.0-dev.99.120
-- Wire bearer token injection into `request()` and `stream()` with 401 retry and silent token refresh; add configurable OAuth `Scope` field to auth config; fix OIDC verifier audience/issuer mismatch for Entra access tokens; add user menu with display name and logout to app header; fetch PDFs via authenticated blob download for iframe viewing; document Entra app registration setup in README (#120)
-
-## v0.4.0-dev.99.119
-- Add MSAL auth service with login gate; create `Auth` singleton in `core/auth.ts` wrapping `@azure/msal-browser` for MSAL initialization, redirect login, and token acquisition; convert app bootstrap to async IIFE gating on authentication; add configurable `CacheLocation` typed enum to `pkg/auth` threaded through `ClientAuthConfig` (#119)
-
-## v0.4.0-dev.99.118
-- Inject browser-safe auth config into web app HTML template for MSAL.js initialization; add `ClientAuthConfig` struct, `PageHandlerWithData` method, and conditional `<script id="herald-config">` rendering when auth mode is azure (#118)
-
-## v0.4.0-dev.98.114
-- Wire auth middleware into API module between CORS and Logger; populate `validated_by` from authenticated JWT user identity in classifications Validate and Update handlers with backward-compatible fallback to request body when auth is disabled (#114, #115)
-
-## v0.4.0-dev.98.113
-- Add `pkg/auth/` package with unified auth config, User context helpers, and error sentinels; add JWT validation middleware using `go-oidc` for OIDC discovery and token verification; move auth config from `internal/config/` to `pkg/auth/` following package-owns-config pattern; document dependency criteria in project README (#113)
-
-## v0.4.0-dev.97.108
-- Add `ManagedIdentity` flag to `AuthConfig` and wire credential-based constructors into infrastructure for database, storage, and agent services when managed identity is active (#108)
-
-## v0.4.0-dev.97.107
-- Add agent factory closure to `workflow.Runtime` for auth-mode-aware agent creation, replacing direct `agent.New` calls in workflow nodes with `rt.NewAgent(ctx)` built at the infrastructure layer (#107)
-
-## v0.4.0-dev.97.106
-- Add token-based database authentication with `NewWithCredential` constructor, pgx `BeforeConnect` hook for Entra token injection, configurable `TokenLifetime` (default 45m), and `TokenScope` constant (#106)
-
-## v0.4.0-dev.97.105
-- Add credential-based storage constructor with `NewWithCredential` for managed identity auth, `ServiceURL` config field with env var override, and relaxed config validation (#105)
-
-## v0.4.0-dev.96.103
-- Add AuthConfig with typed AuthMode enum, Azure Identity credential provider factory, and Infrastructure/Runtime credential propagation (#103)
-
-## v0.4.0-dev.95.101
-- Harden Dockerfile with ImageMagick, Ghostscript, non-root user, WORKDIR, and HEALTHCHECK; add Docker Compose production overlay and config overlay for full-stack containerized deployment; add README with development, containerized, tasks, and configuration documentation (#101)
-
 ## v0.3.0
 
 ### Web Infrastructure
