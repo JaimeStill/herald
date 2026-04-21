@@ -23,6 +23,7 @@ export class PromptList extends LitElement {
 
   @state() private prompts: PageResult<Prompt> | null = null;
   @state() private page = 1;
+  @state() private pageSize = 12;
   @state() private search = "";
   @state() private stage = "";
   @state() private sort = "Name";
@@ -48,7 +49,7 @@ export class PromptList extends LitElement {
   private async fetchPrompts() {
     const req: SearchRequest = {
       page: this.page,
-      page_size: 12,
+      page_size: this.pageSize,
       sort: this.sort,
     };
 
@@ -82,6 +83,12 @@ export class PromptList extends LitElement {
 
   private handlePageChange(e: CustomEvent<{ page: number }>) {
     this.page = e.detail.page;
+    this.fetchPrompts();
+  }
+
+  private handlePageSizeChange(e: CustomEvent<{ size: number }>) {
+    this.pageSize = e.detail.size;
+    this.page = 1;
     this.fetchPrompts();
   }
 
@@ -218,7 +225,9 @@ export class PromptList extends LitElement {
       <hd-pagination
         .page=${this.prompts?.page ?? 1}
         .totalPages=${this.prompts?.total_pages ?? 1}
+        .size=${this.pageSize}
         @page-change=${this.handlePageChange}
+        @page-size-change=${this.handlePageSizeChange}
       ></hd-pagination>
       ${this.deletePrompt
         ? html`

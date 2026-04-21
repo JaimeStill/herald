@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0-dev.132.134
+
+### Web Client
+
+- Extend `hd-pagination` with a per-page size selector (12 / 24 / 48 / 96) on the left of the footer and an editable page-number input replacing the static "Page X of N" indicator — input commits on blur/Enter, `Math.trunc`s and clamps to `[1, totalPages]`, reverts silently on non-numeric/empty values, auto-selects on focus, disables at `totalPages <= 1`; `document-grid` and `prompt-list` promote hardcoded `page_size: 12` to a `pageSize` `@state()` field and refetch with `page = 1` on change (#134)
+
 ## v0.5.0-dev.132.133
 
 ### Web Client
