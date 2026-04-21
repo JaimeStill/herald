@@ -6,11 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/JaimeStill/go-agents-orchestration/pkg/observability"
+	"github.com/tailored-agentic-units/orchestrate/observability"
+	"github.com/tailored-agentic-units/orchestrate/state"
+
 	"github.com/JaimeStill/herald/pkg/formatting"
 )
 
-// StreamingObserver translates verbose go-agents-orchestration events into lean
+// StreamingObserver translates verbose tau/orchestrate events into lean
 // ExecutionEvents on a buffered channel. It implements observability.Observer and
 // acts as a filtering boundary: only node.start and node.complete events pass
 // through with controlled data fields. Non-blocking sends prevent slow consumers
@@ -57,9 +59,9 @@ func (o *StreamingObserver) OnEvent(ctx context.Context, event observability.Eve
 	var execEvent *ExecutionEvent
 
 	switch event.Type {
-	case observability.EventNodeStart:
+	case state.EventNodeStart:
 		execEvent = handleNodeStart(event)
-	case observability.EventNodeComplete:
+	case state.EventNodeComplete:
 		execEvent = o.handleNodeComplete(event)
 	}
 

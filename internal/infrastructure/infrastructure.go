@@ -7,17 +7,36 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 
-	"github.com/JaimeStill/go-agents/pkg/agent"
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/lifecycle"
 	"github.com/JaimeStill/herald/pkg/storage"
+	"github.com/tailored-agentic-units/agent"
+	"github.com/tailored-agentic-units/format"
+	"github.com/tailored-agentic-units/provider"
 
-	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
+	tauopenai "github.com/tailored-agentic-units/format/openai"
+	tauconfig "github.com/tailored-agentic-units/protocol/config"
+	tauazure "github.com/tailored-agentic-units/provider/azure"
+	tauollama "github.com/tailored-agentic-units/provider/ollama"
 )
+
+var registerOnce sync.Once
+
+// registerAgentBackends wires the tau provider and format factories into their
+// global registries. Guarded by sync.Once so repeated Infrastructure.New calls
+// (notably from tests) are safe and idempotent.
+func registerAgentBackends() {
+	registerOnce.Do(func() {
+		tauazure.Register()
+		tauollama.Register()
+		tauopenai.Register()
+	})
+}
 
 // Infrastructure holds the core systems required by all domain modules.
 // It provides a single point of initialization for lifecycle coordination,
@@ -27,16 +46,20 @@ type Infrastructure struct {
 	Logger     *slog.Logger
 	Database   database.System
 	Storage    storage.System
-	Agent      gaconfig.AgentConfig
+	Agent      tauconfig.AgentConfig
 	Credential azcore.TokenCredential
 	NewAgent   func(ctx context.Context) (agent.Agent, error)
 }
 
 // New creates an Infrastructure from the application configuration.
 // It initializes all systems but does not start them; call Start separately.
-// Agent configuration is validated by creating a test agent via agent.New,
-// which verifies the full provider pipeline (registration, option extraction).
+// Agent configuration is validated by constructing a single agent via
+// provider.Create + format.Create + agent.New, which exercises the full
+// tau pipeline (factory lookup, option extraction, credential wiring) before
+// any request is served.
 func New(cfg *config.Config) (*Infrastructure, error) {
+	registerAgentBackends()
+
 	lc := lifecycle.New()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
@@ -50,13 +73,21 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 		return nil, err
 	}
 
-	if _, err := agent.New(&cfg.Agent); err != nil {
-		return nil, fmt.Errorf("agent validation failed: %w", err)
-	}
-
 	agentCfg := cfg.Agent
 	newAgent := func(ctx context.Context) (agent.Agent, error) {
-		return agent.New(&agentCfg)
+		p, perr := provider.Create(agentCfg.Provider)
+		if perr != nil {
+			return nil, fmt.Errorf("create provider: %w", perr)
+		}
+		f, ferr := format.Create(agentCfg.Format)
+		if ferr != nil {
+			return nil, fmt.Errorf("create format: %w", ferr)
+		}
+		return agent.New(&agentCfg, p, f), nil
+	}
+
+	if _, err := newAgent(context.Background()); err != nil {
+		return nil, fmt.Errorf("agent validation failed: %w", err)
 	}
 
 	return &Infrastructure{
@@ -121,4 +152,3 @@ func initManagedSystems(
 
 	return db, store, nil
 }
-

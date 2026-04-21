@@ -10,7 +10,7 @@ import (
 	"github.com/JaimeStill/herald/pkg/database"
 	"github.com/JaimeStill/herald/pkg/storage"
 
-	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
+	tauconfig "github.com/tailored-agentic-units/protocol/config"
 )
 
 const (
@@ -31,8 +31,8 @@ var authEnv = &auth.Env{
 	ClientID:        "HERALD_AUTH_CLIENT_ID",
 	ClientSecret:    "HERALD_AUTH_CLIENT_SECRET",
 	Authority:       "HERALD_AUTH_AUTHORITY",
-	Scope:         "HERALD_AUTH_SCOPE",
-	CacheLocation: "HERALD_AUTH_CACHE_LOCATION",
+	Scope:           "HERALD_AUTH_SCOPE",
+	CacheLocation:   "HERALD_AUTH_CACHE_LOCATION",
 }
 
 var databaseEnv = &database.Env{
@@ -59,14 +59,14 @@ var storageEnv = &storage.Env{
 
 // Config is the root configuration for the Herald service.
 type Config struct {
-	Agent           gaconfig.AgentConfig `json:"agent"`
-	Auth            auth.Config          `json:"auth"`
-	Server          ServerConfig         `json:"server"`
-	Database        database.Config      `json:"database"`
-	Storage         storage.Config       `json:"storage"`
-	API             APIConfig            `json:"api"`
-	ShutdownTimeout string               `json:"shutdown_timeout"`
-	Version         string               `json:"version"`
+	Agent           tauconfig.AgentConfig `json:"agent"`
+	Auth            auth.Config           `json:"auth"`
+	Server          ServerConfig          `json:"server"`
+	Database        database.Config       `json:"database"`
+	Storage         storage.Config        `json:"storage"`
+	API             APIConfig             `json:"api"`
+	ShutdownTimeout string                `json:"shutdown_timeout"`
+	Version         string                `json:"version"`
 }
 
 // Env returns the HERALD_ENV value, defaulting to "local".

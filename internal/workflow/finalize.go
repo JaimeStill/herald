@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
+	"github.com/tailored-agentic-units/orchestrate/state"
+	"github.com/tailored-agentic-units/protocol"
 
 	"github.com/JaimeStill/herald/internal/prompts"
 	"github.com/JaimeStill/herald/pkg/formatting"
@@ -53,12 +54,12 @@ func synthesize(ctx context.Context, rt *Runtime, cs *ClassificationState) error
 		return fmt.Errorf("%w: %w", ErrFinalizeFailed, err)
 	}
 
-	resp, err := a.Chat(ctx, prompt)
+	resp, err := a.Chat(ctx, []protocol.Message{protocol.UserMessage(prompt)})
 	if err != nil {
 		return fmt.Errorf("%w: chat call: %w", ErrFinalizeFailed, err)
 	}
 
-	parsed, err := formatting.Parse[finalizeResponse](resp.Content())
+	parsed, err := formatting.Parse[finalizeResponse](resp.Text())
 	if err != nil {
 		return fmt.Errorf("%w: parse response: %w", ErrFinalizeFailed, err)
 	}

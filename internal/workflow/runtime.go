@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/JaimeStill/go-agents/pkg/agent"
+	"github.com/tailored-agentic-units/agent"
 
 	"github.com/JaimeStill/herald/internal/documents"
 	"github.com/JaimeStill/herald/internal/prompts"

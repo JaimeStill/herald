@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/JaimeStill/document-context/pkg/document"
-	"github.com/JaimeStill/document-context/pkg/encoding"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
+	"github.com/tailored-agentic-units/format"
+	"github.com/tailored-agentic-units/orchestrate/state"
+	"github.com/tailored-agentic-units/protocol"
 
 	"github.com/JaimeStill/herald/internal/prompts"
 	"github.com/JaimeStill/herald/pkg/formatting"
@@ -82,17 +82,22 @@ func classifyPages(ctx context.Context, rt *Runtime, cs *ClassificationState) er
 				return fmt.Errorf("page %d: create agent: %w", i+1, err)
 			}
 
-			dataURI, err := encodePageImage(cs.Pages[i].ImagePath)
+			imgData, err := readPageImage(cs.Pages[i].ImagePath)
 			if err != nil {
 				return fmt.Errorf("page %d: %w", i+1, err)
 			}
 
-			resp, err := a.Vision(gctx, prompt, []string{dataURI})
+			resp, err := a.Vision(
+				gctx,
+				[]protocol.Message{protocol.UserMessage(prompt)},
+				[]format.Image{{Data: imgData, Format: "png"}},
+			)
+
 			if err != nil {
 				return fmt.Errorf("page %d: vision call: %w", i+1, err)
 			}
 
-			parsed, err := formatting.Parse[pageResponse](resp.Content())
+			parsed, err := formatting.Parse[pageResponse](resp.Text())
 			if err != nil {
 				return fmt.Errorf("page %d: parse response: %w", i+1, err)
 			}
@@ -109,18 +114,12 @@ func classifyPages(ctx context.Context, rt *Runtime, cs *ClassificationState) er
 	return nil
 }
 
-func encodePageImage(imagePath string) (string, error) {
+func readPageImage(imagePath string) ([]byte, error) {
 	data, err := os.ReadFile(imagePath)
 	if err != nil {
-		return "", fmt.Errorf("read image: %w", err)
+		return nil, fmt.Errorf("read image: %w", err)
 	}
-
-	dataURI, err := encoding.EncodeImageDataURI(data, document.PNG)
-	if err != nil {
-		return "", fmt.Errorf("encode image: %w", err)
-	}
-
-	return dataURI, nil
+	return data, nil
 }
 
 func applyPageResponse(page *ClassificationPage, resp pageResponse) {

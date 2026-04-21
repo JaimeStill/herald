@@ -7,17 +7,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/google/uuid"
+	"github.com/tailored-agentic-units/orchestrate/state"
 
 	"github.com/JaimeStill/document-context/pkg/config"
 	"github.com/JaimeStill/document-context/pkg/document"
 	"github.com/JaimeStill/document-context/pkg/image"
-
-	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
-
 	"github.com/JaimeStill/herald/internal/documents"
-
-	"golang.org/x/sync/errgroup"
 )
 
 const sourcePDF = "source.pdf"

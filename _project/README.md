@@ -28,6 +28,7 @@ The architecture deliberately excludes: image caching (images are ephemeral duri
 | Phase 2 - Classification Engine | Agent configuration from external config, classification workflow state graph (init -> classify -> enhance? -> finalize), parallel per-page analysis with bounded concurrency, named prompt overrides (DB + API), single document classification endpoint, classification result schema with flattened workflow metadata | v0.2.0 | Complete |
 | Phase 3 - Web Client | Lit 3.x SPA with native Bun builds embedded in Go binary, Air hot reload for development, document management UI (upload single + batch, browse, search, filter, bulk classify), SSE streaming observer for classification progress, classification result viewing/validation/manual adjustment with PDF viewer, prompt modification management | v0.3.0 | Complete |
 | Phase 4 - Security and Deployment | Azure Entra authentication (opt-in JWT middleware + MSAL.js web client), managed identity for Azure services (Storage, PostgreSQL, AI Foundry), Docker containerization with ImageMagick 7.0+, Azure Container Apps deployment configuration, IL4/IL6 environment configuration | v0.4.0 | Complete |
+| Phase 5 - Post-Deployment Polish | Post-IL6-deployment quality-of-life adjustments: document-upload scroll container, configurable page size selector, URL query-parameter state persistence across view transitions, migration from go-agents/go-agents-orchestration to tau/agent and tau/orchestrate, MSAL stale credential refresh hardening | v0.5.0 | In Progress |
 
 ## Architecture
 
@@ -108,7 +109,7 @@ type Infrastructure struct {
     Logger     *slog.Logger
     Database   database.System
     Storage    storage.System                              // Azure Blob Storage implementation
-    Agent      gaconfig.AgentConfig                        // go-agents config for per-request agent creation
+    Agent      tauconfig.AgentConfig                       // tau protocol/config for per-request agent creation
     Credential azcore.TokenCredential                      // Azure managed identity (nil when auth disabled)
     NewAgent   func(ctx context.Context) (agent.Agent, error) // Auth-mode-aware agent factory
 }
@@ -251,9 +252,9 @@ Key views: document management (upload, browse, classify, bulk operations), prom
 
 ### Go Libraries (ecosystem)
 
-- **go-agents**: LLM abstraction. Agent creation, Vision API calls, response parsing.
-- **go-agents-orchestration**: State graph workflow engine. StateGraph, StateNode, conditional edges.
-- **document-context**: PDF processing. Document/Page interfaces, ImageMagick rendering, base64 encoding.
+- **tau/agent**: LLM abstraction. Agent interface, Vision/Chat/Tools/Embed protocol methods, typed request/response. Pulls in sibling modules `tau/protocol` (messages, config), `tau/format` (wire format registry, openai format), `tau/provider` (provider registry, azure/ollama factories).
+- **tau/orchestrate**: State graph workflow engine. StateGraph, StateNode, conditional edges, observability events.
+- **document-context**: PDF processing. Document/Page interfaces, ImageMagick rendering.
 
 ### Go Libraries (external)
 

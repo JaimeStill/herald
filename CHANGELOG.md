@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0-dev.132.136
+
+### Dependencies
+
+- Migrate from `github.com/JaimeStill/go-agents` and `go-agents-orchestration` to the `tailored-agentic-units` tau module graph (`agent`, `orchestrate`, `protocol`, `format`, `format/openai`, `provider`, `provider/azure`, `provider/ollama`) — includes rewrites of the Vision/Chat call sites to typed `protocol.Message` + `format.Image` and an `infrastructure.New` sync.Once that registers tau provider/format factories (#136)
+
 ## v0.4.2
 
 ### Authentication
