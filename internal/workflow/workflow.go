@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	gaoconfig "github.com/JaimeStill/go-agents-orchestration/pkg/config"
-	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
+	tauconfig "github.com/tailored-agentic-units/orchestrate/config"
+	"github.com/tailored-agentic-units/orchestrate/state"
 )
 
 // Execute runs the classification workflow for a single document. It creates
@@ -42,7 +42,7 @@ func Execute(ctx context.Context, rt *Runtime, documentID uuid.UUID, observer *S
 }
 
 func buildGraph(rt *Runtime, observer *StreamingObserver) (state.StateGraph, error) {
-	cfg := gaoconfig.DefaultGraphConfig("herald-classify")
+	cfg := tauconfig.DefaultGraphConfig("herald-classify")
 
 	graph, err := state.NewGraphWithDeps(cfg, observer, nil)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
+	tauconfig "github.com/tailored-agentic-units/protocol/config"
 )
 
 const (
@@ -19,29 +19,30 @@ const (
 	EnvAgentModelName    = "HERALD_AGENT_MODEL_NAME"
 )
 
-// FinalizeAgent applies Herald's three-phase finalize pattern to a go-agents AgentConfig:
-// defaults from go-agents DefaultAgentConfig, environment variable overrides, and validation.
-func FinalizeAgent(c *gaconfig.AgentConfig) error {
+// FinalizeAgent applies Herald's three-phase finalize pattern to a tau AgentConfig:
+// defaults from tau protocol/config DefaultAgentConfig, environment variable overrides,
+// and validation.
+func FinalizeAgent(c *tauconfig.AgentConfig) error {
 	loadAgentDefaults(c)
 	loadAgentEnv(c)
 	return validateAgent(c)
 }
 
-func loadAgentDefaults(c *gaconfig.AgentConfig) {
-	defaults := gaconfig.DefaultAgentConfig()
+func loadAgentDefaults(c *tauconfig.AgentConfig) {
+	defaults := tauconfig.DefaultAgentConfig()
 	defaults.Merge(c)
 	*c = defaults
 }
 
-func loadAgentEnv(c *gaconfig.AgentConfig) {
+func loadAgentEnv(c *tauconfig.AgentConfig) {
 	if c.Provider == nil {
-		c.Provider = &gaconfig.ProviderConfig{}
+		c.Provider = &tauconfig.ProviderConfig{}
 	}
 	if c.Provider.Options == nil {
 		c.Provider.Options = make(map[string]any)
 	}
 	if c.Model == nil {
-		c.Model = &gaconfig.ModelConfig{}
+		c.Model = &tauconfig.ModelConfig{}
 	}
 	if v := os.Getenv(EnvAgentProviderName); v != "" {
 		c.Provider.Name = v
@@ -67,7 +68,7 @@ func loadAgentEnv(c *gaconfig.AgentConfig) {
 	setOption(EnvAgentClientID, "client_id")
 }
 
-func validateAgent(c *gaconfig.AgentConfig) error {
+func validateAgent(c *tauconfig.AgentConfig) error {
 	if c.Name == "" {
 		return fmt.Errorf("name required")
 	}

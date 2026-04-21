@@ -3,7 +3,8 @@ package infrastructure_test
 import (
 	"testing"
 
-	gaconfig "github.com/JaimeStill/go-agents/pkg/config"
+	tauconfig "github.com/tailored-agentic-units/protocol/config"
+
 	"github.com/JaimeStill/herald/internal/config"
 	"github.com/JaimeStill/herald/internal/infrastructure"
 	"github.com/JaimeStill/herald/pkg/auth"
@@ -16,14 +17,15 @@ const azuriteConnString = "DefaultEndpointsProtocol=http;AccountName=heraldstore
 func validConfig() *config.Config {
 	return &config.Config{
 		Auth: auth.Config{Mode: auth.ModeNone},
-		Agent: gaconfig.AgentConfig{
-			Name: "test-agent",
-			Provider: &gaconfig.ProviderConfig{
+		Agent: tauconfig.AgentConfig{
+			Name:   "test-agent",
+			Format: "openai",
+			Provider: &tauconfig.ProviderConfig{
 				Name:    "ollama",
 				BaseURL: "http://localhost:11434",
 				Options: make(map[string]any),
 			},
-			Model: &gaconfig.ModelConfig{
+			Model: &tauconfig.ModelConfig{
 				Name: "llama3.1:8b",
 			},
 		},

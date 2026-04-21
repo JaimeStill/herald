@@ -6,13 +6,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/sync/errgroup"
+
+	"github.com/tailored-agentic-units/format"
+	"github.com/tailored-agentic-units/orchestrate/state"
+	"github.com/tailored-agentic-units/protocol"
+
 	"github.com/JaimeStill/document-context/pkg/config"
 	"github.com/JaimeStill/document-context/pkg/document"
 	"github.com/JaimeStill/document-context/pkg/image"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
-
 	"github.com/JaimeStill/herald/internal/prompts"
 	"github.com/JaimeStill/herald/pkg/formatting"
 )
@@ -115,17 +117,21 @@ func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tem
 			}
 			cs.Pages[i].ImagePath = imgPath
 
-			dataURI, err := encodePageImage(imgPath)
+			imgData, err := readPageImage(imgPath)
 			if err != nil {
 				return fmt.Errorf("page %d: %w", cs.Pages[i].PageNumber, err)
 			}
 
-			resp, err := a.Vision(gctx, prompt, []string{dataURI})
+			resp, err := a.Vision(
+				gctx,
+				[]protocol.Message{protocol.UserMessage(prompt)},
+				[]format.Image{{Data: imgData, Format: "png"}},
+			)
 			if err != nil {
 				return fmt.Errorf("page %d: vision call: %w", cs.Pages[i].PageNumber, err)
 			}
 
-			parsed, err := formatting.Parse[enhanceResponse](resp.Content())
+			parsed, err := formatting.Parse[enhanceResponse](resp.Text())
 			if err != nil {
 				return fmt.Errorf("page %d: parse response: %w", cs.Pages[i].PageNumber, err)
 			}

@@ -7,13 +7,19 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4
 	github.com/JaimeStill/document-context v0.1.1
-	github.com/JaimeStill/go-agents v0.4.0
-	github.com/JaimeStill/go-agents-orchestration v0.3.3
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/pdfcpu/pdfcpu v0.11.1
+	github.com/tailored-agentic-units/agent v0.1.1
+	github.com/tailored-agentic-units/format v0.1.0
+	github.com/tailored-agentic-units/format/openai v0.1.0
+	github.com/tailored-agentic-units/orchestrate v0.1.0
+	github.com/tailored-agentic-units/protocol v0.1.0
+	github.com/tailored-agentic-units/provider v0.1.0
+	github.com/tailored-agentic-units/provider/azure v0.1.0
+	github.com/tailored-agentic-units/provider/ollama v0.1.0
 	golang.org/x/sync v0.18.0
 )
 

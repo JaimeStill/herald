@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
+	"github.com/tailored-agentic-units/agent"
 
 	"github.com/JaimeStill/herald/internal/documents"
 	"github.com/JaimeStill/herald/internal/prompts"
@@ -17,8 +18,6 @@ import (
 	"github.com/JaimeStill/herald/pkg/query"
 	"github.com/JaimeStill/herald/pkg/repository"
 	"github.com/JaimeStill/herald/pkg/storage"
-
-	"github.com/JaimeStill/go-agents/pkg/agent"
 )
 
 const streamBufferSize = 32

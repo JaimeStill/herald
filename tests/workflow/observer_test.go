@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/JaimeStill/go-agents-orchestration/pkg/observability"
+	"github.com/tailored-agentic-units/orchestrate/observability"
+	"github.com/tailored-agentic-units/orchestrate/state"
+
 	"github.com/JaimeStill/herald/internal/workflow"
 )
 
@@ -30,7 +32,7 @@ func TestOnEventNodeStart(t *testing.T) {
 
 	ts := time.Now()
 	obs.OnEvent(context.Background(), observability.Event{
-		Type:      observability.EventNodeStart,
+		Type:      state.EventNodeStart,
 		Timestamp: ts,
 		Source:    "graph",
 		Data: map[string]any{
@@ -64,7 +66,7 @@ func TestOnEventNodeComplete(t *testing.T) {
 
 	ts := time.Now()
 	obs.OnEvent(context.Background(), observability.Event{
-		Type:      observability.EventNodeComplete,
+		Type:      state.EventNodeComplete,
 		Timestamp: ts,
 		Source:    "graph",
 		Data: map[string]any{
@@ -91,7 +93,7 @@ func TestOnEventNodeCompleteWithError(t *testing.T) {
 	defer obs.Close()
 
 	obs.OnEvent(context.Background(), observability.Event{
-		Type:      observability.EventNodeComplete,
+		Type:      state.EventNodeComplete,
 		Timestamp: time.Now(),
 		Source:    "graph",
 		Data: map[string]any{
@@ -123,12 +125,12 @@ func TestOnEventIgnoresUnhandledTypes(t *testing.T) {
 	defer obs.Close()
 
 	ignoredTypes := []observability.EventType{
-		observability.EventStateCreate,
-		observability.EventStateSet,
-		observability.EventGraphStart,
-		observability.EventGraphComplete,
-		observability.EventEdgeTransition,
-		observability.EventEdgeEvaluate,
+		state.EventStateCreate,
+		state.EventStateSet,
+		state.EventGraphStart,
+		state.EventGraphComplete,
+		state.EventEdgeTransition,
+		state.EventEdgeEvaluate,
 	}
 
 	for _, et := range ignoredTypes {
@@ -221,7 +223,7 @@ func TestCloseStopsEvents(t *testing.T) {
 	obs.Close()
 
 	obs.OnEvent(context.Background(), observability.Event{
-		Type:      observability.EventNodeStart,
+		Type:      state.EventNodeStart,
 		Timestamp: time.Now(),
 		Source:    "graph",
 		Data:      map[string]any{"node": "init", "iteration": float64(1)},

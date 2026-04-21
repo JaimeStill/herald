@@ -69,7 +69,7 @@ const overlayConfig = `{
 
 // minimalConfig provides the minimum fields required
 // for validation to pass (db name, db user, storage connection string).
-// Agent defaults fill in from go-agents DefaultAgentConfig().
+// Agent defaults fill in from tau protocol/config DefaultAgentConfig().
 const minimalConfig = `{
   "shutdown_timeout": "30s",
   "server": {
@@ -469,8 +469,8 @@ func TestAgentDefaults(t *testing.T) {
 	if cfg.Agent.Provider.Name != "ollama" {
 		t.Errorf("provider name: got %s, want ollama", cfg.Agent.Provider.Name)
 	}
-	if cfg.Agent.Provider.BaseURL != "http://localhost:11434" {
-		t.Errorf("provider base_url: got %s, want http://localhost:11434", cfg.Agent.Provider.BaseURL)
+	if cfg.Agent.Provider.BaseURL != "" {
+		t.Errorf("provider base_url: got %s, want empty (tau providers auto-construct defaults)", cfg.Agent.Provider.BaseURL)
 	}
 }
 
