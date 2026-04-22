@@ -96,6 +96,7 @@ See `.claude/skills/web-development/` for full conventions. Key points that are 
 - **Scroll containers**: Never declare `overflow-y: auto` (or `overflow-x: auto`) directly in a component's CSS. Import `@styles/scroll.module.css` and apply `.scroll-y` / `.scroll-x` in the template. The utility bundles `overflow`, `scrollbar-gutter: stable`, and axis padding — layout still lives in the component's own CSS (`flex: 1; min-height: 0;`, `max-height: ...`, etc.).
 - **Flex sizing for scroll**: A scroll container still needs `flex: 1; min-height: 0;` from its parent flex column; the utility does not fix missing flex constraints.
 - **Shared styles**: `@styles/*` for reusable modules (`badge`, `buttons`, `cards`, `inputs`, `labels`, `scroll`). Component `*.module.css` provides layout-specific overrides.
+- **Overlay primitives**: Any UI that overlays the page — tooltips, menus, popovers, toasts, confirmation dialogs, modal forms — MUST use browser-native top-layer primitives: `<dialog>` + `.showModal()` for modals, `popover="auto"` for dismiss-on-outside-click menus, `popover="hint"` for tooltips (does not close open `auto` popovers; closes other hints), `popover="manual"` for long-lived stacks like toasts. No manual `position: fixed; z-index: ...` overlay divs. Top-layer rendering is the single source of stacking truth — no `z-index` arms race. See `.claude/skills/web-development/SKILL.md` ("Overlay Convention") for the full decision matrix and patterns.
 
 ## Gotchas
 

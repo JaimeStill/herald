@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 
 import { PromptService } from "@domains/prompts";
 import type { Prompt } from "@domains/prompts";
+import { Toast } from "@ui/elements";
 
 import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
@@ -91,8 +92,13 @@ export class PromptForm extends LitElement {
 
     if (!result.ok) {
       this.error = result.error ?? "An unexpected error occurred.";
+      Toast.error(
+        `Failed to ${this.isEdit ? "update" : "create"} prompt: ${this.error}`,
+      );
       return;
     }
+
+    Toast.success(`Prompt ${this.isEdit ? "updated" : "created"}`);
 
     this.dispatchEvent(
       new CustomEvent("save", {

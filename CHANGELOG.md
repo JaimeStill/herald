@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0-dev.132.139
+
+### Web Client
+
+- Add bulk-delete action to the document grid — a "Delete N Documents" button renders adjacent to the existing bulk classify button when ≥1 document is selected, opens `hd-confirm-dialog` with "Are you sure you want to delete {N} documents?", and on confirm runs `DocumentService.delete(id)` in parallel across the selection. Successful IDs drop out of the selection, failed IDs remain selected for retry, and each failure emits an error toast with the filename + error (#139)
+- Introduce a minimal `Toast` service + `<hd-toast-container>` element in `app/client/ui/elements/toast.ts` — module-level singleton bus with `success`/`error`/`warning`/`info` helpers, kind-specific auto-dismiss (3s/6s/5s/3s), stack capped at 5 visible, click-to-dismiss cancels the timer. Stack is positioned bottom-center at a fixed `min(72ch, 100dvw - var(--space-8))` width via `margin-inline: auto`, monospace styling with semantic border-left accent matching Herald's aesthetic (#139)
+- Mount `<hd-toast-container>` from `app.ts` via `document.body.appendChild` after the Router starts — keeps `app/server/layouts/app.html` a pure server shell and matches the existing dynamic-mount pattern used for the user menu (#139)
+- Wire every existing mutation call site through the toast service so every command execution surfaces success and failure feedback: single-document delete, SSE classify `onComplete`/`onError`, bulk classify (per-document outcome via the classify callbacks), classification validate + update, prompt create/update/delete, prompt activate/deactivate, and batch document upload (summary toasts after `Promise.allSettled`). Forms (`classification-panel`, `prompt-form`) keep their inline `this.error` display for form-local context; toasts are additive (#139)
+- Establish an Overlay Convention across `.claude/CLAUDE.md` and `.claude/skills/web-development/SKILL.md`: any UI that overlays the page (tooltips, menus, popovers, toasts, confirmation dialogs, modal forms) must use native `<dialog>` + `.showModal()` or the Popover API (`popover="auto"` / `popover="hint"` / `popover="manual"`). No manual `position: fixed; z-index: ...` overlay divs. Includes a decision matrix for which primitive to pick per overlay type, patterns for each, anti-patterns, and reference components. Follow-up task #145 migrates the three existing overlays (`hd-confirm-dialog`, `hd-toast-container`, new `hd-tooltip`) to these primitives (#139)
+
 ## v0.5.0-dev.132.137
 
 ### Web Client

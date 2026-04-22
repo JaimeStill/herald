@@ -91,6 +91,41 @@ Lit lifecycle hooks and when to use each: `connectedCallback` for initial data f
 
 Single shell pattern: `app/app.go` embeds `dist/*`, `server/layouts/*`, `server/views/*`. Catch-all `/{path...}` route serves the HTML shell. Template variables: `{{ .BasePath }}`, `{{ .Title }}`, `{{ .Bundle }}`. `<base href>` tag enables client-side router path resolution.
 
+## Overlay Convention
+
+Any UI intended to overlay the page — tooltips, menus, popovers, toasts, confirmation dialogs, modal forms — MUST use browser-native top-layer primitives. Do not build overlay UI with manual `position: fixed; z-index: ...` divs. The top layer is the single source of stacking truth, so `z-index` arithmetic is eliminated and focus/Escape/backdrop behavior comes from the platform.
+
+### Decision matrix
+
+| Overlay type | Primitive | Why |
+|--------------|-----------|-----|
+| Modal dialog (confirmation, blocking form) | `<dialog>` + `.showModal()` | Top layer, built-in `::backdrop`, focus trap, Escape → `cancel` event, focus return to trigger, implicit `role="dialog"` / `aria-modal="true"`, body scroll lock |
+| Dismiss-on-outside-click menu / picker | `popover="auto"` | Light-dismiss (click anywhere outside closes), Escape closes, top layer, only one `auto` popover open at a time |
+| Tooltip / hover hint | `popover="hint"` | Semantically correct for hints. Hints do NOT close open `auto` popovers (hovering a tooltip inside an open menu leaves the menu open), but DO close other hints so only one is visible at a time. Light-dismissible and responds to close requests. Shown/hidden explicitly on `mouseenter`/`focus` + `mouseleave`/`blur`. |
+| Toast / long-lived overlay | `popover="manual"` | No light-dismiss — caller owns show/hide. Correct when outside-click dismissal would be destructive (would kill every toast on any page click) |
+
+### Patterns
+
+- **Modal dialog**: render `<dialog>` in the component template, call `.showModal()` in `firstUpdated`, wire the native `cancel` event (Escape) and backdrop click (`event.target === dialogEl`) to emit `cancel`, put `autofocus` on the primary action. Style the backdrop with the `::backdrop` pseudo-element. Drop all `z-index`.
+- **Popover stack (toast container, `popover="manual"`)**: set `popover="manual"` on the host (via `setAttribute` in `connectedCallback` or a reflected `@property`), call `.showPopover()` in `connectedCallback` after `super.connectedCallback()`, and `.hidePopover()` in `disconnectedCallback` guarded by `this.matches(":popover-open")`. Layout (position, size) stays in CSS.
+- **Anchored tooltip (`popover="hint"`)**: pair `popover="hint"` with CSS Anchor Positioning — `anchor-name` on the trigger, `position-anchor` + `inset-area` (or `top`/`bottom` with `anchor()`) + `position-try-fallbacks` on the popover — so the overlay flips above/below/left/right when space is tight. Show on `mouseenter`/`focusin`, hide on `mouseleave`/`focusout`. Detect truncation via `scrollWidth > clientWidth` so non-truncated triggers are no-ops.
+
+### Anti-patterns (do not do these)
+
+- `position: fixed; inset: 0; z-index: 100` overlay divs
+- Manual scrim-blur backdrops via a sibling element — use `::backdrop`
+- Rolling your own Escape handler, focus trap, or focus-return logic when `<dialog>.showModal()` gives all three for free
+- Setting `z-index` on overlay elements — the top layer makes it meaningless and misleads future maintainers
+- Using `popover="auto"` for tooltips — opening a tooltip over a menu would close the menu. Use `popover="hint"` for tooltips.
+
+### Reference components
+
+- `<hd-confirm-dialog>` — `<dialog>` + `.showModal()`
+- `<hd-toast-container>` — `popover="manual"`
+- `<hd-tooltip>` — `popover="hint"` + CSS anchor positioning
+
+See `references/components.md` for complete code examples of each pattern.
+
 ## Template Patterns
 
 These patterns recur across all component tiers and are worth keeping top of mind.
