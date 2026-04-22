@@ -4,6 +4,7 @@ import { customElement, state } from "lit/decorators.js";
 import { formatBytes } from "@core/formatting";
 import { DocumentService } from "@domains/documents";
 import type { UploadEntry } from "@domains/documents";
+import { Toast } from "@ui/elements";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
@@ -137,14 +138,21 @@ export class DocumentUpload extends LitElement {
 
     this.uploading = false;
 
-    const hasSuccess = results.some((r) => r.status === "fulfilled");
-    if (hasSuccess) {
+    const succeeded = results.filter((r) => r.status === "fulfilled").length;
+    const failed = results.length - succeeded;
+
+    if (succeeded > 0) {
+      Toast.success(`Uploaded ${succeeded} file${succeeded === 1 ? "" : "s"}`);
       this.dispatchEvent(
         new CustomEvent("upload-complete", {
           bubbles: true,
           composed: true,
         }),
       );
+    }
+
+    if (failed > 0) {
+      Toast.error(`Failed to upload ${failed} file${failed === 1 ? "" : "s"}`);
     }
   }
 
@@ -172,7 +180,6 @@ export class DocumentUpload extends LitElement {
   }
 
   private renderQueueEntry(entry: UploadEntry, index: number) {
-    const settled = entry.status === "success" || entry.status === "error";
     const editable = entry.status === "pending";
 
     return html`

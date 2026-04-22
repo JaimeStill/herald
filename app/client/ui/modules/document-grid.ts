@@ -7,6 +7,7 @@ import { ClassificationService } from "@domains/classifications";
 import type { WorkflowStage } from "@domains/classifications";
 import { DocumentService } from "@domains/documents";
 import type { Document, SearchRequest } from "@domains/documents";
+import { Toast } from "@ui/elements";
 
 import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
@@ -44,6 +45,7 @@ export class DocumentGrid extends LitElement {
   @state() private classifying = new Map<string, ClassifyProgress>();
   @state() private selectedIds = new Set<string>();
   @state() private deleteDocument: Document | null = null;
+  @state() private deleteDocuments: Document[] | null = null;
 
   private searchTimer = 0;
   private abortControllers = new Map<string, AbortController>();
@@ -194,6 +196,10 @@ export class DocumentGrid extends LitElement {
         const updated = new Map(this.classifying);
         updated.delete(docId);
         this.classifying = updated;
+        const filename =
+          this.documents?.data.find((d) => d.id === docId)?.filename ??
+          "document";
+        Toast.success(`Classified ${filename}`);
         this.fetchDocuments();
       },
       onError: () => {
@@ -201,6 +207,10 @@ export class DocumentGrid extends LitElement {
         const updated = new Map(this.classifying);
         updated.delete(docId);
         this.classifying = updated;
+        const filename =
+          this.documents?.data.find((d) => d.id === docId)?.filename ??
+          "document";
+        Toast.error(`Classification failed for ${filename}`);
         this.fetchDocuments();
       },
     });
@@ -220,6 +230,7 @@ export class DocumentGrid extends LitElement {
     if (!this.deleteDocument) return;
 
     const id = this.deleteDocument.id;
+    const filename = this.deleteDocument.filename;
     this.deleteDocument = null;
 
     const result = await DocumentService.delete(id);
@@ -227,11 +238,73 @@ export class DocumentGrid extends LitElement {
     if (result.ok) {
       this.selectedIds.delete(id);
       this.fetchDocuments();
+      Toast.success(`Deleted ${filename}`);
+    } else {
+      Toast.error(`Failed to delete ${filename}: ${result.error}`);
     }
   }
 
   private cancelDelete() {
     this.deleteDocument = null;
+  }
+
+  private handleBulkDelete() {
+    if (!this.documents) return;
+
+    const selected = this.documents.data.filter((d) =>
+      this.selectedIds.has(d.id),
+    );
+    if (selected.length === 0) return;
+
+    this.deleteDocuments = selected;
+  }
+
+  private async confirmBulkDelete() {
+    const batch = this.deleteDocuments;
+    this.deleteDocuments = null;
+    if (!batch) return;
+
+    const outcomes = await Promise.all(
+      batch.map(async (doc) => {
+        try {
+          const result = await DocumentService.delete(doc.id);
+          return result.ok
+            ? { doc, ok: true as const }
+            : { doc, ok: false as const, error: result.error };
+        } catch (err) {
+          return { doc, ok: false as const, error: String(err) };
+        }
+      }),
+    );
+
+    const failed = new Set<string>();
+    let succeeded = 0;
+
+    for (const outcome of outcomes) {
+      if (outcome.ok) {
+        succeeded++;
+        continue;
+      }
+      failed.add(outcome.doc.id);
+      console.error(
+        `Failed to delete document ${outcome.doc.id}:`,
+        outcome.error,
+      );
+      Toast.error(`Failed to delete ${outcome.doc.filename}: ${outcome.error}`);
+    }
+
+    if (succeeded > 0) {
+      Toast.success(
+        `Deleted ${succeeded} document${succeeded === 1 ? "" : "s"}`,
+      );
+    }
+
+    this.selectedIds = failed;
+    this.fetchDocuments();
+  }
+
+  private cancelBulkDelete() {
+    this.deleteDocuments = null;
   }
 
   private handleBulkClassify() {
@@ -283,6 +356,9 @@ export class DocumentGrid extends LitElement {
           ? html`
               <button class="btn btn-blue" @click=${this.handleBulkClassify}>
                 Classify ${this.selectedIds.size} Documents
+              </button>
+              <button class="btn btn-red" @click=${this.handleBulkDelete}>
+                Delete ${this.selectedIds.size} Documents
               </button>
             `
           : nothing}
@@ -338,6 +414,16 @@ export class DocumentGrid extends LitElement {
                 .filename}?"
               @confirm=${this.confirmDelete}
               @cancel=${this.cancelDelete}
+            ></hd-confirm-dialog>
+          `
+        : nothing}
+      ${this.deleteDocuments
+        ? html`
+            <hd-confirm-dialog
+              message="Are you sure you want to delete ${this.deleteDocuments
+                .length} documents?"
+              @confirm=${this.confirmBulkDelete}
+              @cancel=${this.cancelBulkDelete}
             ></hd-confirm-dialog>
           `
         : nothing}

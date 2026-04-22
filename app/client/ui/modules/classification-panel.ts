@@ -5,6 +5,7 @@ import { formatDate } from "@core/formatting";
 import { navigate } from "@core/router";
 import { ClassificationService } from "@domains/classifications";
 import type { Classification } from "@domains/classifications";
+import { Toast } from "@ui/elements";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
@@ -84,12 +85,15 @@ export class ClassificationPanel extends LitElement {
 
     if (!result.ok) {
       this.error = result.error;
+      Toast.error(`Validation failed: ${result.error}`);
       return;
     }
 
     this.classification = result.data;
     this.mode = "view";
     this.error = "";
+
+    Toast.success("Classification validated");
 
     this.dispatchEvent(
       new CustomEvent("validate", {
@@ -122,12 +126,15 @@ export class ClassificationPanel extends LitElement {
 
     if (!result.ok) {
       this.error = result.error;
+      Toast.error(`Update failed: ${result.error}`);
       return;
     }
 
     this.classification = result.data;
     this.mode = "view";
     this.error = "";
+
+    Toast.success("Classification updated");
 
     this.dispatchEvent(
       new CustomEvent("update", {

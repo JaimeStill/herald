@@ -19,6 +19,8 @@ import "@design/index.css";
   const router = new Router("app-content", routes);
   router.start();
 
+  document.body.appendChild(document.createElement("hd-toast-container"));
+
   if (Auth.isEnabled()) {
     const account = Auth.getAccount();
     const menu = document.getElementById("user-menu");

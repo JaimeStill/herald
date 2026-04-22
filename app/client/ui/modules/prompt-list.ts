@@ -5,6 +5,7 @@ import type { PageResult } from "@core";
 import { queryParams, updateQuery } from "@core/router";
 import { PromptService } from "@domains/prompts";
 import type { Prompt, SearchRequest } from "@domains/prompts";
+import { Toast } from "@ui/elements";
 
 import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
@@ -143,7 +144,14 @@ export class PromptList extends LitElement {
       ? await PromptService.activate(id)
       : await PromptService.deactivate(id);
 
-    if (result.ok) this.fetchPrompts();
+    if (result.ok) {
+      Toast.success(`Prompt ${active ? "activated" : "deactivated"}`);
+      this.fetchPrompts();
+    } else {
+      Toast.error(
+        `Failed to ${active ? "activate" : "deactivate"} prompt: ${result.error}`,
+      );
+    }
   }
 
   private handleDelete(e: CustomEvent<{ prompt: Prompt }>) {
@@ -154,11 +162,13 @@ export class PromptList extends LitElement {
     if (!this.deletePrompt) return;
 
     const id = this.deletePrompt.id;
+    const name = this.deletePrompt.name;
     this.deletePrompt = null;
 
     const result = await PromptService.delete(id);
 
     if (result.ok) {
+      Toast.success(`Deleted ${name}`);
       this.dispatchEvent(
         new CustomEvent("delete", {
           detail: { id },
@@ -167,6 +177,8 @@ export class PromptList extends LitElement {
         }),
       );
       this.fetchPrompts();
+    } else {
+      Toast.error(`Failed to delete ${name}: ${result.error}`);
     }
   }
 
