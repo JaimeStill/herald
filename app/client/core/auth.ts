@@ -1,4 +1,5 @@
 import {
+  BrowserAuthError,
   InteractionRequiredAuthError,
   PublicClientApplication,
 } from "@azure/msal-browser";
@@ -56,7 +57,10 @@ export const Auth = {
 
   /**
    * Reads config from the DOM, creates the MSAL instance, and handles
-   * any in-flight redirect. No-op when auth is disabled.
+   * any in-flight redirect. If `handleRedirectPromise()` throws (stale
+   * redirect state, e.g. nonce mismatch after long idle), the cache is
+   * cleared so the caller falls into the "no active account" path and
+   * can re-authenticate cleanly. No-op when auth is disabled.
    */
   async init(): Promise<void> {
     config = readConfig();
@@ -79,38 +83,62 @@ export const Auth = {
     msalInstance = new PublicClientApplication(msalConfig);
     await msalInstance.initialize();
 
-    const response: AuthenticationResult | null =
-      await msalInstance.handleRedirectPromise();
+    try {
+      const response: AuthenticationResult | null =
+        await msalInstance.handleRedirectPromise();
 
-    if (response?.account) {
-      msalInstance.setActiveAccount(response.account);
-    } else {
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length === 1) {
-        msalInstance.setActiveAccount(accounts[0]);
+      if (response?.account) {
+        msalInstance.setActiveAccount(response.account);
+      } else {
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length === 1) {
+          msalInstance.setActiveAccount(accounts[0]);
+        }
       }
+    } catch {
+      await msalInstance.clearCache();
     }
   },
 
   /**
    * Acquires an access token silently from the MSAL cache.
-   * On interaction-required errors, redirects to login.
+   *
+   * Error handling follows the canonical MSAL SPA pattern:
+   * - `InteractionRequiredAuthError` (expired session, consent needed) →
+   *   fall back to `acquireTokenRedirect` with the current account/scope.
+   * - `interaction_in_progress` → return `null` so callers do not stack
+   *   a second redirect on top of an in-flight one.
+   * - Any other error → treat as cache corruption, clear the cache, then
+   *   fall back to `acquireTokenRedirect`.
    */
   async getToken(forceRefresh?: boolean): Promise<string | null> {
     const account = msalInstance?.getActiveAccount();
     if (!msalInstance || !account) return null;
 
+    const request = {
+      scopes: [scope()],
+      account,
+      forceRefresh: forceRefresh ?? false,
+    };
+
     try {
-      const result = await msalInstance.acquireTokenSilent({
-        scopes: [scope()],
-        account,
-        forceRefresh: forceRefresh ?? false,
-      });
+      const result = await msalInstance.acquireTokenSilent(request);
       return result.accessToken;
     } catch (e) {
-      if (e instanceof InteractionRequiredAuthError) {
-        await this.login();
+      if (
+        e instanceof BrowserAuthError &&
+        e.errorCode === "interaction_in_progress"
+      ) {
+        return null;
       }
+      if (!(e instanceof InteractionRequiredAuthError)) {
+        try {
+          await msalInstance.clearCache();
+        } catch {
+          // clearCache() can throw on severely corrupted state; swallow.
+        }
+      }
+      await msalInstance.acquireTokenRedirect(request);
       return null;
     }
   },
