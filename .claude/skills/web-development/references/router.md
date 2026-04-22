@@ -52,16 +52,45 @@ html`<a href="prompts">Prompts</a>`
 
 ## Parameter Passing
 
-The router sets path params and query params as HTML attributes on the mounted component. Components receive them via `@property()`:
+### Path params — HTML attributes
+
+Path params are set as HTML attributes on the mounted component. Components receive them via `@property()`:
 
 ```typescript
 // Route: 'review/:documentId'
-// URL: /app/review/abc-123?tab=markings
+// URL: /app/review/abc-123
 
 @property({ type: String }) documentId?: string;  // "abc-123"
 ```
 
-Query params are also set as attributes on the component.
+### Query params — explicit helpers
+
+Query params are **not** splatted as attributes. Components read them with `queryParams()` (typically in `connectedCallback`) and write them back with `updateQuery()`:
+
+```typescript
+import { queryParams, updateQuery } from '@core/router';
+
+// Read on mount
+connectedCallback() {
+  super.connectedCallback();
+  const q = queryParams();
+  if (q.page) this.page = Number(q.page) || DEFAULTS.page;
+  // ...
+  this.fetchItems();
+}
+
+// Write on change (uses history.replaceState — no remount)
+private syncQuery() {
+  updateQuery({
+    page: this.page === DEFAULTS.page ? undefined : this.page,
+    // undefined/null/"" values are deleted from the URL
+  });
+}
+```
+
+This keeps filter fields as `@state` (internal state) rather than `@property` (parent-passed inputs), preserves the semantic distinction, and gives list views clean, shareable URLs that round-trip through browser back/forward navigation.
+
+Centralize per-view defaults in a top-of-module `DEFAULTS` const so field initializers, hydration fallbacks, and sync-omission checks share one source of truth.
 
 ## Route Types
 

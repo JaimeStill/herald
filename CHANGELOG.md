@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.0-dev.132.135
+
+### Web Client
+
+- Persist list-view pagination, search, filter, and sort state in the URL query string — `document-grid` and `prompt-list` hydrate their `@state` from `queryParams()` on mount, write back via `updateQuery()` on every filter change, and omit default values so shareable URLs stay clean; navigating into `/review/:id` and returning (or reloading the page) now restores the prior grid state (#135)
+- Add `queryParams()` and `updateQuery()` helpers to `@core/router` — `updateQuery` merges a patch into `location.search`, deletes keys on empty/undefined/null values, and uses `history.replaceState` so filter changes don't remount the active view (#135)
+- Retire the router's query-attribute splat on mount — query state now flows through the explicit helpers, keeping filter fields as `@state` (internal) rather than `@property` (parent-input) and preserving that semantic boundary (#135)
+- Simplify `hd-pagination` to a compact, container-agnostic layout — chevron buttons (`‹` / `›`) with accessible labels replace "Prev"/"Next", the "Page X of N" caption collapses to `[input] / N`, the page-size select keeps a visible "Page Size" label, native number-input spinners are hidden so the page input auto-sizes to its digit count (forward-compat for ~750k-1M document counts), and prev/next `align-self: stretch` to match the sibling input/select height (#135)
+
 ## v0.5.0-dev.132.134
 
 ### Web Client

@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
 import type { PageResult } from "@core";
+import { queryParams, updateQuery } from "@core/router";
 import { PromptService } from "@domains/prompts";
 import type { Prompt, SearchRequest } from "@domains/prompts";
 
@@ -9,6 +10,14 @@ import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
 import scrollStyles from "@styles/scroll.module.css";
 import styles from "./prompt-list.module.css";
+
+const DEFAULTS = {
+  page: 1,
+  pageSize: 12,
+  search: "",
+  stage: "",
+  sort: "Name",
+} as const;
 
 /**
  * Stateful module that manages the prompt browsing experience.
@@ -22,17 +31,18 @@ export class PromptList extends LitElement {
   @property({ type: Object }) selected: Prompt | null = null;
 
   @state() private prompts: PageResult<Prompt> | null = null;
-  @state() private page = 1;
-  @state() private pageSize = 12;
-  @state() private search = "";
-  @state() private stage = "";
-  @state() private sort = "Name";
+  @state() private page: number = DEFAULTS.page;
+  @state() private pageSize: number = DEFAULTS.pageSize;
+  @state() private search: string = DEFAULTS.search;
+  @state() private stage: string = DEFAULTS.stage;
+  @state() private sort: string = DEFAULTS.sort;
   @state() private deletePrompt: Prompt | null = null;
 
   private searchTimer = 0;
 
   connectedCallback() {
     super.connectedCallback();
+    this.hydrateFromQuery();
     this.fetchPrompts();
   }
 
@@ -42,7 +52,8 @@ export class PromptList extends LitElement {
   }
 
   async refresh() {
-    this.page = 1;
+    this.page = DEFAULTS.page;
+    this.syncQuery();
     await this.fetchPrompts();
   }
 
@@ -59,6 +70,26 @@ export class PromptList extends LitElement {
     const result = await PromptService.search(req);
 
     if (result.ok) this.prompts = result.data;
+  }
+
+  private hydrateFromQuery() {
+    const q = queryParams();
+    if (q.page) this.page = Number(q.page) || DEFAULTS.page;
+    if (q.page_size) this.pageSize = Number(q.page_size) || DEFAULTS.pageSize;
+    if (q.search) this.search = q.search;
+    if (q.stage) this.stage = q.stage;
+    if (q.sort) this.sort = q.sort;
+  }
+
+  private syncQuery() {
+    updateQuery({
+      page: this.page === DEFAULTS.page ? undefined : this.page,
+      page_size:
+        this.pageSize === DEFAULTS.pageSize ? undefined : this.pageSize,
+      search: this.search || undefined,
+      stage: this.stage || undefined,
+      sort: this.sort === DEFAULTS.sort ? undefined : this.sort,
+    });
   }
 
   private handleSearchInput(e: Event) {
@@ -83,12 +114,14 @@ export class PromptList extends LitElement {
 
   private handlePageChange(e: CustomEvent<{ page: number }>) {
     this.page = e.detail.page;
+    this.syncQuery();
     this.fetchPrompts();
   }
 
   private handlePageSizeChange(e: CustomEvent<{ size: number }>) {
     this.pageSize = e.detail.size;
-    this.page = 1;
+    this.page = DEFAULTS.page;
+    this.syncQuery();
     this.fetchPrompts();
   }
 

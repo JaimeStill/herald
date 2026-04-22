@@ -77,7 +77,7 @@ Five cascade layers (`tokens, reset, base, theme, app`), design tokens as CSS cu
 
 ### Router — [references/router.md](references/router.md)
 
-History API router at `app/client/core/router/`. Routes are defined in `app/client/routes.ts` and injected into the `Router` constructor — the router has no knowledge of specific routes. Dynamic `:paramName` segments, catch-all `'*'`, `navigate()` for programmatic routing. Router sets path/query params as HTML attributes on mounted components. Progressive enhancement with View Transitions API.
+History API router at `app/client/core/router/`. Routes are defined in `app/client/routes.ts` and injected into the `Router` constructor — the router has no knowledge of specific routes. Dynamic `:paramName` segments, catch-all `'*'`, `navigate()` for programmatic routing. Path params are set as HTML attributes on mounted components; query params are read via `queryParams()` and written via `updateQuery()` helpers (no attribute splat). Progressive enhancement with View Transitions API.
 
 ### Build — [references/build.md](references/build.md)
 

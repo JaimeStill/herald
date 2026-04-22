@@ -7,10 +7,40 @@ export function navigate(path: string): void {
   routerInstance?.navigate(path);
 }
 
+/** Current URL's query string as a flat map of decoded key/value pairs. */
+export function queryParams(): Record<string, string> {
+  const params = new URLSearchParams(location.search);
+  const result: Record<string, string> = {};
+  for (const [key, value] of params) result[key] = value;
+  return result;
+}
+
 /**
- * History API router. Matches URL paths against the route table,
- * mounts the corresponding component into a container element,
- * and sets path/query params as HTML attributes on the mounted component.
+ * Merges a patch into the current URL's query string and replaces history.
+ * Keys whose value is `undefined`, `null`, or `""` are removed from the URL.
+ * Uses `history.replaceState` so the active view is not remounted — callers
+ * remain in place while their shareable URL updates in the address bar.
+ */
+export function updateQuery(
+  patch: Record<string, string | number | undefined | null>,
+): void {
+  const url = new URL(location.href);
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined || value === null || value === "") {
+      url.searchParams.delete(key);
+    } else {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  history.replaceState(null, "", url.pathname + url.search);
+}
+
+/**
+ * History API router. Matches URL paths against the route table and mounts
+ * the corresponding component into a container element. Path params are set
+ * as HTML attributes on the mounted component; query params are not splatted
+ * — views read and write them via the `queryParams` and `updateQuery`
+ * helpers.
  */
 export class Router {
   private container: HTMLElement;
@@ -71,7 +101,8 @@ export class Router {
   private match(path: string, query: Record<string, string>): RouteMatch {
     const segments = path.split("/").filter(Boolean);
 
-    if (this.routes[path]) return { config: this.routes[path], params: {}, query };
+    if (this.routes[path])
+      return { config: this.routes[path], params: {}, query };
 
     for (const [pattern, config] of Object.entries(this.routes)) {
       if (pattern === "*") continue;
@@ -109,10 +140,6 @@ export class Router {
       const el = document.createElement(match.config.component);
 
       for (const [key, value] of Object.entries(match.params)) {
-        el.setAttribute(key, value);
-      }
-
-      for (const [key, value] of Object.entries(match.query)) {
         el.setAttribute(key, value);
       }
 
