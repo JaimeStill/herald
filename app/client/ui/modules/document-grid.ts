@@ -2,7 +2,7 @@ import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
 import type { PageResult } from "@core";
-import { navigate } from "@core/router";
+import { navigate, queryParams, updateQuery } from "@core/router";
 import { ClassificationService } from "@domains/classifications";
 import type { WorkflowStage } from "@domains/classifications";
 import { DocumentService } from "@domains/documents";
@@ -12,6 +12,14 @@ import buttonStyles from "@styles/buttons.module.css";
 import inputStyles from "@styles/inputs.module.css";
 import scrollStyles from "@styles/scroll.module.css";
 import styles from "./document-grid.module.css";
+
+const DEFAULTS = {
+  page: 1,
+  pageSize: 12,
+  search: "",
+  status: "",
+  sort: "-UploadedAt",
+} as const;
 
 interface ClassifyProgress {
   currentNode: WorkflowStage | null;
@@ -28,11 +36,11 @@ export class DocumentGrid extends LitElement {
   static styles = [buttonStyles, inputStyles, scrollStyles, styles];
 
   @state() private documents: PageResult<Document> | null = null;
-  @state() private page = 1;
-  @state() private pageSize = 12;
-  @state() private search = "";
-  @state() private status = "";
-  @state() private sort = "-UploadedAt";
+  @state() private page: number = DEFAULTS.page;
+  @state() private pageSize: number = DEFAULTS.pageSize;
+  @state() private search: string = DEFAULTS.search;
+  @state() private status: string = DEFAULTS.status;
+  @state() private sort: string = DEFAULTS.sort;
   @state() private classifying = new Map<string, ClassifyProgress>();
   @state() private selectedIds = new Set<string>();
   @state() private deleteDocument: Document | null = null;
@@ -42,6 +50,7 @@ export class DocumentGrid extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.hydrateFromQuery();
     this.fetchDocuments();
   }
 
@@ -54,7 +63,8 @@ export class DocumentGrid extends LitElement {
   }
 
   async refresh() {
-    this.page = 1;
+    this.page = DEFAULTS.page;
+    this.syncQuery();
     await this.fetchDocuments();
   }
 
@@ -66,12 +76,31 @@ export class DocumentGrid extends LitElement {
     };
 
     if (this.search) req.search = this.search;
-
     if (this.status) req.status = this.status;
 
     const result = await DocumentService.search(req);
 
     if (result.ok) this.documents = result.data;
+  }
+
+  private hydrateFromQuery() {
+    const q = queryParams();
+    if (q.page) this.page = Number(q.page) || DEFAULTS.page;
+    if (q.page_size) this.pageSize = Number(q.page_size) || DEFAULTS.pageSize;
+    if (q.search) this.search = q.search;
+    if (q.status) this.status = q.status;
+    if (q.sort) this.sort = q.sort;
+  }
+
+  private syncQuery() {
+    updateQuery({
+      page: this.page === DEFAULTS.page ? undefined : this.page,
+      page_size:
+        this.pageSize === DEFAULTS.pageSize ? undefined : this.pageSize,
+      search: this.search || undefined,
+      status: this.status || undefined,
+      sort: this.sort === DEFAULTS.sort ? undefined : this.sort,
+    });
   }
 
   private handleSearchInput(e: Event) {
@@ -96,12 +125,14 @@ export class DocumentGrid extends LitElement {
 
   private handlePageChange(e: CustomEvent<{ page: number }>) {
     this.page = e.detail.page;
+    this.syncQuery();
     this.fetchDocuments();
   }
 
   private handlePageSizeChange(e: CustomEvent<{ size: number }>) {
     this.pageSize = e.detail.size;
-    this.page = 1;
+    this.page = DEFAULTS.page;
+    this.syncQuery();
     this.fetchDocuments();
   }
 

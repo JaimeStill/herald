@@ -92,7 +92,7 @@ export class PaginationControls extends LitElement {
     return html`
       <div class="pagination">
         <label class="page-size">
-          <span class="label">Per page:</span>
+          <span class="page-size-label">Page Size</span>
           <select
             class="input"
             .value=${String(this.size)}
@@ -105,14 +105,14 @@ export class PaginationControls extends LitElement {
         </label>
         <div class="page-controls">
           <button
-            class="btn"
+            class="btn btn-page"
+            aria-label="Previous page"
             ?disabled=${this.page <= 1}
             @click=${this.handlePrev}
           >
-            Prev
+            ‹
           </button>
           <span class="page-indicator">
-            Page
             <input
               class="input page-input"
               type="number"
@@ -125,14 +125,15 @@ export class PaginationControls extends LitElement {
               @change=${this.handlePageInput}
               @focus=${this.handlePageFocus}
             />
-            of ${this.totalPages}
+            <span aria-hidden="true">/ ${this.totalPages}</span>
           </span>
           <button
-            class="btn"
+            class="btn btn-page"
+            aria-label="Next Page"
             ?disabled=${this.page >= this.totalPages}
             @click=${this.handleNext}
           >
-            Next
+            ›
           </button>
         </div>
       </div>
