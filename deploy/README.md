@@ -424,6 +424,7 @@ All `HERALD_*` environment variables injected into the compute target are compos
 | `HERALD_AGENT_PROVIDER_NAME` | `azure` | Yes |
 | `HERALD_AGENT_BASE_URL` | `cognitive.outputs.endpoint` + `openai` | Yes |
 | `HERALD_AGENT_DEPLOYMENT` | `cognitive.outputs.modelDeploymentName` | Yes |
+| `HERALD_AGENT_MODEL_NAME` | `cognitiveModelName` param | Yes |
 | `HERALD_AGENT_API_VERSION` | `2025-04-01-preview` | Yes |
 | `HERALD_AGENT_AUTH_TYPE` | `managed_identity` | Yes |
 | `HERALD_AGENT_RESOURCE` | `cognitiveTokenScope` param | Yes |

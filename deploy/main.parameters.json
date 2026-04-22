@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "0.4.2.0",
+  "contentVersion": "0.5.0.0",
   "parameters": {
     "location": {
       "value": "centralus"

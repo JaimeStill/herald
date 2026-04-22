@@ -287,6 +287,7 @@ var baseEnvVars = [
   { name: 'HERALD_AGENT_PROVIDER_NAME', value: 'azure' }
   { name: 'HERALD_AGENT_BASE_URL', value: '${cognitive.outputs.endpoint}openai' }
   { name: 'HERALD_AGENT_DEPLOYMENT', value: cognitive.outputs.modelDeploymentName }
+  { name: 'HERALD_AGENT_MODEL_NAME', value: cognitiveModelName }
   { name: 'HERALD_AGENT_API_VERSION', value: '2025-04-01-preview' }
   { name: 'HERALD_AGENT_AUTH_TYPE', value: 'managed_identity' }
   { name: 'HERALD_AGENT_RESOURCE', value: cognitiveTokenScope }
