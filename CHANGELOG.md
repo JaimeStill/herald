@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.0-dev.132.137
+
+### Web Client
+
+- Harden MSAL token-refresh flow against stale/corrupted cache after long idle — wrap `handleRedirectPromise()` in `init()` so nonce-mismatch-after-idle and other stale redirect-return errors clear the cache instead of rejecting `init()` and leaving the shell unmounted; broaden the `getToken()` catch to treat any non-`InteractionRequiredAuthError` as cache corruption (`clearCache()` + `acquireTokenRedirect`), short-circuit on `BrowserAuthError` with code `interaction_in_progress` so in-flight redirects are not stacked, and switch the silent-failure fallback from `loginRedirect` to the canonical MSAL SPA pattern `acquireTokenRedirect(request)` to preserve account/login-hint context (#137)
+
 ## v0.5.0-dev.132.135
 
 ### Web Client
