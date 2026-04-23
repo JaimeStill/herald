@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
 import type { Prompt } from "@domains/prompts";
+import "./tooltip";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
@@ -61,7 +62,9 @@ export class PromptCard extends LitElement {
     return html`
       <div class="card ${this.selected ? "selected" : ""}">
         <div class="header" @click=${this.handleSelect}>
-          <span class="name">${p.name}</span>
+          <hd-tooltip .message=${p.name}>
+            <span class="name">${p.name}</span>
+          </hd-tooltip>
           <span class="badge ${p.stage}">${p.stage}</span>
           <span
             class="active-indicator ${p.active ? "active" : ""}"

@@ -2,15 +2,14 @@
 
 ## Cascade Layers
 
-Herald uses five layers with explicit precedence. Tokens are lowest priority (easily overridden), app is highest.
+Herald uses four layers with explicit precedence. Tokens are lowest priority (easily overridden), app is highest.
 
 ```css
 /* design/index.css */
-@layer tokens, reset, base, theme, app;
+@layer tokens, reset, theme, app;
 
 @import url(./core/tokens.css);
 @import url(./core/reset.css);
-@import url(./core/base.css);
 @import url(./core/theme.css);
 
 @import url(./app/app.css);
@@ -18,11 +17,9 @@ Herald uses five layers with explicit precedence. Tokens are lowest priority (ea
 
 `app.css` is in the `app` layer (highest priority) and handles the application shell layout.
 
-### The `base` layer
+### Scrollbar gutters are scoped to scroll containers only
 
-`design/core/base.css` holds cross-cutting primitives that aren't resets but need to apply broadly — currently a universal `scrollbar-gutter: stable` rule. Because `scrollbar-gutter` is a no-op on elements whose `overflow` is not `auto`/`scroll`/`hidden`, a `*` selector is safe and ensures every scroll container in the light DOM reserves scrollbar space consistently (no layout shift when content crosses the scroll threshold).
-
-Light-DOM rules don't pierce shadow DOM, so components get the same guarantee through `scroll.module.css` (see Shared Component Styles below).
+`scrollbar-gutter: stable` lives on the `.scroll-y` / `.scroll-x` utilities in `@styles/scroll.module.css`, not as a universal `*` rule. An earlier iteration applied it globally on the assumption that it was a no-op on non-scroll containers — that assumption was wrong. `scrollbar-gutter: stable` reserves gutter space on any element whose `overflow` is `auto`, `scroll`, **or `hidden`**, so a `*` selector leaks a phantom ~15px gutter onto every `overflow: hidden` container in the app shell. Scope it to real scroll containers only.
 
 ## Design Tokens
 

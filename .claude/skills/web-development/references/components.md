@@ -277,6 +277,150 @@ private handleClassify(e: CustomEvent<{ id: string }>) {
 
 The pure element receives all streaming state as properties and dispatches intent events upward. It has no knowledge of services, SSE, or `AbortController`.
 
+## Overlay Elements
+
+Overlay elements use native top-layer primitives — see the SKILL.md "Overlay Convention" section for the decision matrix. Three patterns cover every primitive currently in use.
+
+### Modal dialog (`<dialog>` + `.showModal()`)
+
+```typescript
+export type ConfirmKind = "danger" | "primary" | "neutral";
+
+const CONFIRM_CLASS: Record<ConfirmKind, string> = {
+  danger: "btn btn-red",
+  primary: "btn btn-green",
+  neutral: "btn",
+};
+
+@customElement("hd-confirm-dialog")
+export class ConfirmDialog extends LitElement {
+  @property() message = "Are you sure?";
+  @property() confirmKind: ConfirmKind = "danger";
+  @query("dialog") private dialogEl!: HTMLDialogElement;
+
+  firstUpdated() {
+    this.dialogEl.showModal();
+  }
+
+  private handleBackdropClick(e: MouseEvent) {
+    if (e.target === this.dialogEl) this.emitCancel();
+  }
+
+  private handleCancelEvent(e: Event) {
+    e.preventDefault();
+    this.emitCancel();
+  }
+
+  render() {
+    return html`
+      <dialog @click=${this.handleBackdropClick} @cancel=${this.handleCancelEvent}>
+        <div class="panel">
+          <p class="message">${this.message}</p>
+          <div class="actions">
+            <button class="btn" @click=${this.emitCancel}>Cancel</button>
+            <button class=${CONFIRM_CLASS[this.confirmKind]} @click=${this.emitConfirm} autofocus>
+              Confirm
+            </button>
+          </div>
+        </div>
+      </dialog>
+    `;
+  }
+}
+```
+
+```css
+:host { display: contents; }
+dialog { padding: 0; border: 1px solid var(--divider); border-radius: var(--radius-md); }
+dialog::backdrop { background: hsl(0 0% 0% / 0.5); }
+```
+
+The parent conditionally mounts the dialog and listens for `confirm` / `cancel` events. `<dialog>.showModal()` provides focus trap, Escape → `cancel`, focus return on close, and `::backdrop` styling natively — no manual scrim, no `z-index`. `:host { display: contents }` removes the custom element's own box from the layout tree so mounting the dialog cannot reflow the caller's layout. A semantic-variant enum (`confirmKind`) maps caller intent to a button color class without leaking raw class names — reusable anywhere caller intent should shape presentation.
+
+### Toast stack (`popover="manual"`)
+
+```typescript
+@customElement("hd-toast-container")
+export class ToastContainer extends LitElement {
+  connectedCallback() {
+    super.connectedCallback();
+    this.setAttribute("popover", "manual");
+    this.showPopover();
+    this.unsubscribe = Toast.subscribe((t) => { this.toasts = t; });
+  }
+
+  disconnectedCallback() {
+    this.unsubscribe?.();
+    if (this.matches(":popover-open")) this.hidePopover();
+    super.disconnectedCallback();
+  }
+}
+```
+
+```css
+:host {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.stack {
+  position: fixed;
+  bottom: var(--space-4);
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: min(72ch, calc(100dvw - var(--space-8)));
+}
+```
+
+`popover="manual"` puts the host in the top layer without light-dismiss — correct when outside-click dismissal would be destructive (would kill every toast on any page click). The `:host` reset neutralizes UA popover chrome (`background: Canvas`, `border: solid`, `padding: 0.25em`) so the popover host is visually inert; the inner `.stack` div owns the fixed positioning because it sits outside the UA `[popover]` cascade and centers predictably.
+
+### Anchored tooltip (`popover="hint"`)
+
+```typescript
+@customElement("hd-tooltip")
+export class Tooltip extends LitElement {
+  @property() message = "";
+  @query("span.trigger") private triggerEl!: HTMLSpanElement;
+  @query("div.tip") private tipEl!: HTMLDivElement;
+
+  private anchorName = `--hd-tooltip-${++tooltipSeq}`;
+  private showTimer: number | undefined;
+
+  firstUpdated() {
+    this.triggerEl.style.setProperty("anchor-name", this.anchorName);
+    this.tipEl.style.setProperty("position-anchor", this.anchorName);
+  }
+
+  render() {
+    return html`
+      <span class="trigger"
+            @mouseenter=${this.handleEnter} @mouseleave=${this.handleLeave}
+            @focusin=${this.handleEnter} @focusout=${this.handleLeave}>
+        <slot></slot>
+      </span>
+      <div class="tip" popover="hint" role="tooltip">${this.message}</div>
+    `;
+  }
+}
+```
+
+```css
+.trigger { display: inline-flex; overflow: hidden; min-width: 0; flex: 1; }
+.tip {
+  inset: unset;
+  top: anchor(bottom);
+  justify-self: anchor-center;
+  position-try-fallbacks: flip-block;
+}
+```
+
+`popover="hint"` (not `"auto"`) keeps tooltips from closing open menus while still closing other tooltips. A short show delay (~150ms) avoids flicker on quick mouse travel. `position-try-fallbacks: flip-block` lets the popover flip above when below is tight. The tooltip performs no measurement or gating itself — composing elements conditionally render it (or pass a disabled flag) when they want behavior like "only show when the trigger is truncated."
+
+Anchor positioning uses a per-instance `anchor-name` so multiple tooltip instances don't collide. TypeScript's `lib.dom` does not yet type `CSSStyleDeclaration.anchorName` / `.positionAnchor`, so set them via `setProperty` with the kebab-case CSS names.
+
 ## Template Patterns
 
 ### Render Methods

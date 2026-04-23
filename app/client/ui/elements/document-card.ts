@@ -4,6 +4,7 @@ import { customElement, property } from "lit/decorators.js";
 import { formatBytes, formatDate } from "@core/formatting";
 import type { WorkflowStage } from "@domains/classifications";
 import type { Document } from "@domains/documents";
+import "./tooltip";
 
 import badgeStyles from "@styles/badge.module.css";
 import buttonStyles from "@styles/buttons.module.css";
@@ -95,7 +96,9 @@ export class DocumentCard extends LitElement {
     return html`
       <div class="card ${this.selected ? "selected" : ""}">
         <div class="header" @click=${this.handleSelect}>
-          <span class="filename">${doc.filename}</span>
+          <hd-tooltip .message=${doc.filename}>
+            <span class="filename">${doc.filename}</span>
+          </hd-tooltip>
           <span class="badge ${doc.status}">${doc.status}</span>
         </div>
 

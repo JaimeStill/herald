@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.5.0-dev.132.145
+
+### Web Client
+
+- Migrate `hd-confirm-dialog` to a native `<dialog>.showModal()` overlay — drops the manual `position: fixed; z-index: 100` scrim + dialog div in favor of the top layer. Wires the native `cancel` event (Escape), backdrop click (`event.target === dialogEl`), and `autofocus` on the Confirm button; keeps the existing `confirm` / `cancel` CustomEvent contract so callers (document grid single + bulk delete, prompt delete) work unchanged. Adds a `:host { display: contents }` rule so the custom-element host contributes no box to the caller's layout tree — mounting the dialog no longer reflows the underlying view (#145)
+- Add `confirmKind: "danger" | "primary" | "neutral"` property to `hd-confirm-dialog` with a default of `"danger"` — maps caller intent to a button color class (`btn-red`/`btn-green`/`btn`) without exposing raw class names. All existing callers are destructive and land on the default; future affirmative or neutral confirmations set the property (#145)
+- Introduce `hd-tooltip` element at `app/client/ui/elements/tooltip.ts` — hover- and focus-triggered primitive using `popover="hint"` (not `"auto"`, so opening a tooltip inside a menu doesn't close the menu) with CSS Anchor Positioning (`anchor-name` / `position-anchor` / `position-try-fallbacks: flip-block` so the tip flips above when below lacks room) and a 150ms show delay to avoid flicker on quick mouse travel. The tooltip is a dumb primitive — composing elements own any gating logic (the current `document-card` and `prompt-card` wrappers always render it) (#145)
+- Wrap `document-card` filename and `prompt-card` name spans with `<hd-tooltip message=${...}>` so users can reveal the full value on hover or keyboard focus when the card layout truncates it (#145)
+- Migrate `hd-toast-container` to `popover="manual"` — host enters the top layer via `setAttribute("popover", "manual")` + `this.showPopover()` in `connectedCallback`, and `hidePopover()` is guarded by `this.matches(":popover-open")` in `disconnectedCallback`. Keeps fixed positioning on the inner `.stack` div rather than `:host` because UA `[popover]` defaults (`inset: 0; margin: auto; ...`) fight `:host` rules in the cascade and produce unreliable placement. `z-index: 200` is gone — top-layer stacking handles ordering (#145)
+- Remove the universal `* { scrollbar-gutter: stable }` rule and the `base` cascade layer. The rule was introduced in #133 on the premise that `scrollbar-gutter: stable` is a no-op on non-scroll elements; that premise was wrong — the rule reserves gutter space on any element whose `overflow` is `auto`, `scroll`, **or `hidden`**, so it leaked a phantom ~15px gutter onto every `overflow: hidden` container in the app shell. `scrollbar-gutter: stable` already lives on `.scroll-y` / `.scroll-x` in `@styles/scroll.module.css` where it belongs (#145)
+
+### Conventions
+
+- Expand `.claude/skills/web-development/references/components.md` with an "Overlay Elements" section covering the three patterns now in use: modal dialog (`<dialog>` + `.showModal()`), toast stack (`popover="manual"`), and anchored tooltip (`popover="hint"`). Update `.claude/skills/web-development/SKILL.md` overlay-convention patterns with the `:host { display: contents }` rule for modals and the inner-element-owns-layout rule for popover stacks. Refresh `.claude/skills/web-development/references/css.md` and `.claude/CLAUDE.md` cascade-layers bullet to reflect the four-layer stack (`tokens, reset, theme, app`) and the scroll-utility-only scope of `scrollbar-gutter: stable` (#145)
+
 ## v0.5.0-dev.132.139
 
 ### Web Client

@@ -130,15 +130,18 @@ export class ToastContainer extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.setAttribute("popover", "manual");
+    this.showPopover();
     this.unsubscribe = Toast.subscribe((toasts) => {
       this.toasts = toasts;
     });
   }
 
   disconnectedCallback() {
-    super.disconnectedCallback();
     this.unsubscribe?.();
     this.unsubscribe = undefined;
+    if (this.matches(":popover-open")) this.hidePopover();
+    super.disconnectedCallback();
   }
 
   private handleDismiss(id: string) {
