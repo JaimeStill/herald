@@ -1,8 +1,7 @@
-@layer tokens, reset, base, theme, app;
+@layer tokens, reset, theme, app;
 
 @import url(./core/tokens.css);
 @import url(./core/reset.css);
-@import url(./core/base.css);
 @import url(./core/theme.css);
 
 @import url(./app/app.css);

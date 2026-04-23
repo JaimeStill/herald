@@ -7,3 +7,4 @@ export { PaginationControls } from "./pagination-controls";
 export { PromptCard } from "./prompt-card";
 export { Toast, ToastContainer } from "./toast";
 export type { ToastItem, ToastKind } from "./toast";
+export { Tooltip } from "./tooltip";
