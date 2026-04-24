@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/JaimeStill/herald/internal/prompts"
+	"github.com/JaimeStill/herald/internal/state"
 )
 
 // ComposePrompt builds a system prompt by combining tunable instructions,
@@ -17,7 +18,7 @@ func ComposePrompt(
 	ctx context.Context,
 	ps prompts.System,
 	stage prompts.Stage,
-	state *ClassificationState,
+	state *state.ClassificationState,
 ) (string, error) {
 	instructions, err := ps.Instructions(ctx, stage)
 	if err != nil {

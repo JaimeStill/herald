@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/tailored-agentic-units/orchestrate/observability"
-	"github.com/tailored-agentic-units/orchestrate/state"
 
-	"github.com/JaimeStill/herald/pkg/formatting"
+	"github.com/JaimeStill/herald/pkg/core"
+
+	taustate "github.com/tailored-agentic-units/orchestrate/state"
 )
 
 // StreamingObserver translates verbose tau/orchestrate events into lean
@@ -59,9 +60,9 @@ func (o *StreamingObserver) OnEvent(ctx context.Context, event observability.Eve
 	var execEvent *ExecutionEvent
 
 	switch event.Type {
-	case state.EventNodeStart:
+	case taustate.EventNodeStart:
 		execEvent = handleNodeStart(event)
-	case state.EventNodeComplete:
+	case taustate.EventNodeComplete:
 		execEvent = o.handleNodeComplete(event)
 	}
 
@@ -113,7 +114,7 @@ func (o *StreamingObserver) SendError(err error, nodeName string) {
 }
 
 func handleNodeStart(event observability.Event) *ExecutionEvent {
-	data, err := formatting.FromMap[NodeStartData](event.Data)
+	data, err := core.FromMap[NodeStartData](event.Data)
 	if err != nil {
 		return nil
 	}
@@ -128,7 +129,7 @@ func handleNodeStart(event observability.Event) *ExecutionEvent {
 }
 
 func (o *StreamingObserver) handleNodeComplete(event observability.Event) *ExecutionEvent {
-	data, err := formatting.FromMap[NodeCompleteData](event.Data)
+	data, err := core.FromMap[NodeCompleteData](event.Data)
 	if err != nil {
 		return nil
 	}

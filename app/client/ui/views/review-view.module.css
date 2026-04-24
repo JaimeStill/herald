@@ -9,10 +9,11 @@
 .panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
 }
 
-.pdf-panel {
+.document-panel {
   flex: 3;
 }
 

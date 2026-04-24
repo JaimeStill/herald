@@ -2,7 +2,7 @@ const units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
 /**
  * Formats a byte count into a human-readable string using base-1024 units.
- * Mirrors Go `pkg/formatting.FormatBytes`.
+ * Mirrors Go `pkg/core.FormatBytes`.
  */
 export function formatBytes(n: number, precision = 1): string {
   if (n === 0) return "0 B";

@@ -7,6 +7,7 @@ import (
 	"github.com/tailored-agentic-units/agent"
 
 	"github.com/JaimeStill/herald/internal/documents"
+	"github.com/JaimeStill/herald/internal/format"
 	"github.com/JaimeStill/herald/internal/prompts"
 	"github.com/JaimeStill/herald/pkg/storage"
 )
@@ -20,5 +21,6 @@ type Runtime struct {
 	Storage   storage.System
 	Documents documents.System
 	Prompts   prompts.System
+	Formats   *format.Registry
 	Logger    *slog.Logger
 }

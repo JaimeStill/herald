@@ -7,25 +7,27 @@ import (
 
 // Domain errors for document operations.
 var (
-	ErrNotFound     = errors.New("document not found")
-	ErrDuplicate    = errors.New("document already exists")
-	ErrFileTooLarge = errors.New("file exceeds maximum upload size")
-	ErrInvalidFile  = errors.New("invalid file")
+	ErrNotFound               = errors.New("document not found")
+	ErrDuplicate              = errors.New("document already exists")
+	ErrFileTooLarge           = errors.New("file exceeds maximum upload size")
+	ErrInvalidFile            = errors.New("invalid file")
+	ErrUnsupportedContentType = errors.New("unsupported content type")
 )
 
 // MapHTTPStatus maps document domain errors to appropriate HTTP status codes.
 func MapHTTPStatus(err error) int {
-	if errors.Is(err, ErrNotFound) {
+	switch {
+	case errors.Is(err, ErrNotFound):
 		return http.StatusNotFound
-	}
-	if errors.Is(err, ErrDuplicate) {
+	case errors.Is(err, ErrDuplicate):
 		return http.StatusConflict
-	}
-	if errors.Is(err, ErrFileTooLarge) {
+	case errors.Is(err, ErrFileTooLarge):
 		return http.StatusRequestEntityTooLarge
-	}
-	if errors.Is(err, ErrInvalidFile) {
+	case
+		errors.Is(err, ErrInvalidFile),
+		errors.Is(err, ErrUnsupportedContentType):
 		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
 	}
-	return http.StatusInternalServerError
 }

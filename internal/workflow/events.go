@@ -24,7 +24,7 @@ type ExecutionEvent struct {
 }
 
 // NodeStartData is the typed representation of Data for NodeStart events.
-// Consumers decode it via formatting.FromMap[NodeStartData].
+// Consumers decode it via core.FromMap[NodeStartData].
 type NodeStartData struct {
 	Node      string `json:"node"`
 	Iteration int    `json:"iteration"`

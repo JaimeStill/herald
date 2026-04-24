@@ -4,6 +4,7 @@ import { customElement, state } from "lit/decorators.js";
 import { formatBytes } from "@core/formatting";
 import { DocumentService } from "@domains/documents";
 import type { UploadEntry } from "@domains/documents";
+import { acceptAttribute, dropZoneText, isSupported } from "@domains/formats";
 import { Toast } from "@ui/elements";
 
 import badgeStyles from "@styles/badge.module.css";
@@ -45,11 +46,19 @@ export class DocumentUpload extends LitElement {
   }
 
   private addFiles(files: FileList) {
-    const pdfs = Array.from(files).filter((f) => f.type === "application/pdf");
+    const all = Array.from(files);
+    const accepted = all.filter((f) => isSupported(f.type));
+    const rejected = all.length - accepted.length;
 
-    if (pdfs.length < 1) return;
+    if (rejected > 0) {
+      Toast.warning(
+        `Skipped ${rejected} unsupported file${rejected === 1 ? "" : "s"}`,
+      );
+    }
 
-    const entries: UploadEntry[] = pdfs.map((file) => ({
+    if (accepted.length < 1) return;
+
+    const entries: UploadEntry[] = accepted.map((file) => ({
       file,
       status: "pending" as const,
       externalId: 0,
@@ -168,13 +177,13 @@ export class DocumentUpload extends LitElement {
         <input
           id="file-input"
           type="file"
-          accept=".pdf"
+          accept=${acceptAttribute()}
           multiple
           hidden
           @change=${this.handleFileInput}
         />
         <span class="drop-icon">📄</span>
-        <span class="drop-text">Drag PDFs here or click to browse</span>
+        <span class="drop-text">${dropZoneText()}</span>
       </div>
     `;
   }

@@ -15,8 +15,16 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/JaimeStill/herald/internal/documents"
+	"github.com/JaimeStill/herald/internal/format"
 	"github.com/JaimeStill/herald/pkg/pagination"
 )
+
+func testRegistry() *format.Registry {
+	return format.NewRegistry(
+		format.NewPDFHandler(),
+		format.NewImageHandler(),
+	)
+}
 
 type mockSystem struct {
 	listFn   func(ctx context.Context, page pagination.PageRequest, filters documents.Filters) (*pagination.PageResult[documents.Document], error)
@@ -26,7 +34,7 @@ type mockSystem struct {
 }
 
 func (m *mockSystem) Handler(maxUploadSize int64) *documents.Handler {
-	return documents.NewHandler(m, slog.New(slog.NewTextHandler(io.Discard, nil)), pagination.Config{DefaultPageSize: 20, MaxPageSize: 100}, maxUploadSize)
+	return documents.NewHandler(m, slog.New(slog.NewTextHandler(io.Discard, nil)), pagination.Config{DefaultPageSize: 20, MaxPageSize: 100}, maxUploadSize, testRegistry())
 }
 
 func (m *mockSystem) List(ctx context.Context, page pagination.PageRequest, filters documents.Filters) (*pagination.PageResult[documents.Document], error) {
@@ -51,6 +59,7 @@ func newTestHandler(sys *mockSystem) *documents.Handler {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		pagination.Config{DefaultPageSize: 20, MaxPageSize: 100},
 		50*1024*1024,
+		testRegistry(),
 	)
 }
 
@@ -295,7 +304,7 @@ func TestHandlerUpload(t *testing.T) {
 		}
 		mux := setupMux(newTestHandler(sys))
 
-		body, contentType := createMultipartForm(t, "report.pdf", []byte("fake pdf content"), "12345", "HQ")
+		body, contentType := createMultipartForm(t, "report.pdf", []byte("%PDF-1.4\nfake pdf content"), "12345", "HQ")
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/documents", body)
@@ -320,7 +329,7 @@ func TestHandlerUpload(t *testing.T) {
 		sys := &mockSystem{}
 		mux := setupMux(newTestHandler(sys))
 
-		body, contentType := createMultipartForm(t, "report.pdf", []byte("content"), "", "HQ")
+		body, contentType := createMultipartForm(t, "report.pdf", []byte("%PDF-1.4\nfake pdf content"), "", "HQ")
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/documents", body)
@@ -336,7 +345,7 @@ func TestHandlerUpload(t *testing.T) {
 		sys := &mockSystem{}
 		mux := setupMux(newTestHandler(sys))
 
-		body, contentType := createMultipartForm(t, "report.pdf", []byte("content"), "12345", "")
+		body, contentType := createMultipartForm(t, "report.pdf", []byte("%PDF-1.4\nfake pdf content"), "12345", "")
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/documents", body)
@@ -376,7 +385,7 @@ func TestHandlerUpload(t *testing.T) {
 		}
 		mux := setupMux(newTestHandler(sys))
 
-		body, contentType := createMultipartForm(t, "report.pdf", []byte("content"), "12345", "HQ")
+		body, contentType := createMultipartForm(t, "report.pdf", []byte("%PDF-1.4\nfake pdf content"), "12345", "HQ")
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/documents", body)
@@ -385,6 +394,38 @@ func TestHandlerUpload(t *testing.T) {
 
 		if rec.Code != http.StatusConflict {
 			t.Errorf("status = %d, want 409", rec.Code)
+		}
+	})
+
+	t.Run("unsupported content type returns 400", func(t *testing.T) {
+		createCalled := false
+		sys := &mockSystem{
+			createFn: func(_ context.Context, _ documents.CreateCommand) (*documents.Document, error) {
+				createCalled = true
+				return nil, nil
+			},
+		}
+		mux := setupMux(newTestHandler(sys))
+
+		// "This is plain text" detects as text/plain via http.DetectContentType,
+		// which is not in the format registry — should reject at the handler.
+		body, contentType := createMultipartForm(t, "note.txt", []byte("This is plain text content"), "12345", "HQ")
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("POST", "/documents", body)
+		req.Header.Set("Content-Type", contentType)
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", rec.Code)
+		}
+		if createCalled {
+			t.Error("system.Create should not have been invoked for unsupported content type")
+		}
+
+		bodyStr := rec.Body.String()
+		if !bytes.Contains([]byte(bodyStr), []byte("supported")) {
+			t.Errorf("response body should cite supported types, got: %s", bodyStr)
 		}
 	})
 }

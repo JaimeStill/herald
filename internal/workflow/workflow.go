@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/JaimeStill/herald/internal/state"
+
 	tauconfig "github.com/tailored-agentic-units/orchestrate/config"
-	"github.com/tailored-agentic-units/orchestrate/state"
+	taustate "github.com/tailored-agentic-units/orchestrate/state"
 )
 
 // Execute runs the classification workflow for a single document. It creates
@@ -29,9 +30,9 @@ func Execute(ctx context.Context, rt *Runtime, documentID uuid.UUID, observer *S
 		return nil, fmt.Errorf("build graph: %w", err)
 	}
 
-	initialState := state.New(nil)
-	initialState = initialState.Set(KeyDocumentID, documentID)
-	initialState = initialState.Set(KeyTempDir, tempDir)
+	initialState := taustate.New(nil)
+	initialState = initialState.Set(state.KeyDocumentID, documentID)
+	initialState = initialState.Set(state.KeyTempDir, tempDir)
 
 	finalState, err := graph.Execute(ctx, initialState)
 	if err != nil {
@@ -41,10 +42,10 @@ func Execute(ctx context.Context, rt *Runtime, documentID uuid.UUID, observer *S
 	return extractResult(finalState)
 }
 
-func buildGraph(rt *Runtime, observer *StreamingObserver) (state.StateGraph, error) {
+func buildGraph(rt *Runtime, observer *StreamingObserver) (taustate.StateGraph, error) {
 	cfg := tauconfig.DefaultGraphConfig("herald-classify")
 
-	graph, err := state.NewGraphWithDeps(cfg, observer, nil)
+	graph, err := taustate.NewGraphWithDeps(cfg, observer, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func buildGraph(rt *Runtime, observer *StreamingObserver) (state.StateGraph, err
 	}
 
 	// classify → finalize (when no enhancement needed)
-	if err := graph.AddEdge("classify", "finalize", state.Not(needsEnhance)); err != nil {
+	if err := graph.AddEdge("classify", "finalize", taustate.Not(needsEnhance)); err != nil {
 		return nil, err
 	}
 
@@ -96,45 +97,45 @@ func buildGraph(rt *Runtime, observer *StreamingObserver) (state.StateGraph, err
 	return graph, nil
 }
 
-func extractResult(s state.State) (*WorkflowResult, error) {
-	val, ok := s.Get(KeyClassState)
+func extractResult(s taustate.State) (*WorkflowResult, error) {
+	val, ok := s.Get(state.KeyClassState)
 	if !ok {
-		return nil, fmt.Errorf("missing %s in final state", KeyClassState)
+		return nil, fmt.Errorf("missing %s in final state", state.KeyClassState)
 	}
 
-	cs, ok := val.(ClassificationState)
+	cs, ok := val.(state.ClassificationState)
 	if !ok {
-		return nil, fmt.Errorf("%s is not ClassificationState", KeyClassState)
+		return nil, fmt.Errorf("%s is not ClassificationState", state.KeyClassState)
 	}
 
-	docIDVal, ok := s.Get(KeyDocumentID)
+	docIDVal, ok := s.Get(state.KeyDocumentID)
 	if !ok {
-		return nil, fmt.Errorf("missing %s in final state", KeyDocumentID)
+		return nil, fmt.Errorf("missing %s in final state", state.KeyDocumentID)
 	}
 
 	documentID, ok := docIDVal.(uuid.UUID)
 	if !ok {
-		return nil, fmt.Errorf("%s is not uuid.UUID", KeyDocumentID)
+		return nil, fmt.Errorf("%s is not uuid.UUID", state.KeyDocumentID)
 	}
 
-	filenameVal, ok := s.Get(KeyFilename)
+	filenameVal, ok := s.Get(state.KeyFilename)
 	if !ok {
-		return nil, fmt.Errorf("missing %s in final state", KeyFilename)
+		return nil, fmt.Errorf("missing %s in final state", state.KeyFilename)
 	}
 
 	filename, ok := filenameVal.(string)
 	if !ok {
-		return nil, fmt.Errorf("%s is not string", KeyFilename)
+		return nil, fmt.Errorf("%s is not string", state.KeyFilename)
 	}
 
-	pageCountVal, ok := s.Get(KeyPageCount)
+	pageCountVal, ok := s.Get(state.KeyPageCount)
 	if !ok {
-		return nil, fmt.Errorf("missing %s in final state", KeyPageCount)
+		return nil, fmt.Errorf("missing %s in final state", state.KeyPageCount)
 	}
 
 	pageCount, ok := pageCountVal.(int)
 	if !ok {
-		return nil, fmt.Errorf("%s is not int", KeyPageCount)
+		return nil, fmt.Errorf("%s is not int", state.KeyPageCount)
 	}
 
 	return &WorkflowResult{
@@ -146,20 +147,16 @@ func extractResult(s state.State) (*WorkflowResult, error) {
 	}, nil
 }
 
-func needsEnhance(s state.State) bool {
-	val, ok := s.Get(KeyClassState)
+func needsEnhance(s taustate.State) bool {
+	val, ok := s.Get(state.KeyClassState)
 	if !ok {
 		return false
 	}
 
-	cs, ok := val.(ClassificationState)
+	cs, ok := val.(state.ClassificationState)
 	if !ok {
 		return false
 	}
 
 	return cs.NeedsEnhance()
-}
-
-func workerCount(pageCount int) int {
-	return max(min(runtime.NumCPU(), pageCount), 1)
 }

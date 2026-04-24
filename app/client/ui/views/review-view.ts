@@ -91,10 +91,11 @@ export class ReviewView extends LitElement {
     }
 
     return html`
-      <div class="panel pdf-panel">
+      <div class="panel document-panel">
         <hd-blob-viewer
           .title=${this.document.filename}
           .src=${this.blobUrl}
+          content-type=${this.document.content_type}
         ></hd-blob-viewer>
       </div>
       <div class="panel classification-panel scroll-y">

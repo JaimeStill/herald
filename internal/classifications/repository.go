@@ -12,7 +12,9 @@ import (
 	"github.com/tailored-agentic-units/agent"
 
 	"github.com/JaimeStill/herald/internal/documents"
+	"github.com/JaimeStill/herald/internal/format"
 	"github.com/JaimeStill/herald/internal/prompts"
+	"github.com/JaimeStill/herald/internal/state"
 	"github.com/JaimeStill/herald/internal/workflow"
 	"github.com/JaimeStill/herald/pkg/pagination"
 	"github.com/JaimeStill/herald/pkg/query"
@@ -41,6 +43,7 @@ func New(
 	storage storage.System,
 	docs documents.System,
 	prompts prompts.System,
+	formats *format.Registry,
 ) System {
 	rt := &workflow.Runtime{
 		NewAgent:  newAgent,
@@ -49,6 +52,7 @@ func New(
 		Storage:   storage,
 		Documents: docs,
 		Prompts:   prompts,
+		Formats:   formats,
 		Logger:    logger.With("workflow", "classify"),
 	}
 	return &repo{
@@ -313,7 +317,7 @@ func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func collectMarkings(pages []workflow.ClassificationPage) []string {
+func collectMarkings(pages []state.ClassificationPage) []string {
 	var all []string
 	for _, p := range pages {
 		all = append(all, p.MarkingsFound...)
