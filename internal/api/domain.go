@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/JaimeStill/herald/internal/classifications"
 	"github.com/JaimeStill/herald/internal/documents"
+	"github.com/JaimeStill/herald/internal/format"
 	"github.com/JaimeStill/herald/internal/prompts"
 )
 
@@ -15,11 +16,17 @@ type Domain struct {
 
 // NewDomain creates all domain systems from the API runtime.
 func NewDomain(runtime *Runtime) *Domain {
+	formats := format.NewRegistry(
+		format.NewPDFHandler(),
+		format.NewImageHandler(),
+	)
+
 	docsSystem := documents.New(
 		runtime.Database.Connection(),
 		runtime.Storage,
 		runtime.Logger,
 		runtime.Pagination,
+		formats,
 	)
 
 	promptsSystem := prompts.New(
@@ -38,6 +45,7 @@ func NewDomain(runtime *Runtime) *Domain {
 		runtime.Storage,
 		docsSystem,
 		promptsSystem,
+		formats,
 	)
 
 	return &Domain{

@@ -48,7 +48,7 @@ Content-Type: application/json
 }
 
 
-### Upload Document
+### Upload Document (PDF)
 
 POST {{HOST}}/api/documents HTTP/1.1
 Content-Type: multipart/form-data; boundary=boundary
@@ -62,6 +62,48 @@ Content-Type: application/pdf
 Content-Disposition: form-data; name="external_id"
 
 12345
+--boundary
+Content-Disposition: form-data; name="external_platform"
+
+HQ
+--boundary--
+
+
+### Upload Document (PNG)
+
+POST {{HOST}}/api/documents HTTP/1.1
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="marked-document.1.png"
+Content-Type: image/png
+
+< ../../marked-documents/images/marked-document.1.png
+--boundary
+Content-Disposition: form-data; name="external_id"
+
+12346
+--boundary
+Content-Disposition: form-data; name="external_platform"
+
+HQ
+--boundary--
+
+
+### Upload Document (JPEG)
+
+POST {{HOST}}/api/documents HTTP/1.1
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="marked-document.1.jpg"
+Content-Type: image/jpeg
+
+< ../../marked-documents/images/marked-document.1.jpg
+--boundary
+Content-Disposition: form-data; name="external_id"
+
+12347
 --boundary
 Content-Disposition: form-data; name="external_platform"
 

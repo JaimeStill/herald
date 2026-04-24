@@ -1,69 +1,53 @@
 # Changelog
 
-## v0.5.0-dev.132.145
+## v0.5.0
 
-### Web Client
+### Classification Workflow
 
-- Migrate `hd-confirm-dialog` to a native `<dialog>.showModal()` overlay — drops the manual `position: fixed; z-index: 100` scrim + dialog div in favor of the top layer. Wires the native `cancel` event (Escape), backdrop click (`event.target === dialogEl`), and `autofocus` on the Confirm button; keeps the existing `confirm` / `cancel` CustomEvent contract so callers (document grid single + bulk delete, prompt delete) work unchanged. Adds a `:host { display: contents }` rule so the custom-element host contributes no box to the caller's layout tree — mounting the dialog no longer reflows the underlying view (#145)
-- Add `confirmKind: "danger" | "primary" | "neutral"` property to `hd-confirm-dialog` with a default of `"danger"` — maps caller intent to a button color class (`btn-red`/`btn-green`/`btn`) without exposing raw class names. All existing callers are destructive and land on the default; future affirmative or neutral confirmations set the property (#145)
-- Introduce `hd-tooltip` element at `app/client/ui/elements/tooltip.ts` — hover- and focus-triggered primitive using `popover="hint"` (not `"auto"`, so opening a tooltip inside a menu doesn't close the menu) with CSS Anchor Positioning (`anchor-name` / `position-anchor` / `position-try-fallbacks: flip-block` so the tip flips above when below lacks room) and a 150ms show delay to avoid flicker on quick mouse travel. The tooltip is a dumb primitive — composing elements own any gating logic (the current `document-card` and `prompt-card` wrappers always render it) (#145)
-- Wrap `document-card` filename and `prompt-card` name spans with `<hd-tooltip message=${...}>` so users can reveal the full value on hover or keyboard focus when the card layout truncates it (#145)
-- Migrate `hd-toast-container` to `popover="manual"` — host enters the top layer via `setAttribute("popover", "manual")` + `this.showPopover()` in `connectedCallback`, and `hidePopover()` is guarded by `this.matches(":popover-open")` in `disconnectedCallback`. Keeps fixed positioning on the inner `.stack` div rather than `:host` because UA `[popover]` defaults (`inset: 0; margin: auto; ...`) fight `:host` rules in the cascade and produce unreliable placement. `z-index: 200` is gone — top-layer stacking handles ordering (#145)
-- Remove the universal `* { scrollbar-gutter: stable }` rule and the `base` cascade layer. The rule was introduced in #133 on the premise that `scrollbar-gutter: stable` is a no-op on non-scroll elements; that premise was wrong — the rule reserves gutter space on any element whose `overflow` is `auto`, `scroll`, **or `hidden`**, so it leaked a phantom ~15px gutter onto every `overflow: hidden` container in the app shell. `scrollbar-gutter: stable` already lives on `.scroll-y` / `.scroll-x` in `@styles/scroll.module.css` where it belongs (#145)
-
-### Conventions
-
-- Expand `.claude/skills/web-development/references/components.md` with an "Overlay Elements" section covering the three patterns now in use: modal dialog (`<dialog>` + `.showModal()`), toast stack (`popover="manual"`), and anchored tooltip (`popover="hint"`). Update `.claude/skills/web-development/SKILL.md` overlay-convention patterns with the `:host { display: contents }` rule for modals and the inner-element-owns-layout rule for popover stacks. Refresh `.claude/skills/web-development/references/css.md` and `.claude/CLAUDE.md` cascade-layers bullet to reflect the four-layer stack (`tokens, reset, theme, app`) and the scroll-utility-only scope of `scrollbar-gutter: stable` (#145)
-
-## v0.5.0-dev.132.139
-
-### Web Client
-
-- Add bulk-delete action to the document grid — a "Delete N Documents" button renders adjacent to the existing bulk classify button when ≥1 document is selected, opens `hd-confirm-dialog` with "Are you sure you want to delete {N} documents?", and on confirm runs `DocumentService.delete(id)` in parallel across the selection. Successful IDs drop out of the selection, failed IDs remain selected for retry, and each failure emits an error toast with the filename + error (#139)
-- Introduce a minimal `Toast` service + `<hd-toast-container>` element in `app/client/ui/elements/toast.ts` — module-level singleton bus with `success`/`error`/`warning`/`info` helpers, kind-specific auto-dismiss (3s/6s/5s/3s), stack capped at 5 visible, click-to-dismiss cancels the timer. Stack is positioned bottom-center at a fixed `min(72ch, 100dvw - var(--space-8))` width via `margin-inline: auto`, monospace styling with semantic border-left accent matching Herald's aesthetic (#139)
-- Mount `<hd-toast-container>` from `app.ts` via `document.body.appendChild` after the Router starts — keeps `app/server/layouts/app.html` a pure server shell and matches the existing dynamic-mount pattern used for the user menu (#139)
-- Wire every existing mutation call site through the toast service so every command execution surfaces success and failure feedback: single-document delete, SSE classify `onComplete`/`onError`, bulk classify (per-document outcome via the classify callbacks), classification validate + update, prompt create/update/delete, prompt activate/deactivate, and batch document upload (summary toasts after `Promise.allSettled`). Forms (`classification-panel`, `prompt-form`) keep their inline `this.error` display for form-local context; toasts are additive (#139)
-- Establish an Overlay Convention across `.claude/CLAUDE.md` and `.claude/skills/web-development/SKILL.md`: any UI that overlays the page (tooltips, menus, popovers, toasts, confirmation dialogs, modal forms) must use native `<dialog>` + `.showModal()` or the Popover API (`popover="auto"` / `popover="hint"` / `popover="manual"`). No manual `position: fixed; z-index: ...` overlay divs. Includes a decision matrix for which primitive to pick per overlay type, patterns for each, anti-patterns, and reference components. Follow-up task #145 migrates the three existing overlays (`hd-confirm-dialog`, `hd-toast-container`, new `hd-tooltip`) to these primitives (#139)
-
-## v0.5.0-dev.132.137
-
-### Web Client
-
-- Harden MSAL token-refresh flow against stale/corrupted cache after long idle — wrap `handleRedirectPromise()` in `init()` so nonce-mismatch-after-idle and other stale redirect-return errors clear the cache instead of rejecting `init()` and leaving the shell unmounted; broaden the `getToken()` catch to treat any non-`InteractionRequiredAuthError` as cache corruption (`clearCache()` + `acquireTokenRedirect`), short-circuit on `BrowserAuthError` with code `interaction_in_progress` so in-flight redirects are not stacked, and switch the silent-failure fallback from `loginRedirect` to the canonical MSAL SPA pattern `acquireTokenRedirect(request)` to preserve account/login-hint context (#137)
-
-## v0.5.0-dev.132.135
-
-### Web Client
-
-- Persist list-view pagination, search, filter, and sort state in the URL query string — `document-grid` and `prompt-list` hydrate their `@state` from `queryParams()` on mount, write back via `updateQuery()` on every filter change, and omit default values so shareable URLs stay clean; navigating into `/review/:id` and returning (or reloading the page) now restores the prior grid state (#135)
-- Add `queryParams()` and `updateQuery()` helpers to `@core/router` — `updateQuery` merges a patch into `location.search`, deletes keys on empty/undefined/null values, and uses `history.replaceState` so filter changes don't remount the active view (#135)
-- Retire the router's query-attribute splat on mount — query state now flows through the explicit helpers, keeping filter fields as `@state` (internal) rather than `@property` (parent-input) and preserving that semantic boundary (#135)
-- Simplify `hd-pagination` to a compact, container-agnostic layout — chevron buttons (`‹` / `›`) with accessible labels replace "Prev"/"Next", the "Page X of N" caption collapses to `[input] / N`, the page-size select keeps a visible "Page Size" label, native number-input spinners are hidden so the page input auto-sizes to its digit count (forward-compat for ~750k-1M document counts), and prev/next `align-self: stretch` to match the sibling input/select height (#135)
-
-## v0.5.0-dev.132.134
-
-### Web Client
-
-- Extend `hd-pagination` with a per-page size selector (12 / 24 / 48 / 96) on the left of the footer and an editable page-number input replacing the static "Page X of N" indicator — input commits on blur/Enter, `Math.trunc`s and clamps to `[1, totalPages]`, reverts silently on non-numeric/empty values, auto-selects on focus, disables at `totalPages <= 1`; `document-grid` and `prompt-list` promote hardcoded `page_size: 12` to a `pageSize` `@state()` field and refetch with `page = 1` on change (#134)
-
-## v0.5.0-dev.132.133
-
-### Web Client
-
-- Fix `hd-document-upload` queue overflowing the viewport with many queued files — host/drop-zone flex sized so the module participates in the view's flex column, new `.queue-list` wrapper scrolls the entries while the File Queue header (title, count, Clear/Upload) stays pinned (#133)
-
-### Design System
-
-- Add `design/core/base.css` in a new `base` cascade layer (between `reset` and `theme`) with `* { scrollbar-gutter: stable; }` for universal light-DOM scrollbar-track reservation (#133)
-- Add `design/styles/scroll.module.css` with `.scroll-y` / `.scroll-x` utilities — bundle `overflow-*: auto`, `scrollbar-gutter: stable`, and axis padding so scroll containers share consistent ergonomics across shadow DOM (#133)
-- Migrate all scroll containers (`document-grid`, `prompt-list`, `classification-panel`, `prompt-form` body and defaults, `review-view` classification panel, `document-upload` queue list) to the `.scroll-y` utility (#133)
-- Add `declare module "*.css"` to `client/css.d.ts` so side-effect imports of non-module CSS (e.g. `@design/index.css`) type-check under `tsc --noEmit` (#133)
-
-## v0.5.0-dev.132.136
+- Introduce a format-handler registry (`internal/format/`) with a `Handler` interface, a `SourceReader` abstraction over blob storage, and an explicit `Registry` composed once at `internal/api/domain.go` — decouples init / enhance / upload-validation from any single format's rasterizer. PDF and raw-image (PNG, JPEG, WEBP) land as the two initial handlers; future formats (DOCX, PPTX, TIFF) drop in as additional registrations without threading branches through the workflow or web client (#149)
+- Extract the shared classification types (`ClassificationState`, `ClassificationPage`, `EnhanceSettings`, `Confidence`, state keys) into a new top-level `internal/state/` leaf package consumed by both `internal/format/` and `internal/workflow/` — breaks the prior workflow-centric ownership so format handlers and upload validation can depend on the types without a workflow-package import (#149)
+- Replace the `github.com/JaimeStill/document-context` dependency with direct `pdfcpu` (page count) + `magick` calls using ImageMagick's native PDF page-selector syntax (`source.pdf[N]`). Drops one transitive-dependency tree and consolidates rendering on a single shared `format.Render` helper that both PDF and image handlers share (#149)
+- Upload validation via `internal/documents/handler.go` rejects unsupported content types with HTTP 400 at ingress — error body enumerates the supported set from `format.Registry.SupportedContentTypes()` so clients self-correct without reading source. Adds `ErrUnsupportedContentType` sentinel mapped in `MapHTTPStatus` (#149)
+- Image normalization pipeline (`internal/format/image.go`) — PNG sources stream through verbatim; JPEG and WEBP sources are normalized to PNG via magick at init time so downstream vision calls see uniform bytes regardless of source encoding. Enhance re-applies filters from the normalized PNG rather than re-fetching the source blob (#149)
 
 ### Dependencies
 
 - Migrate from `github.com/JaimeStill/go-agents` and `go-agents-orchestration` to the `tailored-agentic-units` tau module graph (`agent`, `orchestrate`, `protocol`, `format`, `format/openai`, `provider`, `provider/azure`, `provider/ollama`) — includes rewrites of the Vision/Chat call sites to typed `protocol.Message` + `format.Image` and an `infrastructure.New` sync.Once that registers tau provider/format factories (#136)
+- Remove `github.com/JaimeStill/document-context` in favor of direct `pdfcpu` + `magick` calls; `go mod tidy` drops its transitive deps (#149)
+
+### Backend Infrastructure
+
+- Promote `pkg/formatting/` to `pkg/core/` — the package had accumulated helpers (`FormatBytes`/`ParseBytes`, `Parse[T]`/`FromMap[T]`, and the new `WorkerCount`) that outgrew the original formatting-only scope. Package godoc now describes "stateless, cross-cutting primitives" with a guardrail: additions must be stateless and broadly applicable (#149)
+- Add `pkg/core.WorkerCount` exported helper for bounded errgroup sizing — replaces three duplicated one-liners across `internal/format/pdf.go`, `internal/workflow/classify.go`, and `internal/workflow/enhance.go` (#149)
+- Alias tau's `orchestrate/state` package as `taustate` throughout `internal/workflow/*.go` — resolves the package-name collision with Herald's new `internal/state`. External packages take the alias; local Herald identifiers stay natural (`state.*` refers to Herald, `taustate.*` refers to tau) (#149)
+
+### Web Client
+
+- Add a frontend format registry at `app/client/domains/formats/` mirroring the backend abstraction — `DocumentFormat` interface, PDF + image implementations, `findFormat`/`isSupported`/`acceptAttribute`/`dropZoneText`/`allSupportedContentTypes` helpers. Drives the upload widget's `accept` attribute, MIME filter, drop-zone text, and rejection toast; drives the blob viewer's render strategy (iframe vs img) with a generic iframe fallback for unregistered types (#149)
+- `hd-blob-viewer` dispatches by content type — iframe for PDFs (browser's built-in viewer handles paging/zoom/search), `<img>` for PNG/JPEG/WEBP. Adds a `min-width: 0` / `min-height: 0` cascade across `blob-viewer` and `review-view` so `<img>` elements with large intrinsic dimensions (300 DPI page scans ~2550×3300 px) scale to the panel via `object-fit: contain` instead of bursting the flex container (#149)
+- `hd-document-upload` reads its `accept` attribute, file filter, drop-zone label, and rejection toast content from the format registry — uploading an unsupported type (e.g. `.docx`) surfaces a warning toast and never reaches the HTTP boundary (#149)
+- Persist list-view pagination, search, filter, and sort state in the URL query string — `document-grid` and `prompt-list` hydrate their `@state` from `queryParams()` on mount, write back via `updateQuery()` on every filter change, and omit default values so shareable URLs stay clean; navigating into `/review/:id` and returning (or reloading the page) restores the prior grid state (#135)
+- Add `queryParams()` and `updateQuery()` helpers to `@core/router` — `updateQuery` merges a patch into `location.search`, deletes keys on empty/undefined/null values, and uses `history.replaceState` so filter changes don't remount the active view (#135)
+- Retire the router's query-attribute splat on mount — query state now flows through the explicit helpers, keeping filter fields as `@state` (internal) rather than `@property` (parent-input) and preserving that semantic boundary (#135)
+- Simplify `hd-pagination` to a compact, container-agnostic layout — chevron buttons (`‹` / `›`) with accessible labels replace "Prev"/"Next", the "Page X of N" caption collapses to `[input] / N`, page-size selector (12 / 24 / 48 / 96) on the left of the footer, editable page-number input commits on blur/Enter with `Math.trunc` clamp to `[1, totalPages]`, native number-input spinners hidden so the input auto-sizes to its digit count (forward-compat for ~750k-1M document counts), and prev/next `align-self: stretch` to match sibling input/select height. `document-grid` and `prompt-list` promote hardcoded `page_size: 12` to a `pageSize` `@state()` field and refetch with `page = 1` on change (#134, #135)
+- Fix `hd-document-upload` queue overflowing the viewport with many queued files — host/drop-zone flex sized so the module participates in the view's flex column, new `.queue-list` wrapper scrolls the entries while the File Queue header (title, count, Clear/Upload) stays pinned (#133)
+- Harden MSAL token-refresh flow against stale/corrupted cache after long idle — wrap `handleRedirectPromise()` in `init()` so nonce-mismatch-after-idle and other stale redirect-return errors clear the cache instead of rejecting `init()` and leaving the shell unmounted; broaden the `getToken()` catch to treat any non-`InteractionRequiredAuthError` as cache corruption (`clearCache()` + `acquireTokenRedirect`), short-circuit on `BrowserAuthError` with code `interaction_in_progress` so in-flight redirects are not stacked, and switch the silent-failure fallback from `loginRedirect` to the canonical MSAL SPA pattern `acquireTokenRedirect(request)` to preserve account/login-hint context (#137)
+- Introduce a minimal `Toast` service + `<hd-toast-container>` element in `app/client/ui/elements/toast.ts` — module-level singleton bus with `success`/`error`/`warning`/`info` helpers, kind-specific auto-dismiss (3s/6s/5s/3s), stack capped at 5 visible, click-to-dismiss cancels the timer. Stack positioned bottom-center at `min(72ch, 100dvw - var(--space-8))` width via `margin-inline: auto`, monospace styling with semantic border-left accent. Mounts from `app.ts` via `document.body.appendChild` after the Router starts (#139)
+- Wire every existing mutation call site through the toast service so every command execution surfaces success and failure feedback: single-document delete, SSE classify `onComplete`/`onError`, bulk classify (per-document outcome via the classify callbacks), classification validate + update, prompt create/update/delete, prompt activate/deactivate, and batch document upload (summary toasts after `Promise.allSettled`). Forms (`classification-panel`, `prompt-form`) keep their inline `this.error` display for form-local context; toasts are additive (#139)
+- Add bulk-delete action to the document grid — a "Delete N Documents" button renders adjacent to the existing bulk classify button when ≥1 document is selected, opens `hd-confirm-dialog` with "Are you sure you want to delete {N} documents?", and on confirm runs `DocumentService.delete(id)` in parallel across the selection. Successful IDs drop out of the selection, failed IDs remain selected for retry, and each failure emits an error toast with the filename + error (#139)
+- Migrate `hd-confirm-dialog` to a native `<dialog>.showModal()` overlay — drops the manual `position: fixed; z-index: 100` scrim + dialog div in favor of the top layer. Wires the native `cancel` event (Escape), backdrop click (`event.target === dialogEl`), and `autofocus` on the Confirm button; `:host { display: contents }` so the custom-element host contributes no box to the caller's layout tree. Adds `confirmKind: "danger" | "primary" | "neutral"` property (default `"danger"`) mapping caller intent to a button color class (`btn-red`/`btn-green`/`btn`) without exposing raw class names (#145)
+- Migrate `hd-toast-container` to `popover="manual"` — host enters the top layer via `setAttribute("popover", "manual")` + `this.showPopover()` in `connectedCallback`, and `hidePopover()` is guarded by `this.matches(":popover-open")` in `disconnectedCallback`. Fixed positioning lives on the inner `.stack` div (UA `[popover]` defaults fight `:host` rules). `z-index: 200` is gone — top-layer stacking handles ordering (#145)
+- Introduce `hd-tooltip` at `app/client/ui/elements/tooltip.ts` — hover- and focus-triggered primitive using `popover="hint"` (does not close open `auto` popovers; closes other hints) with CSS Anchor Positioning (`anchor-name` / `position-anchor` / `position-try-fallbacks: flip-block` so the tip flips above when below lacks room) and a 150ms show delay to avoid flicker on quick mouse travel. Wraps `document-card` filenames and `prompt-card` names so users can reveal the full value on hover or keyboard focus when the card layout truncates it (#145)
+
+### Design System
+
+- Add `design/styles/scroll.module.css` with `.scroll-y` / `.scroll-x` utilities — bundle `overflow-*: auto`, `scrollbar-gutter: stable`, and axis padding so scroll containers share consistent ergonomics across shadow DOM. Migrate every scroll container (`document-grid`, `prompt-list`, `classification-panel`, `prompt-form` body and defaults, `review-view` classification panel, `document-upload` queue list) to the utility (#133, #145)
+- Four-layer cascade stack finalized as `tokens, reset, theme, app`. `scrollbar-gutter: stable` is scoped to the `.scroll-y` / `.scroll-x` utilities rather than a universal `*` rule — the broad selector matches on `overflow: hidden` as well and leaks a phantom ~15px gutter onto every hidden-overflow container in the app shell (#133, #145)
+- Add `declare module "*.css"` to `client/css.d.ts` so side-effect imports of non-module CSS (e.g. `@design/index.css`) type-check under `tsc --noEmit` (#133)
+
+### Conventions
+
+- Establish the Overlay Convention across `.claude/CLAUDE.md` and `.claude/skills/web-development/SKILL.md`: any UI that overlays the page (tooltips, menus, popovers, toasts, confirmation dialogs, modal forms) must use native `<dialog>` + `.showModal()` or the Popover API (`popover="auto"` / `popover="hint"` / `popover="manual"`). No manual `position: fixed; z-index: ...` overlay divs. Includes a decision matrix, per-primitive patterns, anti-patterns, and reference components. Expand `.claude/skills/web-development/references/components.md` with an Overlay Elements section covering modal dialog, toast stack, and anchored tooltip patterns (#139, #145)
 
 ## v0.4.2
 

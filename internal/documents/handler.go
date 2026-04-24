@@ -3,6 +3,7 @@ package documents
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 
+	"github.com/JaimeStill/herald/internal/format"
 	"github.com/JaimeStill/herald/pkg/handlers"
 	"github.com/JaimeStill/herald/pkg/pagination"
 	"github.com/JaimeStill/herald/pkg/routes"
@@ -23,6 +25,7 @@ type Handler struct {
 	logger        *slog.Logger
 	pagination    pagination.Config
 	maxUploadSize int64
+	formats       *format.Registry
 }
 
 // SearchRequest combines pagination and filter criteria for the search endpoint.
@@ -37,12 +40,14 @@ func NewHandler(
 	logger *slog.Logger,
 	pagination pagination.Config,
 	maxUploadSize int64,
+	formats *format.Registry,
 ) *Handler {
 	return &Handler{
 		sys:           sys,
 		logger:        logger.With("handler", "documents"),
 		pagination:    pagination,
 		maxUploadSize: maxUploadSize,
+		formats:       formats,
 	}
 }
 
@@ -144,6 +149,21 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	contentType := detectContentType(header.Header.Get("Content-Type"), data)
+	if _, err := h.formats.Lookup(contentType); err != nil {
+		supported := strings.Join(h.formats.SupportedContentTypes(), ", ")
+		handlers.RespondError(
+			w, h.logger,
+			http.StatusBadRequest,
+			fmt.Errorf(
+				"%w: %s (supported: %s)",
+				ErrUnsupportedContentType,
+				contentType,
+				supported,
+			),
+		)
+		return
+	}
+
 	pageCount := extractPDFPageCount(h.logger, data, contentType)
 
 	cmd := CreateCommand{

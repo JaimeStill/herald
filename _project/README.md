@@ -6,7 +6,7 @@ Herald is a Go web service with an embedded Lit web client for classifying appro
 
 ## Vision
 
-Organizations managing large corpora of classified documents face a persistent bottleneck: manually reading and recording security markings across millions of pages. Herald eliminates this bottleneck by applying vision-capable LLMs to interpret markings at scale, producing structured classification records that humans validate and downstream systems consume. The service is designed for rapid delivery, drawing heavily from proven patterns established during R&D in agent-lab, go-agents, and document-context.
+Organizations managing large corpora of classified documents face a persistent bottleneck: manually reading and recording security markings across millions of pages. Herald eliminates this bottleneck by applying vision-capable LLMs to interpret markings at scale, producing structured classification records that humans validate and downstream systems consume. The service is designed for rapid delivery, drawing heavily from proven patterns established during R&D in agent-lab and the tau agentic-units ecosystem.
 
 ## Core Premise
 
@@ -28,7 +28,7 @@ The architecture deliberately excludes: image caching (images are ephemeral duri
 | Phase 2 - Classification Engine | Agent configuration from external config, classification workflow state graph (init -> classify -> enhance? -> finalize), parallel per-page analysis with bounded concurrency, named prompt overrides (DB + API), single document classification endpoint, classification result schema with flattened workflow metadata | v0.2.0 | Complete |
 | Phase 3 - Web Client | Lit 3.x SPA with native Bun builds embedded in Go binary, Air hot reload for development, document management UI (upload single + batch, browse, search, filter, bulk classify), SSE streaming observer for classification progress, classification result viewing/validation/manual adjustment with PDF viewer, prompt modification management | v0.3.0 | Complete |
 | Phase 4 - Security and Deployment | Azure Entra authentication (opt-in JWT middleware + MSAL.js web client), managed identity for Azure services (Storage, PostgreSQL, AI Foundry), Docker containerization with ImageMagick 7.0+, Azure Container Apps deployment configuration, IL4/IL6 environment configuration | v0.4.0 | Complete |
-| Phase 5 - Post-Deployment Polish | Post-IL6-deployment quality-of-life adjustments: document-upload scroll container, configurable page size selector, URL query-parameter state persistence across view transitions, migration from go-agents/go-agents-orchestration to tau/agent and tau/orchestrate, MSAL stale credential refresh hardening | v0.5.0 | In Progress |
+| Phase 5 - Post-Deployment Polish | Post-IL6-deployment quality-of-life adjustments: document-upload scroll container, configurable page size selector, URL query-parameter state persistence across view transitions, migration from go-agents/go-agents-orchestration to tau/agent and tau/orchestrate, MSAL stale credential refresh hardening, native top-layer overlay primitives (dialog/popover), toast service for command feedback, format-aware document processing (PDF + raw PNG/JPEG/WEBP) with per-format handler registry replacing the document-context dependency | v0.5.0 | Complete |
 
 ## Architecture
 
@@ -43,21 +43,23 @@ herald/
 │   ├── api/              # API module: Runtime, Domain, route registration
 │   ├── config/           # Configuration management (JSON + env overlays)
 │   ├── infrastructure/   # Infrastructure assembly (lifecycle, logger, database, storage, agent)
-│   ├── documents/        # Document domain (upload, registration, metadata, blob management)
+│   ├── state/            # Shared classification types (ClassificationState, ClassificationPage, EnhanceSettings, Confidence, state keys)
+│   ├── format/           # Document-format registry + PDF and image handlers + shared magick helper
+│   ├── documents/        # Document domain (upload, registration, metadata, blob management, content-type validation)
 │   ├── classifications/  # Classification result domain (store, query, validate, adjust)
 │   ├── prompts/          # Named prompt override domain (CRUD, per-stage loading)
 │   └── workflow/          # Classification workflow definition
 │       ├── workflow.go    # State graph assembly: init -> classify -> enhance? -> finalize
-│       ├── init.go        # Init node: open PDF, extract pages, render images
+│       ├── init.go        # Init node: dispatch to format handler for extraction
 │       ├── classify.go    # Classify node: parallel per-page analysis with bounded concurrency
-│       ├── enhance.go     # Enhance node: conditional re-render of flagged pages
+│       ├── enhance.go     # Enhance node: dispatch to format handler for conditional re-render
 │       ├── finalize.go    # Finalize node: document-level classification synthesis
-│       ├── types.go       # Shared types: ClassificationState, ClassificationPage, WorkflowResult
+│       ├── types.go       # WorkflowResult (execution metadata wrapping state.ClassificationState)
 │       └── prompts.go     # Prompt composition with instructions, specs, and running state
 ├── pkg/
 │   ├── auth/             # Auth config, User context helpers, JWT middleware (opt-in)
+│   ├── core/             # Stateless cross-cutting primitives (byte formatting, JSON extraction, bounded concurrency)
 │   ├── database/         # PostgreSQL connection management (pgx driver)
-│   ├── formatting/       # Formatting utilities
 │   ├── handlers/         # HTTP response utilities (RespondJSON, RespondError)
 │   ├── lifecycle/        # Startup/shutdown coordination
 │   ├── middleware/       # HTTP middleware (CORS, logging)
@@ -142,7 +144,7 @@ Each domain follows the handler pattern: a System interface, repository with que
 
 ### Classification Workflow
 
-A 4-node state graph using go-agents-orchestration:
+A 4-node state graph using tau/orchestrate:
 
 ```
 init --> classify --> [needs enhancement?] --> enhance --> finalize --> exit
@@ -151,11 +153,11 @@ init --> classify --> [needs enhancement?] --> enhance --> finalize --> exit
                           finalize --> exit
 ```
 
-**init node**: Opens PDF via document-context, extracts pages, renders to images concurrently via ImageMagick with bounded concurrency. Images are written to a request-scoped temp directory as PNG files. This node purely handles image preparation.
+**init node**: Dispatches to the format handler registered for the document's content type. PDF handlers render each page to PNG via ImageMagick (using magick's native `source.pdf[N]` selector syntax, bounded concurrency via errgroup); image handlers copy PNG sources verbatim and normalize JPEG/WEBP sources to PNG. Output images land in a request-scoped temp directory that the workflow owns (created with `os.MkdirTemp`, removed via deferred `RemoveAll`).
 
 **classify node**: Parallel per-page analysis using bounded errgroup concurrency. Each page is sent to the vision-capable GPT model independently (no accumulated context between pages). The model populates per-page `ClassificationPage` data (markings found, rationale, enhancement flags) but does not produce document-level classification — that is deferred to the finalize node. Pages flagged with `Enhance: true` include an `Enhancements` description of what adjustments are needed.
 
-**enhance node** (conditional): Triggered when any page's `Enhance` flag is true (evaluated via `ClassificationState.NeedsEnhance()`). Re-renders flagged pages in parallel with bounded errgroup concurrency, using adjusted ImageMagick settings based on each page's `Enhancements` and reclassifying via vision. Trigger conditions TBD through experimentation during Phase 2; initially, classify never sets `Enhance: true`.
+**enhance node** (conditional): Triggered when any page's `Enhance` flag is true (evaluated via `ClassificationState.NeedsEnhance()`). Re-renders flagged pages in parallel with bounded errgroup concurrency by delegating to the same format handler used during init, applying `EnhanceSettings` filters (brightness, contrast, saturation) and reclassifying via vision. Trigger conditions TBD through experimentation during Phase 2; initially, classify never sets `Enhance: true`.
 
 **finalize node**: Always runs as the terminal node. Performs a single inference that reviews all per-page analysis results (including any enhanced pages) and produces the authoritative document-level `ClassificationState` fields: classification, confidence, and rationale. Sees all evidence holistically rather than incrementally.
 
@@ -163,7 +165,7 @@ This collapses agent-lab's 5-node graph (init, detect, enhance, classify, score)
 
 ### Agent Configuration
 
-Single agent definition from external configuration (not CRUD-managed). Uses go-agents' `config.AgentConfig` type directly — no Herald-specific agent config structs:
+Single agent definition from external configuration (not CRUD-managed). Uses tau's `protocol/config.AgentConfig` type directly — no Herald-specific agent config structs:
 
 ```json
 {
@@ -198,7 +200,7 @@ Configured at startup from JSON config + env var overrides. Token injected via `
 Azure Blob Storage with flat layout:
 
 ```
-documents/{document-id}/{filename}.pdf
+documents/{document-id}/{filename}
 ```
 
 Documents are immutable after upload. Processing status is tracked exclusively in the PostgreSQL database. All documents enter through the Go service API (single or batch upload) to ensure database record + blob atomicity.
@@ -243,7 +245,8 @@ Key views: document management (upload, browse, classify, bulk operations), prom
 | Prompt management | Two-layer composition: tunable instructions (DB overrides or hard-coded defaults) + hard-coded output format | Lighter than agent-lab's profile + profile_stages system. Instructions are tunable without risking broken output formats. |
 | Blob storage layout | Flat with DB-driven status | Avoids expensive blob-move operations across 1M documents. DB is single source of truth. |
 | Database | Azure PostgreSQL | Maximizes code reuse from agent-lab (pgx, query builder, repository patterns). |
-| Observability | SSE streaming observer (Phase 3) | Classification progress uses Server-Sent Events — unidirectional server-push, works behind standard load balancers, auto-reconnects natively. go-agents-orchestration already supports observer injection (`cfg.Observer`); implementation deferred to Phase 3 alongside the web client that drives its design. WebSockets rejected — upgrade negotiation, sticky sessions, and message broker requirements for cluster deployments are unjustified for unidirectional progress streaming. |
+| Observability | SSE streaming observer (Phase 3) | Classification progress uses Server-Sent Events — unidirectional server-push, works behind standard load balancers, auto-reconnects natively. tau/orchestrate supports observer injection (`cfg.Observer`); implementation deferred to Phase 3 alongside the web client that drives its design. WebSockets rejected — upgrade negotiation, sticky sessions, and message broker requirements for cluster deployments are unjustified for unidirectional progress streaming. |
+| Document format handling | Per-format handler registry (PDF, raw image) | A single `format.Handler` interface with content-type dispatch decouples init/enhance/upload-validation from any one format's rasterizer. PDF uses `pdfcpu` (page count) + `magick` (native `source.pdf[N]` selector). Image normalizes JPEG/WEBP to PNG. New formats (DOCX, PPTX, TIFF) land as additional handlers without threading branches through the workflow or client. |
 | Batch classification | Client-orchestrated parallel single-document classifications | Same pattern as document uploads — deterministic per-document behavior. Clients coordinate via `Promise.allSettled`. |
 | Bulk upload | Sequential single-file uploads (no batch endpoint) | `ParseMultipartForm(maxMemory)` caps total request memory, making a batch endpoint's per-file size limit unpredictable. Single-file uploads give deterministic per-file size limits. The web client coordinates multi-file uploads via `<input multiple>` with `Promise.allSettled`, providing per-file progress, retry, and error handling. |
 | Web client scope | Full management MVP | Upload, browse, classify, validate, monitor, manage prompts. Complete operational interface. |
@@ -254,7 +257,6 @@ Key views: document management (upload, browse, classify, bulk operations), prom
 
 - **tau/agent**: LLM abstraction. Agent interface, Vision/Chat/Tools/Embed protocol methods, typed request/response. Pulls in sibling modules `tau/protocol` (messages, config), `tau/format` (wire format registry, openai format), `tau/provider` (provider registry, azure/ollama factories).
 - **tau/orchestrate**: State graph workflow engine. StateGraph, StateNode, conditional edges, observability events.
-- **document-context**: PDF processing. Document/Page interfaces, ImageMagick rendering.
 
 ### Go Libraries (external)
 
@@ -262,7 +264,7 @@ Key views: document management (upload, browse, classify, bulk operations), prom
 - **golang-migrate**: Database migration management
 - **google/uuid**: UUID generation
 - **azure-sdk-for-go**: Azure Blob Storage client, Azure Identity (Entra auth)
-- **pdfcpu**: PDF page count extraction on upload
+- **pdfcpu**: PDF page count extraction (upload + format/pdf handler)
 - **go-oidc**: OIDC discovery, JWKS management, and JWT token verification (coreos/go-oidc)
 
 ### Dependency Criteria
@@ -283,7 +285,7 @@ External dependencies are acceptable when they meet all of the following:
 
 ### Runtime
 
-- **ImageMagick 7.0+**: PDF-to-image rendering (required in deployment containers)
+- **ImageMagick 7.0+** with Ghostscript PDF delegate: PDF rasterization and raw-image (JPEG/WEBP) normalization to PNG (required in deployment containers; `apk add imagemagick ghostscript` in `Dockerfile`)
 - **Azure PostgreSQL**: Managed database service
 - **Azure Blob Storage**: Document persistence
 - **Azure AI Foundry**: GPT-5-mini and GPT-5.2 deployments (both confirmed available on IL6)
@@ -295,7 +297,7 @@ External dependencies are acceptable when they meet all of the following:
 - Single configurable agent targeting GPT-5-mini or GPT-5.2 per deployment
 - Vision API for page classification (base64 data URI encoded images)
 - Authentication via API key (Azure Key Vault) or access token
-- Configuration: go-agents AgentConfig in config.json + HERALD_AGENT_* env var overrides
+- Configuration: tau `protocol/config.AgentConfig` in config.json + HERALD_AGENT_* env var overrides
 
 ### Azure Blob Storage
 

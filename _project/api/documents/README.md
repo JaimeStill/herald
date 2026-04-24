@@ -142,7 +142,7 @@ curl -s -X POST "$HERALD_API_BASE/api/documents/search" \
 
 `POST /api/documents`
 
-Upload a single document file with external system metadata. Extracts PDF page count automatically for PDF files.
+Upload a single document file with external system metadata. The server detects the content type and validates it against the registered format handlers (PDF, PNG, JPEG, WEBP). PDF uploads have their page count extracted automatically via pdfcpu; image uploads record a null `page_count`.
 
 ### Request
 
@@ -150,7 +150,7 @@ Content-Type: `multipart/form-data`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| file | file | yes | PDF document to upload |
+| file | file | yes | Document to upload. Accepted content types: `application/pdf`, `image/png`, `image/jpeg`, `image/webp` |
 | external_id | string | yes | External system record ID |
 | external_platform | string | yes | External system platform identifier |
 
@@ -159,16 +159,36 @@ Content-Type: `multipart/form-data`
 | Status | Description |
 |--------|-------------|
 | 201 | Document created |
-| 400 | Invalid request (missing fields, bad external_id) |
+| 400 | Invalid request (missing fields, bad external_id, or unsupported content type — response body cites the supported set) |
 | 413 | File exceeds maximum upload size |
 
 ### Example
 
 ```bash
 curl -s -X POST "$HERALD_API_BASE/api/documents" \
-  -F "file=@_project/marked-documents/secret-01.pdf" \
+  -F "file=@_project/marked-documents/single-secret.pdf" \
   -F "external_id=12345" \
   -F "external_platform=HQ" | jq .
+```
+
+### Upload Raw Image
+
+```bash
+curl -s -X POST "$HERALD_API_BASE/api/documents" \
+  -F "file=@_project/marked-documents/images/marked-document.1.png" \
+  -F "external_id=12346" \
+  -F "external_platform=HQ" | jq .
+```
+
+### Rejected Upload (unsupported content type)
+
+```bash
+curl -s -X POST "$HERALD_API_BASE/api/documents" \
+  -F "file=@some-file.docx" \
+  -F "external_id=12347" \
+  -F "external_platform=HQ"
+# HTTP/1.1 400 Bad Request
+# {"error":"unsupported content type: application/msword (supported: application/pdf, image/jpeg, image/png, image/webp)"}
 ```
 
 ---

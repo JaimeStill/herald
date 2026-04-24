@@ -1,6 +1,8 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
+import { findFormat } from "@domains/formats";
+
 import styles from "./blob-viewer.module.css";
 
 /**
@@ -13,9 +15,13 @@ export class BlobViewer extends LitElement {
 
   @property() override title = "Blob viewer";
   @property() src?: string;
+  @property({ attribute: "content-type" }) contentType?: string;
 
   render() {
     if (!this.src) return nothing;
+
+    const format = findFormat(this.contentType);
+    if (format) return format.renderViewer(this.src, this.title);
 
     return html`<iframe src=${this.src} title=${this.title}></iframe>`;
   }

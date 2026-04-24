@@ -3,20 +3,19 @@ package workflow
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/tailored-agentic-units/format"
-	"github.com/tailored-agentic-units/orchestrate/state"
+	"github.com/google/uuid"
 	"github.com/tailored-agentic-units/protocol"
 
-	"github.com/JaimeStill/document-context/pkg/config"
-	"github.com/JaimeStill/document-context/pkg/document"
-	"github.com/JaimeStill/document-context/pkg/image"
+	"github.com/JaimeStill/herald/internal/format"
 	"github.com/JaimeStill/herald/internal/prompts"
-	"github.com/JaimeStill/herald/pkg/formatting"
+	"github.com/JaimeStill/herald/internal/state"
+	"github.com/JaimeStill/herald/pkg/core"
+
+	tauformat "github.com/tailored-agentic-units/format"
+	taustate "github.com/tailored-agentic-units/orchestrate/state"
 )
 
 type enhanceResponse struct {
@@ -30,8 +29,11 @@ type enhanceResponse struct {
 // brightness/contrast/saturation adjustments, sends the enhanced image to the
 // vision model, and updates the per-page findings. Clears Enhancements after
 // processing so the page is no longer flagged.
-func EnhanceNode(rt *Runtime) state.StateNode {
-	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+func EnhanceNode(rt *Runtime) taustate.StateNode {
+	return taustate.NewFunctionNode(func(
+		ctx context.Context,
+		s taustate.State,
+	) (taustate.State, error) {
 		cs, err := extractClassState(s)
 		if err != nil {
 			return s, fmt.Errorf("enhance: %w", err)
@@ -42,9 +44,24 @@ func EnhanceNode(rt *Runtime) state.StateNode {
 			return s, fmt.Errorf("enhance: %w", err)
 		}
 
+		documentID, err := extractDocumentID(s)
+		if err != nil {
+			return s, fmt.Errorf("enhance: %w", err)
+		}
+
+		doc, err := rt.Documents.Find(ctx, documentID)
+		if err != nil {
+			return s, fmt.Errorf("enhance: %w: %w", ErrEnhanceFailed, err)
+		}
+
+		handler, err := rt.Formats.Lookup(doc.ContentType)
+		if err != nil {
+			return s, fmt.Errorf("enhance: %w: %w", ErrEnhanceFailed, err)
+		}
+
 		enhanced := cs.EnhancePages()
 
-		if err := enhancePages(ctx, rt, cs, tempDir); err != nil {
+		if err := enhancePages(ctx, rt, handler, cs, tempDir); err != nil {
 			return s, fmt.Errorf("enhance: %w", err)
 		}
 
@@ -53,37 +70,18 @@ func EnhanceNode(rt *Runtime) state.StateNode {
 			"pages_enhanced", len(enhanced),
 		)
 
-		s = s.Set(KeyClassState, *cs)
+		s = s.Set(state.KeyClassState, *cs)
 		return s, nil
 	})
 }
 
-func buildEnhanceConfig(settings *EnhanceSettings) config.ImageConfig {
-	opts := map[string]any{
-		"background": "white",
-	}
-
-	if settings.Brightness != nil {
-		opts["brightness"] = *settings.Brightness
-	}
-
-	if settings.Contrast != nil {
-		opts["contrast"] = *settings.Contrast
-	}
-
-	if settings.Saturation != nil {
-		opts["saturation"] = *settings.Saturation
-	}
-
-	return config.ImageConfig{
-		Format:  "png",
-		DPI:     300,
-		Options: opts,
-	}
-}
-
-func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tempDir string) error {
-	pdfPath := filepath.Join(tempDir, sourcePDF)
+func enhancePages(
+	ctx context.Context,
+	rt *Runtime,
+	handler format.Handler,
+	cs *state.ClassificationState,
+	tempDir string,
+) error {
 	enhanced := cs.EnhancePages()
 
 	prompt, err := ComposePrompt(ctx, rt.Prompts, prompts.StageEnhance, cs)
@@ -92,7 +90,7 @@ func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tem
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(workerCount(len(enhanced)))
+	g.SetLimit(core.WorkerCount(len(enhanced)))
 
 	for _, i := range enhanced {
 		g.Go(func() error {
@@ -100,18 +98,17 @@ func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tem
 				return gctx.Err()
 			}
 
-			pdfDoc, err := document.OpenPDF(pdfPath)
-			if err != nil {
-				return fmt.Errorf("page %d: open pdf: %w", cs.Pages[i].PageNumber, err)
-			}
-			defer pdfDoc.Close()
-
 			a, err := rt.NewAgent(gctx)
 			if err != nil {
 				return fmt.Errorf("page %d: create agent: %w", cs.Pages[i].PageNumber, err)
 			}
 
-			imgPath, err := rerender(pdfDoc, &cs.Pages[i], tempDir)
+			imgPath, err := handler.Enhance(
+				gctx,
+				tempDir,
+				&cs.Pages[i],
+				cs.Pages[i].Enhancements,
+			)
 			if err != nil {
 				return fmt.Errorf("page %d: %w", cs.Pages[i].PageNumber, err)
 			}
@@ -125,13 +122,13 @@ func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tem
 			resp, err := a.Vision(
 				gctx,
 				[]protocol.Message{protocol.UserMessage(prompt)},
-				[]format.Image{{Data: imgData, Format: "png"}},
+				[]tauformat.Image{{Data: imgData, Format: "png"}},
 			)
 			if err != nil {
 				return fmt.Errorf("page %d: vision call: %w", cs.Pages[i].PageNumber, err)
 			}
 
-			parsed, err := formatting.Parse[enhanceResponse](resp.Text())
+			parsed, err := core.Parse[enhanceResponse](resp.Text())
 			if err != nil {
 				return fmt.Errorf("page %d: parse response: %w", cs.Pages[i].PageNumber, err)
 			}
@@ -151,41 +148,28 @@ func enhancePages(ctx context.Context, rt *Runtime, cs *ClassificationState, tem
 	return nil
 }
 
-func extractTempDir(s state.State) (string, error) {
-	val, ok := s.Get(KeyTempDir)
+func extractDocumentID(s taustate.State) (uuid.UUID, error) {
+	val, ok := s.Get(state.KeyDocumentID)
 	if !ok {
-		return "", fmt.Errorf("%w: missing %s in state", ErrEnhanceFailed, KeyTempDir)
+		return uuid.Nil, fmt.Errorf("%w: missing %s in state", ErrEnhanceFailed, state.KeyDocumentID)
+	}
+	id, ok := val.(uuid.UUID)
+	if !ok {
+		return uuid.Nil, fmt.Errorf("%w: %s is not uuid.UUID", ErrEnhanceFailed, state.KeyDocumentID)
+	}
+	return id, nil
+}
+
+func extractTempDir(s taustate.State) (string, error) {
+	val, ok := s.Get(state.KeyTempDir)
+	if !ok {
+		return "", fmt.Errorf("%w: missing %s in state", ErrEnhanceFailed, state.KeyTempDir)
 	}
 
 	tempDir, ok := val.(string)
 	if !ok {
-		return "", fmt.Errorf("%w: %s is not string", ErrEnhanceFailed, KeyTempDir)
+		return "", fmt.Errorf("%w: %s is not string", ErrEnhanceFailed, state.KeyTempDir)
 	}
 
 	return tempDir, nil
-}
-
-func rerender(pdfDoc document.Document, page *ClassificationPage, tempDir string) (string, error) {
-	p, err := pdfDoc.ExtractPage(page.PageNumber)
-	if err != nil {
-		return "", fmt.Errorf("extract page %d: %w", page.PageNumber, err)
-	}
-
-	cfg := buildEnhanceConfig(page.Enhancements)
-	renderer, err := image.NewImageMagickRenderer(cfg)
-	if err != nil {
-		return "", fmt.Errorf("create renderer: %w", err)
-	}
-
-	data, err := p.ToImage(renderer, nil)
-	if err != nil {
-		return "", fmt.Errorf("render page %d: %w", page.PageNumber, err)
-	}
-
-	imgPath := filepath.Join(tempDir, fmt.Sprintf("page-%d-enhanced.png", page.PageNumber))
-	if err := os.WriteFile(imgPath, data, 0600); err != nil {
-		return "", fmt.Errorf("write enhanced page %d: %w", page.PageNumber, err)
-	}
-
-	return imgPath, nil
 }

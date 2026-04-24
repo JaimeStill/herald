@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/JaimeStill/herald/internal/prompts"
+	"github.com/JaimeStill/herald/internal/state"
 	"github.com/JaimeStill/herald/internal/workflow"
 	"github.com/JaimeStill/herald/pkg/pagination"
 )
@@ -87,11 +88,11 @@ func TestComposePrompt(t *testing.T) {
 	})
 
 	t.Run("with state includes serialized state", func(t *testing.T) {
-		state := &workflow.ClassificationState{
+		state := &state.ClassificationState{
 			Classification: "SECRET",
-			Confidence:     workflow.ConfidenceHigh,
+			Confidence:     state.ConfidenceHigh,
 			Rationale:      "clear markings",
-			Pages: []workflow.ClassificationPage{
+			Pages: []state.ClassificationPage{
 				{
 					PageNumber:    1,
 					MarkingsFound: []string{"SECRET"},
@@ -134,8 +135,8 @@ func TestComposePrompt(t *testing.T) {
 	})
 
 	t.Run("finalize stage uses finalize instructions and spec", func(t *testing.T) {
-		state := &workflow.ClassificationState{
-			Pages: []workflow.ClassificationPage{
+		state := &state.ClassificationState{
+			Pages: []state.ClassificationPage{
 				{PageNumber: 1, MarkingsFound: []string{"SECRET"}, Rationale: "banner visible"},
 			},
 		}
@@ -164,9 +165,9 @@ func TestComposePrompt(t *testing.T) {
 	})
 
 	t.Run("prompt structure is instructions then spec then state", func(t *testing.T) {
-		state := &workflow.ClassificationState{
+		state := &state.ClassificationState{
 			Classification: "UNCLASSIFIED",
-			Confidence:     workflow.ConfidenceLow,
+			Confidence:     state.ConfidenceLow,
 			Rationale:      "no markings found",
 		}
 

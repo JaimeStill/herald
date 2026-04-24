@@ -4,165 +4,99 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-
-	"golang.org/x/sync/errgroup"
 
 	"github.com/google/uuid"
-	"github.com/tailored-agentic-units/orchestrate/state"
 
-	"github.com/JaimeStill/document-context/pkg/config"
-	"github.com/JaimeStill/document-context/pkg/document"
-	"github.com/JaimeStill/document-context/pkg/image"
-	"github.com/JaimeStill/herald/internal/documents"
+	"github.com/JaimeStill/herald/internal/state"
+
+	taustate "github.com/tailored-agentic-units/orchestrate/state"
 )
 
-const sourcePDF = "source.pdf"
-
-// InitNode returns a state node that downloads a PDF from blob storage,
-// renders all pages to PNG images concurrently via ImageMagick, and stores
-// the initial ClassificationState in the workflow state bag.
-func InitNode(rt *Runtime) state.StateNode {
-	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+func InitNode(rt *Runtime) taustate.StateNode {
+	return taustate.NewFunctionNode(func(
+		ctx context.Context,
+		s taustate.State,
+	) (taustate.State, error) {
 		documentID, tempDir, err := extractInitState(s)
 		if err != nil {
 			return s, fmt.Errorf("init: %w", err)
 		}
 
-		doc, err := downloadPDF(ctx, rt, documentID, tempDir)
+		doc, err := rt.Documents.Find(ctx, documentID)
 		if err != nil {
-			return s, fmt.Errorf("init: %w", err)
+			return s, fmt.Errorf("init: %w: %w", ErrDocumentNotFound, err)
 		}
 
-		pages, err := renderPages(ctx, tempDir)
+		handler, err := rt.Formats.Lookup(doc.ContentType)
 		if err != nil {
-			return s, fmt.Errorf("init: %w", err)
+			return s, fmt.Errorf("init: %w: %w", ErrRenderFailed, err)
+		}
+
+		src := &blobSource{
+			rt:          rt,
+			storageKey:  doc.StorageKey,
+			contentType: doc.ContentType,
+			filename:    doc.Filename,
+		}
+
+		pages, err := handler.Extract(ctx, src, tempDir)
+		if err != nil {
+			return s, fmt.Errorf("init: %w: %w", ErrRenderFailed, err)
 		}
 
 		rt.Logger.InfoContext(
-			ctx, "init node complete",
+			ctx, "iinit node complete",
 			"document_id", documentID,
+			"format", handler.ID(),
 			"page_count", len(pages),
 		)
 
-		s = s.Set(KeyClassState, ClassificationState{Pages: pages})
-		s = s.Set(KeyFilename, doc.Filename)
-		s = s.Set(KeyPageCount, len(pages))
+		s = s.Set(state.KeyClassState, state.ClassificationState{Pages: pages})
+		s = s.Set(state.KeyFilename, doc.Filename)
+		s = s.Set(state.KeyPageCount, len(pages))
 
 		return s, nil
 	})
 }
 
-func downloadPDF(
-	ctx context.Context,
-	rt *Runtime,
-	documentID uuid.UUID,
-	tempDir string,
-) (*documents.Document, error) {
-	doc, err := rt.Documents.Find(ctx, documentID)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrDocumentNotFound, err)
-	}
-
-	blob, err := rt.Storage.Download(ctx, doc.StorageKey)
-	if err != nil {
-		return nil, fmt.Errorf("%w: download blob: %w", ErrRenderFailed, err)
-	}
-	defer blob.Body.Close()
-
-	pdfPath := filepath.Join(tempDir, sourcePDF)
-	pdfFile, err := os.Create(pdfPath)
-	if err != nil {
-		return nil, fmt.Errorf("%w: create temp pdf: %w", ErrRenderFailed, err)
-	}
-
-	if _, err := io.Copy(pdfFile, blob.Body); err != nil {
-		pdfFile.Close()
-		return nil, fmt.Errorf("%w: write temp pdf: %w", ErrRenderFailed, err)
-	}
-	pdfFile.Close()
-
-	return doc, nil
-}
-
-func extractInitState(s state.State) (uuid.UUID, string, error) {
-	docIDVal, ok := s.Get(KeyDocumentID)
+func extractInitState(s taustate.State) (uuid.UUID, string, error) {
+	docIDVal, ok := s.Get(state.KeyDocumentID)
 	if !ok {
-		return uuid.Nil, "", fmt.Errorf("%w: missing %s in state", ErrDocumentNotFound, KeyDocumentID)
+		return uuid.Nil, "", fmt.Errorf("%w: missing %s in state", ErrDocumentNotFound, state.KeyDocumentID)
 	}
 
 	documentID, ok := docIDVal.(uuid.UUID)
 	if !ok {
-		return uuid.Nil, "", fmt.Errorf("%w: %s is not uuid.UUID", ErrDocumentNotFound, KeyDocumentID)
+		return uuid.Nil, "", fmt.Errorf("%w: %s is not uuid.UUID", ErrDocumentNotFound, state.KeyDocumentID)
 	}
 
-	tempDirVal, ok := s.Get(KeyTempDir)
+	tempDirVal, ok := s.Get(state.KeyTempDir)
 	if !ok {
-		return uuid.Nil, "", fmt.Errorf("%w: missing %s in state", ErrRenderFailed, KeyTempDir)
+		return uuid.Nil, "", fmt.Errorf("%w: missing %s in state", ErrRenderFailed, state.KeyTempDir)
 	}
 
 	tempDir, ok := tempDirVal.(string)
 	if !ok {
-		return uuid.Nil, "", fmt.Errorf("%w: %s is not string", ErrRenderFailed, KeyTempDir)
+		return uuid.Nil, "", fmt.Errorf("%w: %s is not string", ErrRenderFailed, state.KeyTempDir)
 	}
 
 	return documentID, tempDir, nil
 }
 
-func renderPages(ctx context.Context, tempDir string) ([]ClassificationPage, error) {
-	pdfPath := filepath.Join(tempDir, sourcePDF)
-	pdfDoc, err := document.OpenPDF(pdfPath)
-	if err != nil {
-		return nil, fmt.Errorf("%w: open pdf: %w", ErrRenderFailed, err)
-	}
-	defer pdfDoc.Close()
-
-	renderer, err := image.NewImageMagickRenderer(config.DefaultImageConfig())
-	if err != nil {
-		return nil, fmt.Errorf("%w: create renderer: %w", ErrRenderFailed, err)
-	}
-
-	allPages, err := pdfDoc.ExtractAllPages()
-	if err != nil {
-		return nil, fmt.Errorf("%w: extract pages: %w", ErrRenderFailed, err)
-	}
-
-	pageCount := len(allPages)
-	pages := make([]ClassificationPage, pageCount)
-
-	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(workerCount(pageCount))
-
-	for i, page := range allPages {
-		pageNum := i + 1
-		imgPath := filepath.Join(tempDir, fmt.Sprintf("page-%d.png", pageNum))
-		pages[i] = ClassificationPage{
-			PageNumber: pageNum,
-			ImagePath:  imgPath,
-		}
-
-		g.Go(func() error {
-			if gctx.Err() != nil {
-				return gctx.Err()
-			}
-
-			data, err := page.ToImage(renderer, nil)
-			if err != nil {
-				return fmt.Errorf("render page %d: %w", pageNum, err)
-			}
-
-			if err := os.WriteFile(imgPath, data, 0600); err != nil {
-				return fmt.Errorf("write page %d image: %w", pageNum, err)
-			}
-
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrRenderFailed, err)
-	}
-
-	return pages, nil
+type blobSource struct {
+	rt          *Runtime
+	storageKey  string
+	contentType string
+	filename    string
 }
+
+func (b *blobSource) Open(ctx context.Context) (io.ReadCloser, error) {
+	blob, err := b.rt.Storage.Download(ctx, b.storageKey)
+	if err != nil {
+		return nil, err
+	}
+	return blob.Body, nil
+}
+
+func (b *blobSource) ContentType() string { return b.contentType }
+func (b *blobSource) Filename() string    { return b.filename }

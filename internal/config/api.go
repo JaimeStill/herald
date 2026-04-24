@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/JaimeStill/herald/pkg/formatting"
+	"github.com/JaimeStill/herald/pkg/core"
 	"github.com/JaimeStill/herald/pkg/middleware"
 	"github.com/JaimeStill/herald/pkg/pagination"
 )
@@ -32,7 +32,7 @@ type APIConfig struct {
 }
 
 func (c *APIConfig) MaxUploadSizeBytes() int64 {
-	size, err := formatting.ParseBytes(c.MaxUploadSize)
+	size, err := core.ParseBytes(c.MaxUploadSize)
 	if err != nil {
 		return 50 * 1024 * 1024 // 50MB fallback
 	}

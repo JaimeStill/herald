@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/JaimeStill/herald/internal/format"
 	"github.com/JaimeStill/herald/pkg/pagination"
 	"github.com/JaimeStill/herald/pkg/query"
 	"github.com/JaimeStill/herald/pkg/repository"
@@ -22,6 +23,7 @@ type repo struct {
 	storage    storage.System
 	logger     *slog.Logger
 	pagination pagination.Config
+	formats    *format.Registry
 }
 
 // New creates a document repository implementing the System interface.
@@ -30,17 +32,19 @@ func New(
 	store storage.System,
 	logger *slog.Logger,
 	pagination pagination.Config,
+	formats *format.Registry,
 ) System {
 	return &repo{
 		db:         db,
 		storage:    store,
 		logger:     logger.With("system", "documents"),
 		pagination: pagination,
+		formats:    formats,
 	}
 }
 
 func (r *repo) Handler(maxUploadSize int64) *Handler {
-	return NewHandler(r, r.logger, r.pagination, maxUploadSize)
+	return NewHandler(r, r.logger, r.pagination, maxUploadSize, r.formats)
 }
 
 func (r *repo) List(

@@ -4,25 +4,27 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tailored-agentic-units/orchestrate/state"
 	"github.com/tailored-agentic-units/protocol"
 
 	"github.com/JaimeStill/herald/internal/prompts"
-	"github.com/JaimeStill/herald/pkg/formatting"
+	"github.com/JaimeStill/herald/internal/state"
+	"github.com/JaimeStill/herald/pkg/core"
+
+	taustate "github.com/tailored-agentic-units/orchestrate/state"
 )
 
 type finalizeResponse struct {
-	Classification string     `json:"classification"`
-	Confidence     Confidence `json:"confidence"`
-	Rationale      string     `json:"rationale"`
+	Classification string           `json:"classification"`
+	Confidence     state.Confidence `json:"confidence"`
+	Rationale      string           `json:"rationale"`
 }
 
 // FinalizeNode returns a state node that synthesizes the document-level
 // classification from all per-page findings. It performs a single Chat
 // inference (not Vision — no images needed) that reviews all page data
 // and produces the authoritative classification, confidence, and rationale.
-func FinalizeNode(rt *Runtime) state.StateNode {
-	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+func FinalizeNode(rt *Runtime) taustate.StateNode {
+	return taustate.NewFunctionNode(func(ctx context.Context, s taustate.State) (taustate.State, error) {
 		cs, err := extractClassState(s)
 		if err != nil {
 			return s, fmt.Errorf("finalize: %w", err)
@@ -38,12 +40,12 @@ func FinalizeNode(rt *Runtime) state.StateNode {
 			"confidence", cs.Confidence,
 		)
 
-		s = s.Set(KeyClassState, *cs)
+		s = s.Set(state.KeyClassState, *cs)
 		return s, nil
 	})
 }
 
-func synthesize(ctx context.Context, rt *Runtime, cs *ClassificationState) error {
+func synthesize(ctx context.Context, rt *Runtime, cs *state.ClassificationState) error {
 	a, err := rt.NewAgent(ctx)
 	if err != nil {
 		return fmt.Errorf("%w: create agent: %w", ErrFinalizeFailed, err)
@@ -59,7 +61,7 @@ func synthesize(ctx context.Context, rt *Runtime, cs *ClassificationState) error
 		return fmt.Errorf("%w: chat call: %w", ErrFinalizeFailed, err)
 	}
 
-	parsed, err := formatting.Parse[finalizeResponse](resp.Text())
+	parsed, err := core.Parse[finalizeResponse](resp.Text())
 	if err != nil {
 		return fmt.Errorf("%w: parse response: %w", ErrFinalizeFailed, err)
 	}
