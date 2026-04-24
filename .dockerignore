@@ -9,7 +9,7 @@ tests/
 coverage*
 *.test
 *.out
-config.*.toml
+config.*.json
 docker-compose.yml
 compose/
 CHANGELOG.md
