@@ -1,0 +1,100 @@
+[tasks.render]
+description = "Render every standalone .typ diagram to dual-theme SVGs (responsive by default; static if marked)"
+run = '''
+set -e
+# design/tokens.typ and design/theme.typ are imported modules, not diagrams.
+#
+# Per-file render mode is opt-in via a magic comment `// render: static` at the
+# top of the .typ source. When present, the SVG keeps its fixed pt-dimensions
+# (page-style references designed at a meaningful scale). When absent, the
+# SVG's width/height attributes are stripped post-compile, leaving only the
+# viewBox so the SVG scales responsively to its <img width="100%"> container.
+find . -type f -name '*.typ' \
+  -not -name 'tokens.typ' \
+  -not -name 'theme.typ' \
+  -not -path '*/.git/*' \
+  | while read -r f; do
+    base="${f%.typ}"
+    if grep -qE '^//\s*render:\s*static\b' "$f"; then
+      mode=static
+    else
+      mode=responsive
+    fi
+    for theme in light dark; do
+      out="${base}-${theme}.svg"
+      typst compile --root . --input theme=${theme} "$f" "$out"
+      if [ "$mode" = "responsive" ]; then
+        sed -i -E 's/ width="[0-9.]+pt"//; s/ height="[0-9.]+pt"//' "$out"
+      fi
+    done
+    printf "  rendered  %-40s [%s]\n" "${base#./}-{light,dark}.svg" "$mode"
+  done
+'''
+
+[tasks.render-file]
+description = "Render a single .typ diagram to dual-theme SVGs (responsive by default; static if marked)"
+usage = '''
+arg "<file>" help="Path to the .typ file to render"
+'''
+run = '''
+set -e
+f="${usage_file?}"
+if [ ! -f "$f" ]; then
+  echo "error: file not found: $f" >&2
+  exit 1
+fi
+base="${f%.typ}"
+if grep -qE '^//\s*render:\s*static\b' "$f"; then
+  mode=static
+else
+  mode=responsive
+fi
+for theme in light dark; do
+  out="${base}-${theme}.svg"
+  typst compile --root . --input theme=${theme} "$f" "$out"
+  if [ "$mode" = "responsive" ]; then
+    sed -i -E 's/ width="[0-9.]+pt"//; s/ height="[0-9.]+pt"//' "$out"
+  fi
+done
+printf "  rendered  %-40s [%s]\n" "${base#./}-{light,dark}.svg" "$mode"
+'''
+
+[tasks.generate-pdf]
+description = "Render README.md as a light-only herald-ov-1.pdf (pandoc + weasyprint)"
+run = '''
+set -e
+
+# Step 1: flatten each <picture>...</picture> block down to its inner <img>
+# (the light-theme SVG). PDFs are static, so prefers-color-scheme switching
+# can't apply — we render the light variant only.
+awk '
+  /<picture>/        { in_pic = 1; next }
+  /<\/picture>/      { in_pic = 0; next }
+  in_pic && /<img/   { print; next }
+  in_pic             { next }
+  { print }
+' README.md > README-pdf.md
+
+# Step 2: pandoc + weasyprint. weasyprint handles modern CSS (custom
+# properties, @page, prefers-color-scheme) cleanly; install via
+# `pacman -S python-weasyprint` if missing. Embedded SVGs render natively
+# at the @page-controlled A4 size.
+pandoc README-pdf.md \
+  --pdf-engine=weasyprint \
+  --css=github.css \
+  --metadata=pagetitle="Herald: OV-1 Brief" \
+  --output herald-ov-1.pdf
+
+# Step 3: drop the intermediate. README.md remains the canonical source.
+rm README-pdf.md
+
+printf "  rendered  herald-ov-1.pdf\n"
+'''
+
+[tasks.clean]
+description = "Remove all rendered SVGs and the briefing PDF"
+run = '''
+find . -type f -name '*.svg' -delete
+rm -f herald-ov-1.pdf README-pdf.md
+echo 'cleaned'
+'''

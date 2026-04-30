@@ -1,0 +1,435 @@
+/* GitHub Primer-aligned CSS for pandoc HTML/PDF rendering.
+ *
+ * Aligns with current GitHub Primer design tokens (color, typography,
+ * spacing) so pandoc-rendered Markdown reads as if displayed in GitHub's
+ * markdown preview. Tuned for PDF output via weasyprint or wkhtmltopdf;
+ * light theme is the print target, dark theme is provided for HTML preview
+ * via prefers-color-scheme.
+ *
+ * Token reference: https://primer.style/foundations/color
+ */
+
+/* ---- Design tokens ----------------------------------------------------- */
+
+:root {
+  /* Foreground */
+  --fgColor-default:        #1f2328;
+  --fgColor-muted:          #59636e;
+  --fgColor-subtle:         #6e7781;
+  --fgColor-accent:         #0969da;
+  --fgColor-danger:         #d1242f;
+
+  /* Background */
+  --bgColor-default:        #ffffff;
+  --bgColor-muted:          #f6f8fa;
+  --bgColor-neutral-muted:  rgba(175, 184, 193, 0.2);
+
+  /* Border */
+  --borderColor-default:    #d1d9e0;
+  --borderColor-muted:      rgba(209, 217, 224, 0.7);
+  --borderColor-accent:     #0969da;
+
+  /* Syntax highlighting (Primer Light) */
+  --color-prettylights-syntax-comment:                 #6a737d;
+  --color-prettylights-syntax-constant:                #005cc5;
+  --color-prettylights-syntax-entity:                  #6f42c1;
+  --color-prettylights-syntax-storage-modifier-import: #24292e;
+  --color-prettylights-syntax-entity-tag:              #22863a;
+  --color-prettylights-syntax-keyword:                 #d73a49;
+  --color-prettylights-syntax-string:                  #032f62;
+  --color-prettylights-syntax-variable:                #e36209;
+  --color-prettylights-syntax-invalid-illegal-text:    #fafbfc;
+  --color-prettylights-syntax-invalid-illegal-bg:      #b31d28;
+  --color-prettylights-syntax-markup-deleted-text:     #b31d28;
+
+  /* Typography */
+  --fontStack-system:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  --fontStack-monospace:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fgColor-default:        #f0f6fc;
+    --fgColor-muted:          #9198a1;
+    --fgColor-subtle:         #6e7681;
+    --fgColor-accent:         #4493f8;
+    --fgColor-danger:         #f85149;
+
+    --bgColor-default:        #0d1117;
+    --bgColor-muted:          #151b23;
+    --bgColor-neutral-muted:  rgba(101, 108, 118, 0.4);
+
+    --borderColor-default:    #3d444d;
+    --borderColor-muted:      rgba(61, 68, 77, 0.7);
+    --borderColor-accent:     #1f6feb;
+
+    --color-prettylights-syntax-comment:                 #8b949e;
+    --color-prettylights-syntax-constant:                #79c0ff;
+    --color-prettylights-syntax-entity:                  #d2a8ff;
+    --color-prettylights-syntax-storage-modifier-import: #c9d1d9;
+    --color-prettylights-syntax-entity-tag:              #7ee787;
+    --color-prettylights-syntax-keyword:                 #ff7b72;
+    --color-prettylights-syntax-string:                  #a5d6ff;
+    --color-prettylights-syntax-variable:                #ffa657;
+  }
+}
+
+/* ---- Page layout (PDF) ------------------------------------------------- */
+
+@page {
+  size: A4;
+  margin: 14mm 14mm;
+}
+
+/* ---- Reset (minimal — pandoc HTML is already clean) -------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border: 0;
+}
+
+svg:not(:root) {
+  overflow: hidden;
+}
+
+/* ---- Body typography --------------------------------------------------- */
+
+body {
+  font-family: var(--fontStack-system);
+  font-size: 11pt;
+  line-height: 1.5;
+  color: var(--fgColor-default);
+  background-color: var(--bgColor-default);
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem;
+  word-wrap: break-word;
+}
+
+/* ---- Headings ---------------------------------------------------------- */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 24px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--borderColor-muted);
+}
+
+h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--borderColor-muted);
+}
+
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: 0.875em; }
+
+h6 {
+  font-size: 0.85em;
+  color: var(--fgColor-muted);
+}
+
+h1 code, h2 code, h3 code, h4 code, h5 code, h6 code {
+  font-size: inherit;
+}
+
+body > h1:first-child,
+body > h2:first-child,
+body > h3:first-child,
+body > h4:first-child,
+body > h5:first-child,
+body > h6:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+a:first-child h1,
+a:first-child h2,
+a:first-child h3,
+a:first-child h4,
+a:first-child h5,
+a:first-child h6 {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* ---- Links ------------------------------------------------------------- */
+
+a {
+  color: var(--fgColor-accent);
+  background: transparent;
+  text-decoration: none;
+}
+
+a:hover,
+a:active {
+  outline: 0;
+  text-decoration: underline;
+}
+
+/* ---- Block content ----------------------------------------------------- */
+
+p,
+blockquote,
+pre,
+table {
+  margin: 16px 0;
+}
+
+ul, ol {
+  margin: 0 0 16px;
+  padding-left: 2em;
+}
+
+ul ul, ul ol, ol ol, ol ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+li > p {
+  margin-top: 16px;
+}
+
+li + li {
+  margin-top: 0.25em;
+}
+
+ol li ul:first-of-type {
+  margin-top: 0;
+}
+
+h1 + p, h2 + p, h3 + p, h4 + p, h5 + p, h6 + p,
+ul li > :first-child,
+ol li > :first-child {
+  margin-top: 0;
+}
+
+dl {
+  padding: 0;
+}
+
+dl dt {
+  font-size: 1em;
+  font-style: italic;
+  font-weight: 600;
+  margin: 16px 0 4px;
+}
+
+dl dd {
+  margin: 0 0 16px;
+  padding: 0 16px;
+}
+
+blockquote {
+  margin: 16px 0;
+  padding: 0 1em;
+  color: var(--fgColor-muted);
+  border-left: 4px solid var(--borderColor-default);
+}
+
+blockquote > :first-child { margin-top: 0; }
+blockquote > :last-child  { margin-bottom: 0; }
+
+hr {
+  height: 0.25em;
+  margin: 24px 0;
+  padding: 0;
+  background: var(--borderColor-default);
+  border: 0;
+}
+
+/* ---- Tables ------------------------------------------------------------ */
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 1em;
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+}
+
+table th,
+table td {
+  padding: 6px 13px;
+  border: 1px solid var(--borderColor-default);
+}
+
+table th {
+  font-weight: 600;
+}
+
+table tr {
+  background-color: var(--bgColor-default);
+  border-top: 1px solid var(--borderColor-default);
+}
+
+table tr:nth-child(2n) {
+  background-color: var(--bgColor-muted);
+}
+
+table td > p:first-child { margin-top: 0; }
+table td > p:last-child  { margin-bottom: 0; }
+
+/* ---- Code (inline + blocks) ------------------------------------------- */
+
+code,
+pre {
+  font-family: var(--fontStack-monospace);
+}
+
+code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: var(--bgColor-neutral-muted);
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+pre {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: var(--bgColor-muted);
+  border-radius: 6px;
+  word-wrap: normal;
+}
+
+pre code {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  border: 0;
+  white-space: pre;
+}
+
+pre > code {
+  white-space: pre;
+}
+
+/* ---- Syntax highlighting (pandoc skylighting tokens, Primer palette) -- */
+
+code > span.kw,                                /* Keyword */
+code > span.cf,                                /* ControlFlow */
+code > span.op,                                /* Operator */
+code > span.pp                                 /* Preprocessor */
+{ color: var(--color-prettylights-syntax-keyword); }
+
+code > span.dt                                 /* DataType */
+{ color: var(--color-prettylights-syntax-constant); }
+
+code > span.dv,                                /* DecVal */
+code > span.bn,                                /* BaseN */
+code > span.fl,                                /* Float */
+code > span.cn                                 /* Constant */
+{ color: var(--color-prettylights-syntax-constant); }
+
+code > span.ch,                                /* Char */
+code > span.st,                                /* String */
+code > span.sc,                                /* SpecialChar */
+code > span.vs                                 /* VerbatimString */
+{ color: var(--color-prettylights-syntax-string); }
+
+code > span.co,                                /* Comment */
+code > span.do,                                /* Documentation */
+code > span.an,                                /* Annotation */
+code > span.cv,                                /* CommentVar */
+code > span.in                                 /* Information */
+{ color: var(--color-prettylights-syntax-comment); font-style: italic; }
+
+code > span.fu,                                /* Function */
+code > span.at                                 /* Attribute */
+{ color: var(--color-prettylights-syntax-entity); }
+
+code > span.va                                 /* Variable */
+{ color: var(--color-prettylights-syntax-variable); }
+
+code > span.ot,                                /* Other */
+code > span.ss                                 /* Import */
+{ color: var(--color-prettylights-syntax-keyword); }
+
+code > span.al,                                /* Alert */
+code > span.er                                 /* Error */
+{
+  color: var(--color-prettylights-syntax-invalid-illegal-text);
+  background-color: var(--color-prettylights-syntax-invalid-illegal-bg);
+}
+
+code > span.wa                                 /* Warning */
+{ color: var(--color-prettylights-syntax-variable); font-style: italic; }
+
+/* ---- Print ------------------------------------------------------------- */
+
+@media print {
+  body {
+    background: var(--bgColor-default);
+    max-width: none;
+    padding: 0;
+  }
+
+  /* Cap prose width for landscape readability without constraining images.
+   * pandoc wraps each <img> in its own <p>, so we exclude image-only
+   * paragraphs via :has() (weasyprint 60+). */
+  p:not(:has(> img)),
+  ul,
+  ol,
+  blockquote {
+    max-width: 90ch;
+  }
+
+  img,
+  pre,
+  blockquote,
+  table,
+  figure {
+    page-break-inside: avoid;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+
+  /* Each top-level section starts on its own page. The H1 (page 1) is
+   * unaffected since no h2 precedes it. */
+  h2 {
+    page-break-before: always;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+}

@@ -49,3 +49,6 @@ temp/
 
 # Playwright CLI
 .playwright-cli/
+
+# OV-1 briefing PDF (rendered locally; not checked in)
+_project/ov-1/herald-ov-1.pdf
