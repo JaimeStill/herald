@@ -1,0 +1,59 @@
+[tasks.render]
+description = "Render every diagram (assets/*.typ) to PNG for the presenterm deck"
+dir = "{{ config_root }}"
+run = '''
+set -euo pipefail
+# Typst → SVG → resvg → PNG. presenterm's image crate has no SVG decoder, so we
+# rasterize. Diagrams are dark-only (canvas == terminal background): the SVG
+# canvas is transparent, so resvg paints the kanagawa surface (#1f1f28) behind it.
+#
+# Rasterize to a fixed pixel WIDTH rather than a zoom factor: 2560px is the
+# largest dimension of a 1440p display, and every diagram here is wider than it
+# is tall, so width is the constraining dimension. This caps PNGs at
+# display-appropriate sizes (vs. ~7000px from --zoom 3) with no visible loss.
+WIDTH=2560
+shopt -s nullglob
+count=0
+for typ in assets/*.typ; do
+  base="$(basename "$typ" .typ)"
+  echo "rendering ${base} …"
+  typst compile --root . "$typ" "assets/${base}.svg"
+  resvg --width "$WIDTH" --background "#1f1f28" "assets/${base}.svg" "assets/${base}.png"
+  count=$((count + 1))
+done
+echo "done — ${count} diagram(s) rendered"
+'''
+
+[tasks.export]
+description = "Export the deck to a self-contained README.html (no presenterm needed to view)"
+dir = "{{ config_root }}"
+run = '''
+set -euo pipefail
+# Single self-contained HTML file with all images + styles embedded; no extra
+# dependencies. Portable way to share/view the deck without presenterm. Run the
+# `render` task first if diagram PNGs are stale.
+presenterm --export-html --output README.html README.md
+echo "exported README.html"
+'''
+
+[tasks."export:pdf"]
+description = "Export the deck to README.pdf (requires weasyprint)"
+dir = "{{ config_root }}"
+run = '''
+set -euo pipefail
+# PDF export goes through weasyprint (`pip install weasyprint`, or
+# `uv run --with weasyprint mise run export:pdf`). NOTE: the terminal-dark theme
+# has tripped weasyprint with "unsupported background color in theme" — if that
+# happens, prefer `mise run export` (HTML) or supply an export-friendly theme.
+presenterm --export-pdf --output README.pdf README.md
+echo "exported README.pdf"
+'''
+
+[tasks.clean]
+description = "Remove rendered diagram SVGs/PNGs and exported deck files"
+dir = "{{ config_root }}"
+run = '''
+set -euo pipefail
+rm -f assets/*.svg assets/*.png README.html README.pdf
+echo "cleaned"
+'''
