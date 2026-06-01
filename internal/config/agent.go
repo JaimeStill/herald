@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -17,6 +18,16 @@ const (
 	EnvAgentResource     = "HERALD_AGENT_RESOURCE"
 	EnvAgentClientID     = "HERALD_AGENT_CLIENT_ID"
 	EnvAgentModelName    = "HERALD_AGENT_MODEL_NAME"
+
+	// EnvAgentCapabilitiesChat and EnvAgentCapabilitiesVision carry a full
+	// per-capability options object as a JSON string (e.g.
+	// {"max_completion_tokens":4096,"reasoning_effort":"high"}). The parsed object
+	// replaces the corresponding capabilities block, splatting verbatim into the
+	// provider request — keeping the option set model-agnostic (no option keys are
+	// hardcoded in Herald). These exist because the deployed container is
+	// config-file-free and capabilities are not otherwise reachable via env vars.
+	EnvAgentCapabilitiesChat   = "HERALD_AGENT_CAPABILITIES_CHAT"
+	EnvAgentCapabilitiesVision = "HERALD_AGENT_CAPABILITIES_VISION"
 )
 
 // FinalizeAgent applies Herald's three-phase finalize pattern to a tau AgentConfig:
@@ -24,7 +35,9 @@ const (
 // and validation.
 func FinalizeAgent(c *tauconfig.AgentConfig) error {
 	loadAgentDefaults(c)
-	loadAgentEnv(c)
+	if err := loadAgentEnv(c); err != nil {
+		return err
+	}
 	return validateAgent(c)
 }
 
@@ -34,7 +47,7 @@ func loadAgentDefaults(c *tauconfig.AgentConfig) {
 	*c = defaults
 }
 
-func loadAgentEnv(c *tauconfig.AgentConfig) {
+func loadAgentEnv(c *tauconfig.AgentConfig) error {
 	if c.Provider == nil {
 		c.Provider = &tauconfig.ProviderConfig{}
 	}
@@ -66,6 +79,38 @@ func loadAgentEnv(c *tauconfig.AgentConfig) {
 	setOption(EnvAgentAuthType, "auth_type")
 	setOption(EnvAgentResource, "resource")
 	setOption(EnvAgentClientID, "client_id")
+
+	if err := setCapability(c, EnvAgentCapabilitiesChat, "chat"); err != nil {
+		return err
+	}
+	if err := setCapability(c, EnvAgentCapabilitiesVision, "vision"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// setCapability replaces a model capability block from a JSON-object env var,
+// leaving the configured value untouched when the variable is unset. The parsed
+// object is splatted verbatim into the provider request, so Herald never needs to
+// know which option keys a given model supports.
+func setCapability(c *tauconfig.AgentConfig, envVar, capability string) error {
+	v := os.Getenv(envVar)
+	if v == "" {
+		return nil
+	}
+
+	var options map[string]any
+	if err := json.Unmarshal([]byte(v), &options); err != nil {
+		return fmt.Errorf("%s: %w", envVar, err)
+	}
+
+	if c.Model.Capabilities == nil {
+		c.Model.Capabilities = make(map[string]map[string]any)
+	}
+	c.Model.Capabilities[capability] = options
+
+	return nil
 }
 
 func validateAgent(c *tauconfig.AgentConfig) error {

@@ -43,7 +43,9 @@ export const ClassificationService = {
   },
 
   /** `POST /api/classifications/search` — server-side filtered search. */
-  async search(body: SearchRequest): Promise<Result<PageResult<Classification>>> {
+  async search(
+    body: SearchRequest,
+  ): Promise<Result<PageResult<Classification>>> {
     return await request<PageResult<Classification>>(`${base}/search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/JaimeStill/herald/internal/prompts"
@@ -225,6 +226,40 @@ func TestSpec(t *testing.T) {
 		_, err := prompts.Spec("banana")
 		if !errors.Is(err, prompts.ErrInvalidStage) {
 			t.Errorf("Spec(banana) error = %v, want ErrInvalidStage", err)
+		}
+	})
+
+	t.Run("classify spec requests per-page confidence signals", func(t *testing.T) {
+		text, err := prompts.Spec(prompts.StageClassify)
+		if err != nil {
+			t.Fatalf("Spec(classify) error: %v", err)
+		}
+		for _, want := range []string{"undetermined_markings", "confidence"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("classify spec missing %q", want)
+			}
+		}
+	})
+
+	t.Run("enhance spec uses the resolution delta contract", func(t *testing.T) {
+		text, err := prompts.Spec(prompts.StageEnhance)
+		if err != nil {
+			t.Fatalf("Spec(enhance) error: %v", err)
+		}
+		for _, want := range []string{"resolved_markings", "undetermined_markings", "confidence"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("enhance spec missing %q", want)
+			}
+		}
+	})
+
+	t.Run("finalize spec no longer self-reports confidence", func(t *testing.T) {
+		text, err := prompts.Spec(prompts.StageFinalize)
+		if err != nil {
+			t.Fatalf("Spec(finalize) error: %v", err)
+		}
+		if strings.Contains(text, "confidence") {
+			t.Error("finalize spec should not mention confidence (now derived in code)")
 		}
 	})
 }

@@ -292,6 +292,8 @@ var baseEnvVars = [
   { name: 'HERALD_AGENT_AUTH_TYPE', value: 'managed_identity' }
   { name: 'HERALD_AGENT_RESOURCE', value: cognitiveTokenScope }
   { name: 'HERALD_AGENT_CLIENT_ID', value: identity.outputs.clientId }
+  { name: 'HERALD_AGENT_CAPABILITIES_CHAT', value: '{"max_completion_tokens":4096,"reasoning_effort":"high"}' }
+  { name: 'HERALD_AGENT_CAPABILITIES_VISION', value: '{"max_completion_tokens":4096,"reasoning_effort":"high","vision_options":{"detail":"high"}}' }
   { name: 'AZURE_CLIENT_ID', value: identity.outputs.clientId }
 ]
 

@@ -93,13 +93,12 @@ export class PaginationControls extends LitElement {
       <div class="pagination">
         <label class="page-size">
           <span class="page-size-label">Page Size</span>
-          <select
-            class="input"
-            .value=${String(this.size)}
-            @change=${this.handleSizeChange}
-          >
+          <select class="input" @change=${this.handleSizeChange}>
             ${this.sizeOptions.map(
-              (n) => html`<option value=${n}>${n}</option>`,
+              (n) =>
+                html`<option value=${n} ?selected=${n === this.size}>
+                  ${n}
+                </option>`,
             )}
           </select>
         </label>

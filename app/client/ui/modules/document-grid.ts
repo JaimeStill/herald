@@ -19,6 +19,7 @@ const DEFAULTS = {
   pageSize: 12,
   search: "",
   status: "",
+  confidence: "",
   sort: "-UploadedAt",
 } as const;
 
@@ -41,6 +42,7 @@ export class DocumentGrid extends LitElement {
   @state() private pageSize: number = DEFAULTS.pageSize;
   @state() private search: string = DEFAULTS.search;
   @state() private status: string = DEFAULTS.status;
+  @state() private confidence: string = DEFAULTS.confidence;
   @state() private sort: string = DEFAULTS.sort;
   @state() private classifying = new Map<string, ClassifyProgress>();
   @state() private selectedIds = new Set<string>();
@@ -79,6 +81,7 @@ export class DocumentGrid extends LitElement {
 
     if (this.search) req.search = this.search;
     if (this.status) req.status = this.status;
+    if (this.confidence) req.confidence = this.confidence;
 
     const result = await DocumentService.search(req);
 
@@ -91,6 +94,7 @@ export class DocumentGrid extends LitElement {
     if (q.page_size) this.pageSize = Number(q.page_size) || DEFAULTS.pageSize;
     if (q.search) this.search = q.search;
     if (q.status) this.status = q.status;
+    if (q.confidence) this.confidence = q.confidence;
     if (q.sort) this.sort = q.sort;
   }
 
@@ -101,6 +105,7 @@ export class DocumentGrid extends LitElement {
         this.pageSize === DEFAULTS.pageSize ? undefined : this.pageSize,
       search: this.search || undefined,
       status: this.status || undefined,
+      confidence: this.confidence || undefined,
       sort: this.sort === DEFAULTS.sort ? undefined : this.sort,
     });
   }
@@ -116,6 +121,12 @@ export class DocumentGrid extends LitElement {
   private handleStatusFilter(e: Event) {
     const select = e.target as HTMLSelectElement;
     this.status = select.value;
+    this.refresh();
+  }
+
+  private handleConfidenceFilter(e: Event) {
+    const select = e.target as HTMLSelectElement;
+    this.confidence = select.value;
     this.refresh();
   }
 
@@ -336,6 +347,21 @@ export class DocumentGrid extends LitElement {
           </option>
           <option value="complete" ?selected=${this.status === "complete"}>
             Complete
+          </option>
+        </select>
+        <select
+          class="input filter-select"
+          @change=${this.handleConfidenceFilter}
+        >
+          <option value="">---</option>
+          <option value="HIGH" ?selected=${this.confidence === "HIGH"}>
+            High
+          </option>
+          <option value="MEDIUM" ?selected=${this.confidence === "MEDIUM"}>
+            Medium
+          </option>
+          <option value="LOW" ?selected=${this.confidence === "LOW"}>
+            Low
           </option>
         </select>
         <select class="input sort-select" @change=${this.handleSort}>

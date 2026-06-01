@@ -94,9 +94,11 @@ func TestComposePrompt(t *testing.T) {
 			Rationale:      "clear markings",
 			Pages: []state.ClassificationPage{
 				{
-					PageNumber:    1,
-					MarkingsFound: []string{"SECRET"},
-					Rationale:     "banner visible",
+					PageNumber:           1,
+					MarkingsFound:        []string{"SECRET"},
+					UndeterminedMarkings: []string{"faded bottom stamp"},
+					Confidence:           state.ConfidenceLow,
+					Rationale:            "banner visible",
 				},
 			},
 		}
@@ -117,6 +119,12 @@ func TestComposePrompt(t *testing.T) {
 		}
 		if !strings.Contains(got, "SECRET") {
 			t.Error("missing classification value in serialized state")
+		}
+		if !strings.Contains(got, "undetermined_markings") {
+			t.Error("missing per-page undetermined_markings in serialized state")
+		}
+		if !strings.Contains(got, "faded bottom stamp") {
+			t.Error("missing undetermined marking value in serialized state")
 		}
 	})
 

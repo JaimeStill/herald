@@ -14,15 +14,16 @@ import (
 )
 
 type finalizeResponse struct {
-	Classification string           `json:"classification"`
-	Confidence     state.Confidence `json:"confidence"`
-	Rationale      string           `json:"rationale"`
+	Classification string `json:"classification"`
+	Rationale      string `json:"rationale"`
 }
 
 // FinalizeNode returns a state node that synthesizes the document-level
 // classification from all per-page findings. It performs a single Chat
-// inference (not Vision — no images needed) that reviews all page data
-// and produces the authoritative classification, confidence, and rationale.
+// inference (not Vision — no images needed) that reviews all page data and
+// produces the authoritative classification and rationale. Confidence is not
+// asked of the chat (which never sees the pixels); it is derived deterministically
+// from the per-page legibility signals via ClassificationState.AggregateConfidence.
 func FinalizeNode(rt *Runtime) taustate.StateNode {
 	return taustate.NewFunctionNode(func(ctx context.Context, s taustate.State) (taustate.State, error) {
 		cs, err := extractClassState(s)
@@ -33,6 +34,8 @@ func FinalizeNode(rt *Runtime) taustate.StateNode {
 		if err := synthesize(ctx, rt, cs); err != nil {
 			return s, fmt.Errorf("finalize: %w", err)
 		}
+
+		cs.Confidence = cs.AggregateConfidence()
 
 		rt.Logger.InfoContext(
 			ctx, "finalize node complete",
@@ -67,7 +70,6 @@ func synthesize(ctx context.Context, rt *Runtime, cs *state.ClassificationState)
 	}
 
 	cs.Classification = parsed.Classification
-	cs.Confidence = parsed.Confidence
 	cs.Rationale = parsed.Rationale
 
 	return nil

@@ -4,6 +4,8 @@ const classifySpec = `Respond with a JSON object matching this exact structure:
 
 {
   "markings_found": ["<marking1>", "<marking2>"],
+  "undetermined_markings": ["<description of an unreadable marking position>"],
+  "confidence": "<HIGH|MEDIUM|LOW>",
   "rationale": "<explanation>",
   "enhancements": null
 }
@@ -21,7 +23,47 @@ Field constraints:
   as 20280901, or text like "JANUARY 2004") is a declassification instruction,
   not part of the marking — do not append it to the marking value (record
   "SECRET//NOFORN", not "SECRET//NOFORN//20280901"); you may note it in the
-  rationale.
+  rationale. Record here only markings you can read confidently; a marking
+  position you can see is present but cannot read goes in undetermined_markings,
+  not here. Record a classification only when you can actually see and read the
+  marking itself — never infer or assume one from the page's type, purpose,
+  headers, or context (for example, do not assume a routing sheet, cover page, or
+  transmittal is UNCLASSIFIED, and do not default an unmarked or heavily redacted
+  page to any classification). If the page bears no legible classification
+  marking, return an empty array ([]).
+- undetermined_markings: Array describing each marking position that is clearly
+  PRESENT on the page but whose value you cannot read confidently (e.g., "faded
+  stamp at bottom-center", "smeared portion mark on paragraph 3"). Leave empty
+  ([]) when every marking is legible. A non-empty list means a security marking
+  exists but its value is undetermined — also set enhancements so the page can be
+  re-examined. Only list something here when it is plausibly a SECURITY MARKING —
+  a classification/control banner, portion mark, or classification/declassification
+  stamp in a marking position. Do NOT list incidental handwriting, annotations,
+  routing notes, signatures, or margin scribbles, even when they contain
+  marking-like fragments (e.g., a handwritten "WN"); these are not security
+  markings and do not belong here. Do not list redacted (blacked-out) regions;
+  redaction is not an unread marking.
+- confidence: Your certainty in READING this page's security markings — not the
+  state of the page body, and not whether a marking is present.
+  HIGH = every marking's value is directly determinable with no guessing. A
+  degraded or partially obscured marking still counts as HIGH when its value is
+  confirmed by a clearer instance of the same marking elsewhere on the page (e.g.,
+  a garbled header banner matched by a clear footer banner), by unambiguous
+  prior-page context, or by the closed marking vocabulary — resolving from a clear
+  copy is reading, not guessing.
+  MEDIUM = you had to make a genuine educated guess to read a marking whose value
+  is NOT confirmed by any clearer instance or context, but you are reasonably
+  confident the inferred value is correct.
+  LOW = a marking is present but you cannot determine its value (it belongs in
+  undetermined_markings), or this page's markings are largely illegible,
+  contradictory, or missing where one is clearly expected.
+  Redaction (blacked-out content) is a normal, valid state and never lowers
+  confidence, and neither does illegible non-marking content — incidental
+  handwriting, annotations, routing notes, signatures, smudges, or marginalia.
+  Confidence reflects only the legibility of actual security markings; when those
+  are legible, the page is HIGH even if other handwritten or faint marks on the
+  page cannot be read. A page with no markings at all (blank, redacted, or
+  routing/cover page) is HIGH — there is nothing illegible about it.
 - rationale: Brief explanation of what security markings were found on
   this page and their significance. Note any conflicts or ambiguities
   with prior page findings if a classification state is provided. If you
@@ -65,34 +107,63 @@ Behavioral constraints:
 const enhanceSpec = `Respond with a JSON object matching this exact structure:
 
 {
-  "markings_found": ["<marking1>", "<marking2>"],
+  "resolved_markings": ["<marking now readable after enhancement>"],
+  "undetermined_markings": ["<description of a marking still unreadable>"],
+  "confidence": "<HIGH|MEDIUM|LOW>",
   "rationale": "<explanation>"
 }
 
 Field constraints:
-- markings_found: Array of distinct marking strings found on this
-  enhanced page, exactly as they appear. Include the full marking text
-  with any caveats. Include declassification exemption category markings
-  (e.g., X1-X8, 25X1, 50X1-HUM) and legacy dissemination controls (e.g.,
-  WNINTEL) exactly as written. Only record a marking when it is associated
-  with a base classification; do not record document headings, form names,
-  organization names, titles, addresses, or dates as markings. A specific
+- resolved_markings: Array of marking strings the enhanced image now lets you
+  read confidently but the original pass could not — exactly as they appear, full
+  text with any caveats, including declassification exemption category markings
+  (e.g., X1-X8, 25X1, 50X1-HUM) and legacy dissemination controls (e.g., WNINTEL)
+  as written. Only markings associated with a base classification; never headings,
+  form names, organization names, titles, addresses, or dates. A specific
   declassification date (a calendar date or YYYYMMDD such as 20280901) is a
-  declassification instruction, not part of the marking — do not append it to
-  the marking value; you may note it in the rationale.
-- rationale: Brief explanation of what the enhanced image reveals compared
-  to the original assessment. Note any new markings discovered or prior
-  findings confirmed by the improved image quality. If you resolved a degraded
-  marking to its valid value, note what you observed and what you resolved it to.
+  declassification instruction, not part of the marking — do not append it. This
+  list ADDS to the page: the markings the prior pass already read confidently are
+  preserved automatically, so do NOT re-list them here. Leave empty ([]) when the
+  enhancement reveals nothing new.
+- undetermined_markings: Array describing each marking position still clearly
+  PRESENT but whose value you cannot read confidently even after enhancement
+  (e.g., "faded stamp at bottom-center"). Leave empty ([]) when every targeted
+  marking is now legible OR when the targeted element turns out not to be a
+  security marking at all. Only list plausible SECURITY MARKINGS here — never
+  incidental handwriting, annotations, routing notes, signatures, or margin
+  scribbles, even if they contain marking-like fragments. Do not list redacted
+  (blacked-out) regions.
+- confidence: Your certainty in READING this page's markings after enhancement.
+  HIGH = the marking's value is directly determinable. A faint marking the
+  enhancement clearly recovers is HIGH, and so is a degraded marking whose value
+  is confirmed by a clearer instance of the same marking elsewhere on the page,
+  unambiguous prior-page context, or the closed marking vocabulary — resolving
+  from a clear copy is reading, not guessing.
+  MEDIUM = you had to make a genuine educated guess to read a marking whose value
+  is NOT confirmed by any clearer instance or context, but you are reasonably
+  confident the value is correct.
+  LOW = a marking is still present but undeterminable even after enhancement (it
+  belongs in undetermined_markings), or this page's markings remain largely
+  illegible or contradictory.
+  Redaction (blacked-out content) never lowers confidence, and neither does
+  illegible non-marking content (handwriting, annotations, signatures, smudges,
+  marginalia). If enhancement shows the targeted faint element is not a security
+  marking — so undetermined_markings is now empty — and the page's actual markings
+  are legible, the page is HIGH; do not stay LOW over an element that was not a
+  marking.
+- rationale: Brief explanation of what the enhanced image reveals compared to the
+  original assessment — which marking was recovered, which remains unreadable, and
+  how you resolved any degraded reading to its valid value.
 
 Behavioral constraints:
 - Always respond with valid JSON, no markdown fencing
 - Focus analysis on the enhanced image with improved rendering settings
 - Compare findings against the prior page analysis provided in the prompt
 - Report only what you observe on the current enhanced page
-- markings_found replaces the prior findings for this page — include every
-  marking the prior pass read confidently plus any the enhancement newly reveals;
-  never drop a previously-clear marking because the enhanced render obscured it
+- resolved_markings ADDS to the page; the prior-confident markings are preserved
+  by the workflow — do not re-list them, and never ask to remove a prior marking.
+  If the enhancement shows a prior marking was a misread, put the corrected value
+  in resolved_markings
 - Report markings as found; do not modernize or convert legacy markings
 - Resolve degraded or deformed markings to the nearest valid marking confirmed
   by context; never record a garbled or impossible token (e.g., "NOFOP?Y") as a
@@ -104,7 +175,6 @@ const finalizeSpec = `Respond with a JSON object matching this exact structure:
 
 {
   "classification": "<overall banner marking>",
-  "confidence": "<HIGH|MEDIUM|LOW>",
   "rationale": "<explanation>"
 }
 
@@ -137,19 +207,6 @@ Field constraints:
   relative to recognized controls.
   Example: pages marked SECRET, SECRET//NOFORN, SECRET NOFORN WNINTEL, and
   SECRET//NOFORN//X1 combine to: SECRET//NOFORN/WNINTEL//X1
-- confidence: Certainty in READING the security markings themselves (banner lines
-  and portion marks) — not cross-page uniformity, and not the state of the page body.
-  HIGH = the markings are legible and the classification is directly determinable
-  with no guessing — even if markings differ page to page (escalation is normal)
-  and even if the page body is heavily redacted.
-  MEDIUM = some markings are partially obscured and require an educated guess to
-  read, but you are reasonably confident the inferred value is correct.
-  LOW = substantial degradation — markings are largely illegible, missing, or
-  genuinely contradictory, and you are not confident any inferred value is correct.
-  Redaction (blacked-out content) is a normal, valid state for these documents and
-  is NOT illegibility — it never lowers confidence and never affects the
-  classification. Pages with no markings (blank, redacted, or routing/cover pages)
-  and pages that escalate the markings do not by themselves lower confidence.
 - rationale: Comprehensive explanation citing specific page evidence — which
   control came from which page and how the cumulative banner was assembled.
 
@@ -166,8 +223,7 @@ Behavioral constraints:
   the valid marking
 - Exclude specific declassification dates from the classification string; keep
   exemption category markings (e.g., X1) and note any dropped dates in the
-  rationale
-- Confidence reflects legibility of the markings, not whether pages match`
+  rationale`
 
 var specs = map[Stage]string{
 	StageClassify: classifySpec,
