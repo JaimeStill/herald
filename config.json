@@ -46,19 +46,20 @@
     "name": "herald-classifier",
     "provider": {
       "name": "azure",
-      "base_url": "https://herald-ai.openai.azure.com/openai",
+      "base_url": "https://herald-ai-prod.cognitiveservices.azure.com/openai",
       "options": {
-        "deployment": "gpt-5-mini",
+        "deployment": "gpt-5.2",
         "api_version": "2025-04-01-preview",
         "auth_type": "api_key",
         "token": "token"
       }
     },
     "model": {
-      "name": "gpt-5-mini",
+      "name": "gpt-5.2",
       "capabilities": {
         "chat": {
-          "max_completion_tokens": 4096
+          "max_completion_tokens": 4096,
+          "reasoning_effort": "high"
         },
         "vision": {
           "max_completion_tokens": 4096,

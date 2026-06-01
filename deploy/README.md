@@ -194,6 +194,7 @@ az acr create \
 
 ```bash
 az acr login -n <acr-name>
+docker pull ghcr.io/jaimestill/herald:<tag>
 docker tag ghcr.io/jaimestill/herald:<tag> <acr-name>.azurecr.io/herald:<tag>
 docker push <acr-name>.azurecr.io/herald:<tag>
 ```

@@ -1,6 +1,48 @@
 [tasks.dev]
-description = "Run the server in development mode"
-run = "go run ./cmd/server"
+description = "Run the full dev loop: Go server (air live-reload) + web client (bun watch)"
+run = '''
+set -e
+trap 'kill 0' EXIT INT TERM
+(cd app && bun run watch) &
+air &
+wait
+'''
+
+[tasks."dev:auth"]
+description = "Run the full dev loop with HERALD_ENV=auth (Entra auth overlay)"
+env = { HERALD_ENV = "auth" }
+run = '''
+set -e
+trap 'kill 0' EXIT INT TERM
+(cd app && bun run watch) &
+air &
+wait
+'''
+
+[tasks."dev:stop"]
+description = "Stop air, the bun web watcher, and the air-built server for any running dev loop"
+run = '''
+pkill -x air || true
+pkill -f 'scripts/watch.ts' || true
+pkill -f 'bin/server' || true
+true
+'''
+
+[tasks."stack:up"]
+description = "Start the Docker stack (Postgres + Azurite) and apply migrations"
+run = '''
+set -e
+docker compose up -d --wait
+go run ./cmd/migrate -up
+'''
+
+[tasks."stack:down"]
+description = "Stop the Docker stack"
+run = "docker compose down"
+
+[tasks."stack:reset"]
+description = "Purge the Docker stack (containers, volumes, networks, images, orphans)"
+run = "docker compose down -v --rmi all --remove-orphans"
 
 [tasks.build]
 description = "Build the server binary"

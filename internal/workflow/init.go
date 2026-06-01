@@ -45,7 +45,7 @@ func InitNode(rt *Runtime) taustate.StateNode {
 		}
 
 		rt.Logger.InfoContext(
-			ctx, "iinit node complete",
+			ctx, "init node complete",
 			"document_id", documentID,
 			"format", handler.ID(),
 			"page_count", len(pages),

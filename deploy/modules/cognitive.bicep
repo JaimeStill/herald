@@ -11,7 +11,7 @@ param customSubDomainName string
 param skuName string = 'S0'
 
 @description('Cognitive Services kind')
-param kind string = 'OpenAI'
+param kind string = 'AIServices'
 
 @description('Model deployment name')
 param deploymentName string = 'gpt-5-mini'

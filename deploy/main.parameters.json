@@ -12,7 +12,7 @@
       "value": "heraldregistry"
     },
     "containerImage": {
-      "value": "heraldregistry.azurecr.io/herald:0.4.2"
+      "value": "heraldregistry.azurecr.io/herald:0.5.0"
     },
     "postgresAdminLogin": {
       "value": "heraldadmin"

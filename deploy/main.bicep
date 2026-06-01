@@ -42,13 +42,13 @@ param postgresTokenScope string = 'https://ossrdbms-aad.database.windows.net/.de
 param cognitiveCustomDomain string
 
 @description('AI model deployment name')
-param cognitiveDeploymentName string = 'gpt-5-mini'
+param cognitiveDeploymentName string = 'gpt-5.2'
 
 @description('AI model name')
-param cognitiveModelName string = 'gpt-5-mini'
+param cognitiveModelName string = 'gpt-5.2'
 
 @description('AI model version')
-param cognitiveModelVersion string = '2025-08-07'
+param cognitiveModelVersion string = '2025-12-11'
 
 @description('AI model deployment SKU')
 @allowed(['GlobalStandard', 'DataZoneStandard', 'DataZoneProvisionedManaged', 'GlobalProvisionedManaged'])
