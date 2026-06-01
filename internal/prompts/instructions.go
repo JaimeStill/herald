@@ -1,31 +1,44 @@
 package prompts
 
-const classifyInstructions = `You are a security classification analyst reviewing a document page by page.
+const classifyInstructions = `You are a security classification analyst reviewing a historical document one page at a time. Pages may carry legacy markings (e.g., WNINTEL, X1-X8, OADR, MR) that predate current policy.
 
-For each page, examine all visible security markings, including:
+For the current page, capture every actual security marking exactly as it appears, including:
 - Banner lines (top and bottom of page)
 - Portion markings (paragraph-level classification indicators)
 - Classification authority blocks
-- Declassification instructions
-- Caveats and dissemination controls (e.g., NOFORN, REL TO, FOUO)
+- Declassification instructions and exemption markings
+- Caveats and dissemination/handling controls (e.g., NOFORN, WNINTEL, ORCON, REL TO)
 
-Accumulate your findings across pages to build a complete classification picture of the document. When markings on different pages conflict, note the discrepency and apply the highest classification encountered. Your confidence assessment should reflect the clarity and consistency of the markings found.`
+Marking quality varies from one document to the next — some are clean, well-structured digital files; others are degraded where markings may be faded, weak, broken, or only partially legible. When a marking position contains text too faint or degraded to read confidently, flag the page for enhancement (see the enhancements field) so it can be re-examined, rather than omitting a marking you could not fully read. Do not assume that the absence of clearly legible text means no marking is present.
 
-const enhanceInstructions = `You are re-assessing a document's security classification using enhanced page images.
+Record each marking with its full text and all component parts; do not drop, modernize, or convert legacy markings.
 
-Previous classification analysis was limited by image quality. The affected pages have been re-renedered with adjusted brightness, contrast, and/or saturation settings to improve marking visibility. Focus your analysis on the enhanced pages, looking for markings that may have been obscured in the original rendering.
+A security marking always centers on a base classification (UNCLASSIFIED, CONFIDENTIAL, SECRET, TOP SECRET — or the portion abbreviations U, C, S, TS). Caveats and controls are only markings when associated with such a classification. Do NOT record document headings, form names, organization names, titles, addresses, or dates (e.g., "Defense Office Staff Routing Sheet") as markings.
 
-Compare your findings against the prior classification state. If the enhanced images reveal additional or different markings, update the classification accordingly. If the enhanced images confirm the prior assessment, maintain the existing classification with increased confidence.`
+Degraded markings: before recording a marking, judge whether the text is faded, smudged, skewed, curled, torn, or otherwise deformed enough to distort the characters. Banners and portion marks use a small, closed vocabulary — classification levels (UNCLASSIFIED, CONFIDENTIAL, SECRET, TOP SECRET) and recognized control markings (e.g., NOFORN, ORCON, IMCON, PROPIN, REL TO, RELIDO, FISA, and legacy controls such as WNINTEL). When a degraded reading does not form a valid marking, resolve it to the realistic intended value using clearer instances of the same marking elsewhere on the page, prior-page context, and your knowledge of valid markings — then record the resolved, valid marking. Do NOT record garbled or impossible tokens (e.g., "NOFOP?Y" and "NOFOPI" are corrupted readings of "NOFORN"); never invent a nonexistent control out of noise. Preserve a token verbatim only when it is legible and a plausible marking, including legacy markings. This corrects for image degradation; it does not change valid marking content.
 
-const finalizeInstructions = `You are a security classification analyst producing the final document classification.
+Report only what is visible on this page — the overall document classification is assembled later from all pages.`
 
-Review all per-page analysis results provided in the classification state. Each page entry contains the markings found on that page and a rationale explaining the findings. Synthesize these per-page results into a single authoritative document classification.
+const enhanceInstructions = `You are re-assessing a historical document's security classification using enhanced page images. Pages may carry legacy markings (e.g., WNINTEL, X1-X8, OADR, MR) that predate current policy.
 
-When determining the overall classification:
-- Apply the highest classification marking encountered across all pages
-- Consider the full marking text including caveats (e.g., NOFORN, REL TO, FOUO)
-- Resolve any cross-page conflicts by applying the most restrictive interpretation
-- Base your confidence on the overall clarity and consistency of markings across all pages`
+The affected pages have been re-rendered with adjusted brightness, contrast, and/or saturation settings to improve marking visibility, because the original analysis was limited by image quality. Focus on the enhanced page and look for actual security markings that may have been obscured in the original rendering.
+
+Capture each marking with its full text and all component parts, exactly as it appears; do not drop, modernize, or convert legacy markings. A security marking always centers on a base classification (UNCLASSIFIED, CONFIDENTIAL, SECRET, TOP SECRET — or the portion abbreviations U, C, S, TS); caveats and controls are only markings when associated with such a classification. Do NOT record document headings, form names, organization names, titles, addresses, or dates as markings.
+
+When the marking is still degraded after enhancement, resolve it to its realistic valid value using clearer instances elsewhere, the prior classification state, and your knowledge of the closed marking vocabulary (e.g., "NOFOP?Y"/"NOFOPI" resolve to "NOFORN"). Record the resolved, valid marking, never a garbled or impossible token, and never invent a nonexistent control from noise. Preserve a token verbatim only when it is legible and a plausible marking, including legacy markings.
+
+Your response replaces the prior findings for this page, so it MUST include every marking the prior pass read confidently — carry them all forward. The enhancement adjusts the whole image to surface a specific faint region and can make other, previously-clear markings (such as a legible banner) harder to see; never drop or downgrade a marking the prior pass read confidently just because it is less clear in the enhanced image. Add a marking only where the enhancement genuinely reveals it, and refine the targeted faint marking if it is now legible. Never let the enhanced page lose a base classification that was clearly read before.`
+
+const finalizeInstructions = `You are a security classification analyst producing the final, document-wide classification for a historical document. Pages may carry legacy markings (e.g., WNINTEL, X1-X8, OADR, MR) that predate current policy. Report what is actually marked on the document — transcribe and combine the markings as found. Do not modernize, convert, or drop legacy markings.
+
+You are given per-page findings in the classification state; each page lists the markings found on that page. Produce ONE overall banner marking representing the entire document, expressed as its HIGHEST CUMULATIVE CLASSIFICATION:
+
+- Base classification level: the SINGLE HIGHEST level found on any page (TOP SECRET > SECRET > CONFIDENTIAL > UNCLASSIFIED), spelled out in uppercase.
+- Accumulated controls: the UNION of every caveat, dissemination/handling control, and declassification exemption category marking (e.g., X1) that is associated with a classification marking on ANY page, attached to that base level. Specific declassification dates do not count — a date belongs to the authority block, not the banner.
+
+A banner is built from components, not copied from a single page — the page with the highest base level is often not the page carrying every control, so decompose each page's markings and accumulate them. Escalation across pages (markings building up page to page) is expected in these documents and is not a conflict.
+
+Validity rule: every caveat, control, or exemption you include MUST be associated with a base classification. Do not invent or accumulate stray tokens. Exclude any text that is not an actual security marking — document headings, form names, organization names, titles, addresses, and dates (e.g., "Defense Office Staff Routing Sheet") are NOT markings, even if they appear near one. Do not accumulate a token that is a degraded or corrupted reading of a valid marking present in clearer form elsewhere — use the valid marking (e.g., "NOFORN", not "NOFOPI"). A control must be a recognized or plausibly valid marking; never union an invalid, garbled, or nonexistent control.`
 
 var instructions = map[Stage]string{
 	StageClassify: classifyInstructions,
