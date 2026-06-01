@@ -18,10 +18,11 @@ import (
 )
 
 type pageResponse struct {
-	MarkingsFound []string               `json:"markings_found"`
-	Rationale     string                 `json:"rationale"`
-	Enhance       bool                   `json:"enhance"`
-	Enhancements  *state.EnhanceSettings `json:"enhancements,omitempty"`
+	MarkingsFound        []string               `json:"markings_found"`
+	UndeterminedMarkings []string               `json:"undetermined_markings"`
+	Confidence           state.Confidence       `json:"confidence"`
+	Rationale            string                 `json:"rationale"`
+	Enhancements         *state.EnhanceSettings `json:"enhancements,omitempty"`
 }
 
 // ClassifyNode returns a state node that performs parallel page-by-page
@@ -105,6 +106,16 @@ func classifyPages(ctx context.Context, rt *Runtime, cs *state.ClassificationSta
 			}
 
 			applyPageResponse(&cs.Pages[i], parsed)
+
+			rt.Logger.DebugContext(
+				gctx, "classify page complete",
+				"page", cs.Pages[i].PageNumber,
+				"confidence", parsed.Confidence,
+				"markings_found", parsed.MarkingsFound,
+				"undetermined_markings", parsed.UndeterminedMarkings,
+				"enhance", parsed.Enhancements != nil,
+			)
+
 			return nil
 		})
 	}
@@ -126,6 +137,8 @@ func readPageImage(imagePath string) ([]byte, error) {
 
 func applyPageResponse(page *state.ClassificationPage, resp pageResponse) {
 	page.MarkingsFound = resp.MarkingsFound
+	page.UndeterminedMarkings = resp.UndeterminedMarkings
+	page.Confidence = resp.Confidence
 	page.Rationale = resp.Rationale
 	page.Enhancements = resp.Enhancements
 }

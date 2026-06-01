@@ -47,13 +47,22 @@ type EnhanceSettings struct {
 
 // ClassificationPage holds per-page data accumulated during classification.
 // ImagePath references the rendered page image in a temp directory.
-// Enhance signals that this page should be re-rendered with adjusted settings.
+//
+// Confidence and UndeterminedMarkings are legibility signals emitted by the
+// vision stages (classify, enhance) — the only stages that see the pixels.
+// Confidence is the model's per-page assessment of how readable this page's
+// markings are. UndeterminedMarkings names marking positions that are present
+// but cannot be read; a non-empty list after enhancement means "present but
+// unreadable" and forces this page to LOW during aggregation. Both feed
+// ClassificationState.AggregateConfidence and are in-memory only (not persisted).
 type ClassificationPage struct {
-	PageNumber    int              `json:"page_number"`
-	ImagePath     string           `json:"image_path"`
-	MarkingsFound []string         `json:"markings_found"`
-	Rationale     string           `json:"rationale"`
-	Enhancements  *EnhanceSettings `json:"enhancements,omitempty"`
+	PageNumber           int              `json:"page_number"`
+	ImagePath            string           `json:"image_path"`
+	MarkingsFound        []string         `json:"markings_found"`
+	UndeterminedMarkings []string         `json:"undetermined_markings,omitempty"`
+	Confidence           Confidence       `json:"confidence,omitempty"`
+	Rationale            string           `json:"rationale"`
+	Enhancements         *EnhanceSettings `json:"enhancements,omitempty"`
 }
 
 // Enhance reports whether this page is flagged for enhancement.
@@ -85,4 +94,48 @@ func (s *ClassificationState) EnhancePages() []int {
 		}
 	}
 	return indices
+}
+
+// rank orders confidence levels for conservative comparison: LOW < MEDIUM < HIGH.
+// Unknown values rank lowest so an unexpected value never inflates the result.
+func rank(c Confidence) int {
+	switch c {
+	case ConfidenceHigh:
+		return 2
+	case ConfidenceMedium:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// AggregateConfidence derives the document-level confidence deterministically
+// from the per-page legibility signals, replacing the text-only finalize guess.
+//
+// It is the most conservative (lowest) per-page Confidence among content-bearing
+// pages — pages that found at least one marking or flagged one as undetermined.
+// Blank, redacted, and cover pages carry no markings and are ignored, so they
+// never lower the result. A content-bearing page with undetermined markings
+// (present but unreadable, even after enhancement) is floored to LOW, and a
+// content-bearing page that reports no Confidence at all defaults to LOW rather
+// than silently inflating the document. A document with no content-bearing pages
+// (nothing classified found) is a confident UNCLASSIFIED and stays HIGH.
+//
+// The result is always one of HIGH, MEDIUM, or LOW — never empty — which the
+// persisted confidence column requires (NOT NULL, CHECK IN ('HIGH','MEDIUM','LOW')).
+func (s *ClassificationState) AggregateConfidence() Confidence {
+	result := ConfidenceHigh
+	for _, p := range s.Pages {
+		if len(p.MarkingsFound) == 0 && len(p.UndeterminedMarkings) == 0 {
+			continue
+		}
+		pc := p.Confidence
+		if pc == "" || len(p.UndeterminedMarkings) > 0 {
+			pc = ConfidenceLow
+		}
+		if rank(pc) < rank(result) {
+			result = pc
+		}
+	}
+	return result
 }

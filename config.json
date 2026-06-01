@@ -63,6 +63,7 @@
         },
         "vision": {
           "max_completion_tokens": 4096,
+          "reasoning_effort": "high",
           "vision_options": {
             "detail": "high"
           }

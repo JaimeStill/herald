@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"golang.org/x/sync/errgroup"
 
@@ -19,8 +20,10 @@ import (
 )
 
 type enhanceResponse struct {
-	MarkingsFound []string `json:"markings_found"`
-	Rationale     string   `json:"rationale"`
+	ResolvedMarkings     []string         `json:"resolved_markings"`
+	UndeterminedMarkings []string         `json:"undetermined_markings"`
+	Confidence           state.Confidence `json:"confidence"`
+	Rationale            string           `json:"rationale"`
 }
 
 // EnhanceNode returns a state node that re-renders flagged pages with adjusted
@@ -133,9 +136,21 @@ func enhancePages(
 				return fmt.Errorf("page %d: parse response: %w", cs.Pages[i].PageNumber, err)
 			}
 
-			cs.Pages[i].MarkingsFound = parsed.MarkingsFound
-			cs.Pages[i].Rationale = parsed.Rationale
-			cs.Pages[i].Enhancements = nil
+			p := &cs.Pages[i]
+			p.MarkingsFound = unionMarkings(p.MarkingsFound, parsed.ResolvedMarkings)
+			p.UndeterminedMarkings = parsed.UndeterminedMarkings
+			p.Confidence = parsed.Confidence
+			p.Rationale = parsed.Rationale
+			p.Enhancements = nil
+
+			rt.Logger.DebugContext(
+				gctx, "enhance page complete",
+				"page", p.PageNumber,
+				"confidence", p.Confidence,
+				"resolved_markings", parsed.ResolvedMarkings,
+				"markings_found", p.MarkingsFound,
+				"undetermined_markings", p.UndeterminedMarkings,
+			)
 
 			return nil
 		})
@@ -146,6 +161,20 @@ func enhancePages(
 	}
 
 	return nil
+}
+
+// unionMarkings combines a page's prior markings with the markings an
+// enhancement pass newly resolved, preserving the prior-confident set verbatim
+// and adding the recovered ones. The result is sorted and de-duplicated. This is
+// the resolution-aware merge that replaced the previous wholesale overwrite: a
+// banner the first pass read clearly survives even when the enhanced re-render —
+// adjusted to surface a faint region — obscures it.
+func unionMarkings(prior, resolved []string) []string {
+	merged := make([]string, 0, len(prior)+len(resolved))
+	merged = append(merged, prior...)
+	merged = append(merged, resolved...)
+	slices.Sort(merged)
+	return slices.Compact(merged)
 }
 
 func extractDocumentID(s taustate.State) (uuid.UUID, error) {

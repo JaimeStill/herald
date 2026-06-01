@@ -149,6 +149,103 @@ func TestEnhancePages(t *testing.T) {
 	}
 }
 
+func TestAggregateConfidence(t *testing.T) {
+	tests := []struct {
+		name  string
+		pages []state.ClassificationPage
+		want  state.Confidence
+	}{
+		{
+			"nil pages",
+			nil,
+			state.ConfidenceHigh,
+		},
+		{
+			"all blank pages ignored",
+			[]state.ClassificationPage{
+				{PageNumber: 1},
+				{PageNumber: 2},
+			},
+			state.ConfidenceHigh,
+		},
+		{
+			"all content pages high",
+			[]state.ClassificationPage{
+				{PageNumber: 1, MarkingsFound: []string{"SECRET"}, Confidence: state.ConfidenceHigh},
+				{PageNumber: 2, MarkingsFound: []string{"SECRET", "NOFORN"}, Confidence: state.ConfidenceHigh},
+			},
+			state.ConfidenceHigh,
+		},
+		{
+			"one medium lowers to medium",
+			[]state.ClassificationPage{
+				{PageNumber: 1, MarkingsFound: []string{"SECRET"}, Confidence: state.ConfidenceHigh},
+				{PageNumber: 2, MarkingsFound: []string{"CONFIDENTIAL"}, Confidence: state.ConfidenceMedium},
+			},
+			state.ConfidenceMedium,
+		},
+		{
+			"undetermined markings floor to low despite high confidence",
+			[]state.ClassificationPage{
+				{PageNumber: 1, MarkingsFound: []string{"SECRET"}, Confidence: state.ConfidenceHigh},
+				{
+					PageNumber:           2,
+					MarkingsFound:        []string{"SECRET"},
+					UndeterminedMarkings: []string{"faded bottom stamp"},
+					Confidence:           state.ConfidenceHigh,
+				},
+			},
+			state.ConfidenceLow,
+		},
+		{
+			"undetermined-only page is content-bearing and low",
+			[]state.ClassificationPage{
+				{PageNumber: 1, UndeterminedMarkings: []string{"illegible banner"}},
+			},
+			state.ConfidenceLow,
+		},
+		{
+			"content page missing confidence defaults to low",
+			[]state.ClassificationPage{
+				{PageNumber: 1, MarkingsFound: []string{"SECRET"}, Confidence: state.ConfidenceHigh},
+				{PageNumber: 2, MarkingsFound: []string{"SECRET"}},
+			},
+			state.ConfidenceLow,
+		},
+		{
+			"blank pages do not lower a high content page",
+			[]state.ClassificationPage{
+				{PageNumber: 1},
+				{PageNumber: 2, MarkingsFound: []string{"UNCLASSIFIED"}, Confidence: state.ConfidenceHigh},
+				{PageNumber: 3},
+			},
+			state.ConfidenceHigh,
+		},
+		{
+			"lowest of mixed levels wins",
+			[]state.ClassificationPage{
+				{PageNumber: 1, MarkingsFound: []string{"SECRET"}, Confidence: state.ConfidenceHigh},
+				{PageNumber: 2, MarkingsFound: []string{"SECRET"}, Confidence: state.ConfidenceMedium},
+				{PageNumber: 3, MarkingsFound: []string{"SECRET"}, Confidence: state.ConfidenceLow},
+			},
+			state.ConfidenceLow,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cs := &state.ClassificationState{Pages: tt.pages}
+			got := cs.AggregateConfidence()
+			if got != tt.want {
+				t.Errorf("AggregateConfidence() = %q, want %q", got, tt.want)
+			}
+			if got != state.ConfidenceHigh && got != state.ConfidenceMedium && got != state.ConfidenceLow {
+				t.Errorf("AggregateConfidence() = %q, must be HIGH, MEDIUM, or LOW (never empty)", got)
+			}
+		})
+	}
+}
+
 func TestClassificationStateJSON(t *testing.T) {
 	cs := state.ClassificationState{
 		Classification: "SECRET",
@@ -159,14 +256,17 @@ func TestClassificationStateJSON(t *testing.T) {
 				PageNumber:    1,
 				ImagePath:     "/tmp/doc/page-1.png",
 				MarkingsFound: []string{"SECRET", "NOFORN"},
+				Confidence:    state.ConfidenceHigh,
 				Rationale:     "banner and portion markings visible",
 			},
 			{
-				PageNumber:    2,
-				ImagePath:     "/tmp/doc/page-2.png",
-				MarkingsFound: []string{"SECRET"},
-				Rationale:     "banner partially obscured",
-				Enhancements:  &state.EnhanceSettings{Brightness: intPtr(120), Contrast: intPtr(20)},
+				PageNumber:           2,
+				ImagePath:            "/tmp/doc/page-2.png",
+				MarkingsFound:        []string{"SECRET"},
+				UndeterminedMarkings: []string{"faded bottom stamp"},
+				Confidence:           state.ConfidenceLow,
+				Rationale:            "banner partially obscured",
+				Enhancements:         &state.EnhanceSettings{Brightness: intPtr(120), Contrast: intPtr(20)},
 			},
 		},
 	}
@@ -192,6 +292,18 @@ func TestClassificationStateJSON(t *testing.T) {
 	}
 	if len(got.Pages) != 2 {
 		t.Fatalf("Pages length = %d, want 2", len(got.Pages))
+	}
+	if got.Pages[0].Confidence != state.ConfidenceHigh {
+		t.Errorf("Pages[0].Confidence = %q, want HIGH", got.Pages[0].Confidence)
+	}
+	if len(got.Pages[0].UndeterminedMarkings) != 0 {
+		t.Errorf("Pages[0].UndeterminedMarkings = %v, want empty (omitted)", got.Pages[0].UndeterminedMarkings)
+	}
+	if got.Pages[1].Confidence != state.ConfidenceLow {
+		t.Errorf("Pages[1].Confidence = %q, want LOW", got.Pages[1].Confidence)
+	}
+	if len(got.Pages[1].UndeterminedMarkings) != 1 || got.Pages[1].UndeterminedMarkings[0] != "faded bottom stamp" {
+		t.Errorf("Pages[1].UndeterminedMarkings = %v, want [faded bottom stamp]", got.Pages[1].UndeterminedMarkings)
 	}
 	if got.Pages[0].Enhancements != nil {
 		t.Error("Pages[0].Enhancements should be nil")

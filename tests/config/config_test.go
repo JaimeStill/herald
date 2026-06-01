@@ -574,3 +574,99 @@ func TestAgentTokenNotRequired(t *testing.T) {
 		t.Error("token should not be set when env var is absent")
 	}
 }
+
+func TestAgentCapabilitiesEnvOverride(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	t.Setenv("HERALD_AGENT_CAPABILITIES_CHAT", `{"max_completion_tokens":4096,"reasoning_effort":"high"}`)
+	t.Setenv("HERALD_AGENT_CAPABILITIES_VISION", `{"max_completion_tokens":4096,"reasoning_effort":"high","vision_options":{"detail":"high"}}`)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	caps := cfg.Agent.Model.Capabilities
+	if caps == nil {
+		t.Fatal("capabilities is nil")
+	}
+
+	chat, ok := caps["chat"]
+	if !ok {
+		t.Fatal("chat capability not set from env")
+	}
+	if chat["reasoning_effort"] != "high" {
+		t.Errorf("chat reasoning_effort: got %v, want high", chat["reasoning_effort"])
+	}
+	if chat["max_completion_tokens"] != float64(4096) {
+		t.Errorf("chat max_completion_tokens: got %v, want 4096", chat["max_completion_tokens"])
+	}
+
+	vision, ok := caps["vision"]
+	if !ok {
+		t.Fatal("vision capability not set from env")
+	}
+	if vision["reasoning_effort"] != "high" {
+		t.Errorf("vision reasoning_effort: got %v, want high", vision["reasoning_effort"])
+	}
+	vopts, ok := vision["vision_options"].(map[string]any)
+	if !ok {
+		t.Fatalf("vision_options nested object: got %T, want map", vision["vision_options"])
+	}
+	if vopts["detail"] != "high" {
+		t.Errorf("vision detail: got %v, want high", vopts["detail"])
+	}
+}
+
+func TestAgentCapabilitiesEnvMalformed(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	t.Setenv("HERALD_AGENT_CAPABILITIES_VISION", `{not valid json`)
+
+	_, err := config.Load()
+	if err == nil {
+		t.Fatal("expected error for malformed capabilities JSON")
+	}
+	if !strings.Contains(err.Error(), "HERALD_AGENT_CAPABILITIES_VISION") {
+		t.Errorf("error %q should name the offending env var", err.Error())
+	}
+}
+
+func TestAgentCapabilitiesFromConfigPreservedWhenEnvUnset(t *testing.T) {
+	const capConfig = `{
+  "shutdown_timeout": "30s",
+  "database": {"name": "herald", "user": "herald"},
+  "storage": {"connection_string": "conn"},
+  "api": {"base_path": "/api"},
+  "agent": {
+    "name": "test-agent",
+    "provider": {"name": "ollama"},
+    "model": {
+      "name": "llama3.1:8b",
+      "capabilities": {
+        "vision": {"reasoning_effort": "high"}
+      }
+    }
+  }
+}`
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", capConfig)
+	chdir(t, dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	vision, ok := cfg.Agent.Model.Capabilities["vision"]
+	if !ok {
+		t.Fatal("vision capability from config not preserved when env unset")
+	}
+	if vision["reasoning_effort"] != "high" {
+		t.Errorf("vision reasoning_effort: got %v, want high", vision["reasoning_effort"])
+	}
+}
