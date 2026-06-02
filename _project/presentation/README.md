@@ -71,15 +71,22 @@ document-level classification. The demo walks an image and a PDF through this fl
 Deriving the classification
 ===
 
-Each inference stage is driven by a **specification** — its output contract and the non-negotiable
-marking rules — and **instructions** for how to read and reason. Both were derived from DoDM
-5200.01, Volume 2 and the Security Classification Markings cheat sheet, then refined by iterative
-testing against the scenario documents in `_project/marked-documents/`.
+The inference stages of the workflow were initially trained on two policies:
 
-<!-- new_lines: 4 -->
+- **DoDM 5200.01, Volume 2** — *DoD Information Security Program: Marking of Information*
+- The **Security Classification Markings** cheat sheet
 
-The marking itself is the highest classification level found on any page, plus the controls that
-apply, in a fixed category order:
+The prompts were then refined over many hours of isolating the edge cases encountered while
+processing sample documents, ensuring each refinement was a holistic instruction rather than a
+bandaid to silence a single scenario.
+
+<!-- new_lines: 2 -->
+
+Classification is driven by the markings encountered in a document, not the document contents
+themselves. The overall marking combines the highest classification level found on any page with
+the controls that apply, in the fixed category order defined by CAPCO (the Controlled Access
+Program Coordination Office), which maintains the register that standardizes U.S. classification
+and control markings:
 
 <!-- alignment: center -->
 
@@ -92,36 +99,6 @@ apply, in a fixed category order:
 - `//` separates categories
 - `/` separates controls within a category
 - Declassification and exemption markings are explicitly omitted
-
-<!-- new_lines: 4 -->
-
-<!-- column_layout: [1, 1, 1] -->
-
-<!-- column: 0 -->
-
-**`Classify`** — *each page*
-
-Records the markings visible at every banner and portion position, exactly as written, including
-legacy markings no longer issued today such as X1 and WNINTEL. A marking too degraded to read is
-flagged for enhancement instead of guessed at; a page with no legible marking is recorded as
-empty rather than assigned a level from its layout.
-
-<!-- column: 1 -->
-
-**`Enhance`** — *flagged pages only*
-
-Re-renders a flagged page with adjusted brightness and contrast to read a degraded marking, or
-confirms it cannot be read. It only adds to what classify already found, and never removes a
-marking the first pass read cleanly.
-
-<!-- column: 2 -->
-
-**`Finalize`** — *whole document*
-
-Combines the per-page markings into a single banner using the policy's rules: the single highest
-level, and controls that are mutually exclusive, where NOFORN takes precedence over REL TO.
-
-<!-- reset_layout -->
 
 <!-- end_slide -->
 
@@ -274,12 +251,16 @@ configurable client over a driver registry — much like Go's `database/sql` int
 SQL server through a swappable driver.
 
 ```bash
-cd ~/tau/examples && aws login    # Bedrock auth via the AWS CLI
+cd ~/tau/examples && cat demo.md
+
+aws login
 
 go run ./cmd/prompt-agent \
   -config ./cmd/prompt-agent/config.bedrock.json \
   -prompt "What is infrastructure as code? 300 words or less" \
   -stream
+
+cat ./cmd/prompt-agent/config.bedrock.json | jq .
 
 # vision works the same way — just add the protocol and an image:
 go run ./cmd/prompt-agent \
@@ -373,6 +354,8 @@ is the API itself.
 - **25 documents tested at 100% classification accuracy.**
 - **Projected cost for the full run:** ~**$27k** in inference plus ~**one month** of managed
   services to process all **750,000** documents.
+- This has been successful because we are located at the customer site, and understand the
+ problems that require solutions.
 
 <!-- new_lines: 2 -->
 
