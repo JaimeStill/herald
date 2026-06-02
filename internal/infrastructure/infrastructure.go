@@ -61,7 +61,9 @@ func New(cfg *config.Config) (*Infrastructure, error) {
 	registerAgentBackends()
 
 	lc := lifecycle.New()
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: cfg.LogLevel.SlogLevel(),
+	}))
 
 	cred, err := cfg.Auth.TokenCredential()
 	if err != nil {

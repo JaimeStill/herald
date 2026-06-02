@@ -143,6 +143,11 @@ func enhancePages(
 			p.Rationale = parsed.Rationale
 			p.Enhancements = nil
 
+			inputTokens, outputTokens := 0, 0
+			if resp.Usage != nil {
+				inputTokens, outputTokens = resp.Usage.InputTokens, resp.Usage.OutputTokens
+			}
+
 			rt.Logger.DebugContext(
 				gctx, "enhance page complete",
 				"page", p.PageNumber,
@@ -150,6 +155,8 @@ func enhancePages(
 				"resolved_markings", parsed.ResolvedMarkings,
 				"markings_found", p.MarkingsFound,
 				"undetermined_markings", p.UndeterminedMarkings,
+				"input_tokens", inputTokens,
+				"output_tokens", outputTokens,
 			)
 
 			return nil

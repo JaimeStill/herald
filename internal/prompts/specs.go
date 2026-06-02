@@ -32,9 +32,12 @@ Field constraints:
   page to any classification). If the page bears no legible classification
   marking, return an empty array ([]).
 - undetermined_markings: Array describing each marking position that is clearly
-  PRESENT on the page but whose value you cannot read confidently (e.g., "faded
-  stamp at bottom-center", "smeared portion mark on paragraph 3"). Leave empty
-  ([]) when every marking is legible. A non-empty list means a security marking
+  PRESENT on the page but whose value you cannot read confidently (e.g., "faint
+  bottom banner", "faded stamp at bottom-center", "smeared portion mark on
+  paragraph 3"). Check every banner position independently — a top AND a bottom
+  banner position where text is present but cannot be resolved each belongs here,
+  even when the other banner reads cleanly. Leave empty ([]) when every marking
+  is legible. A non-empty list means a security marking
   exists but its value is undetermined — also set enhancements so the page can be
   re-examined. Only list something here when it is plausibly a SECURITY MARKING —
   a classification/control banner, portion mark, or classification/declassification
@@ -96,8 +99,8 @@ Behavioral constraints:
 - Report only what you observe on this page
 - Report markings as found; do not modernize or convert legacy markings
 - Resolve degraded or deformed markings to the nearest valid marking confirmed
-  by context; never record a garbled or impossible token (e.g., "NOFOP?Y") as a
-  marking, and never invent a nonexistent control
+  by context; never record a garbled or impossible token (e.g., "NOFOP?Y" ->
+  "NOFORN", "XI"/"Xl" -> "X1") as a marking, and never invent a nonexistent control
 - Exclude any token that is not part of an actual security marking tied to a
   base classification
 - If prior page findings are provided in the prompt, use them as context
@@ -166,8 +169,8 @@ Behavioral constraints:
   in resolved_markings
 - Report markings as found; do not modernize or convert legacy markings
 - Resolve degraded or deformed markings to the nearest valid marking confirmed
-  by context; never record a garbled or impossible token (e.g., "NOFOP?Y") as a
-  marking, and never invent a nonexistent control
+  by context; never record a garbled or impossible token (e.g., "NOFOP?Y" ->
+  "NOFORN", "XI"/"Xl" -> "X1") as a marking, and never invent a nonexistent control
 - Exclude any token that is not part of an actual security marking tied to a
   base classification`
 
@@ -178,52 +181,85 @@ const finalizeSpec = `Respond with a JSON object matching this exact structure:
   "rationale": "<explanation>"
 }
 
-Field constraints:
-- classification: The document's highest cumulative classification, assembled by
-  combining markings across ALL pages — never copied from a single page:
-    1. Base level: the single highest classification level found on any page,
-       spelled out in uppercase (UNCLASSIFIED, CONFIDENTIAL, SECRET, TOP SECRET).
-    2. Controls: the union of every caveat, dissemination/handling control, and
-       declassification/exemption marking that is associated with a classification
-       marking on any page. Preserve each exactly as marked, including legacy
-       markings (e.g., WNINTEL, X1-X8); do not convert, modernize, or drop them.
-  Every control must be tied to the base classification — never include a token
-  that is not part of an actual security marking (headings, form/org names,
-  titles, addresses, and dates are not markings).
-  Order the components using this structure (omit categories that are absent):
-    CLASSIFICATION//SCI//SAP//AEA//FGI//DISSEMINATION CONTROLS//DECLASS-OR-OTHER
-  Separators:
-    - "//" separates marking categories
-    - "/"  separates multiple controls within the same category
-    - "-"  links a control to its sub-control (e.g., SI-G, RD-N)
-    - a space separates multiple sub-markings; ", " separates REL TO country codes
-  Dissemination controls order: FOUO, ORCON, IMCON, NOFORN, PROPIN, REL TO,
-  RELIDO, FISA, DISPLAY ONLY. Declassification exemption category markings
-  (e.g., X1-X8, 25X1, 50X1-HUM) trail as the final category after "//". Do NOT
-  include specific declassification dates (calendar dates or YYYYMMDD such as
-  20280901) in the classification — a date is a declassification instruction
-  that belongs to the authority block, not the banner; note it in the rationale
-  if relevant. Place legacy/unrecognized controls in the position they appear
-  relative to recognized controls.
-  Example: pages marked SECRET, SECRET//NOFORN, SECRET NOFORN WNINTEL, and
-  SECRET//NOFORN//X1 combine to: SECRET//NOFORN/WNINTEL//X1
-- rationale: Comprehensive explanation citing specific page evidence — which
-  control came from which page and how the cumulative banner was assembled.
+The "classification" value is the document's overall BANNER LINE, assembled by combining the
+markings across ALL pages per DoD marking policy (DoDM 5200.01, Volume 2). Build it from
+components — never copy a single page's banner verbatim. Escalation across pages (markings
+building up page to page) is expected and is not a conflict.
+
+Banner structure and category order (omit any category that is absent):
+  CLASSIFICATION//SCI//SAP//AEA//FGI//DISSEMINATION CONTROLS//OTHER DISSEMINATION CONTROLS
+Separators:
+  - "//" separates marking categories
+  - "/"  separates multiple markings within the same category
+  - "-"  links a marking to its sub-control/compartment (e.g., SI-G, RD-N, SAR-BP, ACCM-<NICKNAME>)
+  - a space separates multiple sub-markings; ", " separates REL TO / DISPLAY ONLY country codes
+
+1. Base classification level: the SINGLE HIGHEST level on any page
+   (TOP SECRET > SECRET > CONFIDENTIAL > UNCLASSIFIED), spelled out in uppercase, never
+   abbreviated, exactly one level. A document whose pages bear no classified marking is
+   UNCLASSIFIED.
+
+2. Category contents, each listing multiple entries in the order shown:
+   - SCI: control systems (e.g., HCS, SI, TK), alphabetical; compartments via "-". If HCS or
+     TK appears, NOFORN must also appear.
+   - SAP: SAR-<NICKNAME>; multiple programs -> SAR-MULTIPLE PROGRAMS; add WAIVED if marked.
+   - AEA: RESTRICTED DATA (or RD) / FORMERLY RESTRICTED DATA (or FRD) — these are AEA categories,
+     NOT dissemination controls. CNWDI is RD-N; SIGMA is RD-SIGMA <n>. If any portion is RD/FRD it
+     MUST appear here, and the document has no automatic declassification.
+   - FGI: FGI <country/org codes, alphabetical> (or FGI NATO).
+   - DISSEMINATION CONTROLS, in this order: ORCON, IMCON, NOFORN, PROPIN, REL TO, RELIDO,
+     DISPLAY ONLY, FISA.
+   - OTHER DISSEMINATION CONTROLS, trailing, in this order: SPECAT, NC2-ESI, ACCM-<NICKNAME>,
+     EXDIS, NODIS.
+
+Combination rules (apply when assembling — a naive union is WRONG):
+   - NOFORN and REL TO/RELIDO are MUTUALLY EXCLUSIVE. If NOFORN appears anywhere, the banner uses
+     NOFORN and REL TO/RELIDO are dropped from it (NOFORN takes precedence).
+   - REL TO appears ONLY if the ENTIRE document is releasable to the listed partners — every
+     classified portion must carry REL TO and the country lists must intersect; use the common
+     set. If any classified portion is uncaveated (no REL TO/RELIDO/NOFORN) or the lists do not
+     intersect, drop REL TO. Country order: USA first, then remaining countries alphabetical, then
+     coalition/organization codes alphabetical.
+   - FOUO/CUI is NOT carried into a classified banner; it appears only when the overall document
+     is UNCLASSIFIED (UNCLASSIFIED//FOUO).
+   - DISPLAY ONLY may not co-occur with RELIDO or NOFORN.
+   - Level limits: IMCON is SECRET-level; ORCON, RELIDO, RD, and FRD apply only to TS/S/C.
+
+Excluded from the banner:
+   - Declassification instructions and exemption markings — specific dates (e.g., YYYYMMDD),
+     events, exemption categories (25X1-25X9, 50X1-HUM, 50X2-WMD), and legacy declass values
+     (X1-X8, OADR, MR, "DCI Only") — belong to the classification AUTHORITY BLOCK, NOT the banner.
+     Do NOT place any of them in "classification". Record the document's declassification/exemption
+     instructions in the rationale instead, transcribed verbatim as found (never modernize or
+     recalculate them).
+   - Any token that is not a security marking tied to a classification (headings, form/org names,
+     titles, addresses, plain dates) is excluded.
+
+Place legacy or unrecognized but plausible controls (e.g., WNINTEL) in the dissemination-controls
+category, in the position they appear relative to recognized controls; transcribe them verbatim.
+
+Example: pages marked (S), SECRET//NOFORN, and SECRET NOFORN WNINTEL, where one page's authority
+block reads "Declassify On: X1", combine to the banner SECRET//NOFORN/WNINTEL — the X1 is a
+declassification exemption noted in the rationale, not part of the banner. Had another page instead
+been marked SECRET//REL TO USA, GBR, the banner would still be SECRET//NOFORN, because NOFORN takes
+precedence over REL TO.
+
+- rationale: Comprehensive explanation citing specific page evidence — which marking came from
+  which page, how the banner was assembled, which combination rules applied (e.g., NOFORN over
+  REL TO, REL TO dropped because a portion was uncaveated), and the document's
+  declassification/exemption instructions transcribed as found.
 
 Behavioral constraints:
 - Always respond with valid JSON, no markdown fencing
-- Assemble the banner from the union of all valid page markings; never copy a
-  single page's banner as the final answer
-- Every caveat/control/exemption must be associated with a base classification;
-  discard anything that is not an actual security marking
-- Never drop a control or exemption that appears on any page, including legacy
-  markings; report markings as found without modernizing them
-- Do not union corrupted or invalid control tokens; if a page lists a degraded
-  reading of a valid marking present elsewhere (e.g., "NOFOPI" vs "NOFORN"), use
-  the valid marking
-- Exclude specific declassification dates from the classification string; keep
-  exemption category markings (e.g., X1) and note any dropped dates in the
-  rationale`
+- Take the union of all valid page markings, THEN apply the combination rules and exclusions above;
+  never copy a single page's banner as the final answer
+- Every caveat/control must be associated with the base classification; discard anything that is
+  not an actual security marking
+- Report markings as found; transcribe legacy markings verbatim, never modernizing or converting
+- Do not union corrupted or invalid tokens; if a page lists a degraded reading of a valid marking
+  present elsewhere (e.g., "NOFOPI" vs "NOFORN", "XI" vs "X1"), use the valid marking
+- Keep declassification dates and exemption markings (X1-X8, 25X1, 50X1-HUM, OADR, MR) OUT of the
+  classification string; record them in the rationale`
 
 var specs = map[Stage]string{
 	StageClassify: classifySpec,

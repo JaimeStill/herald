@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/pdfcpu/pdfcpu v0.11.1
-	github.com/tailored-agentic-units/agent v0.1.1
+	github.com/tailored-agentic-units/agent v0.1.2
 	github.com/tailored-agentic-units/format v0.1.0
 	github.com/tailored-agentic-units/format/openai v0.1.0
 	github.com/tailored-agentic-units/orchestrate v0.1.0

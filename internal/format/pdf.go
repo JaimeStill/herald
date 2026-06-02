@@ -30,7 +30,10 @@ func (h *pdfHandler) ContentTypes() []string { return []string{"application/pdf"
 // Extract writes the source PDF to <tempDir>/source.pdf, counts pages with
 // pdfcpu, and renders each page to <tempDir>/page-N.png in parallel. The
 // per-page rendering uses magick's native PDF page-selector syntax
-// (source.pdf[N-1]) so we avoid pulling apart the document ourselves.
+// (source.pdf[N-1]) so we avoid pulling apart the document ourselves. The
+// extract pass renders with Normalize enabled, applying an always-on,
+// self-limiting contrast operator so faded markings survive the vision
+// model's downscale; Enhance keeps it on and layers its targeted settings.
 func (h *pdfHandler) Extract(
 	ctx context.Context,
 	src SourceReader,
@@ -69,7 +72,10 @@ func (h *pdfHandler) Extract(
 			if gctx.Err() != nil {
 				return gctx.Err()
 			}
-			return Render(gctx, pdfPageSelector(pdfPath, pageNum), imgPath, true, nil)
+			return Render(gctx, pdfPageSelector(pdfPath, pageNum), imgPath, RenderOptions{
+				Density:   true,
+				Normalize: true,
+			})
 		})
 	}
 
@@ -81,9 +87,14 @@ func (h *pdfHandler) Extract(
 }
 
 // Enhance re-renders the given page from <tempDir>/source.pdf with the
-// supplied filter settings applied. Extract must have run previously to
-// seed the source PDF; the result is written to <tempDir>/page-N-enhanced.png
-// and the path is returned.
+// always-on contrast normalization plus the supplied targeted filter
+// settings applied. Extract must have run previously to seed the source
+// PDF; the result is written to <tempDir>/page-N-enhanced.png and the path
+// is returned. Normalize is kept on so the enhanced render builds on the
+// same contrast baseline the classify pass presented to the model, with the
+// model's targeted brightness/contrast layered on top — rendering fresh from
+// source.pdf each time keeps the output a deterministic function of
+// (source PDF + settings) without compounding prior processing.
 func (h *pdfHandler) Enhance(
 	ctx context.Context,
 	tempDir string,
@@ -97,8 +108,7 @@ func (h *pdfHandler) Enhance(
 		ctx,
 		pdfPageSelector(pdfPath, page.PageNumber),
 		imgPath,
-		true,
-		settings,
+		RenderOptions{Density: true, Normalize: true, Settings: settings},
 	); err != nil {
 		return "", fmt.Errorf("enhance page %d: %w", page.PageNumber, err)
 	}
