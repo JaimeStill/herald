@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "0.5.0.0",
+  "contentVersion": "0.6.0.0",
   "parameters": {
     "location": {
       "value": "centralus"
@@ -12,7 +12,7 @@
       "value": "heraldregistry"
     },
     "containerImage": {
-      "value": "heraldregistry.azurecr.io/herald:0.5.0"
+      "value": "heraldregistry.azurecr.io/herald:0.6.0"
     },
     "postgresAdminLogin": {
       "value": "heraldadmin"

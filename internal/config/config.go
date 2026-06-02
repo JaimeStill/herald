@@ -3,7 +3,9 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/JaimeStill/herald/pkg/auth"
@@ -12,6 +14,32 @@ import (
 
 	tauconfig "github.com/tailored-agentic-units/protocol/config"
 )
+
+// LogLevel is the configured slog verbosity, set via the log_level config
+// field or the HERALD_LOG_LEVEL env var.
+type LogLevel string
+
+const (
+	LogLevelDebug LogLevel = "debug"
+	LogLevelInfo  LogLevel = "info"
+	LogLevelWarn  LogLevel = "warn"
+	LogLevelError LogLevel = "error"
+)
+
+// SlogLevel maps the configured LogLevel to its slog.Level. Unrecognized
+// values fall back to info; validate rejects them before this is reached.
+func (l LogLevel) SlogLevel() slog.Level {
+	switch l {
+	case LogLevelDebug:
+		return slog.LevelDebug
+	case LogLevelWarn:
+		return slog.LevelWarn
+	case LogLevelError:
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
 
 const (
 	BaseConfigFile       = "config.json"
@@ -22,6 +50,7 @@ const (
 	EnvHeraldShutdownTimeout = "HERALD_SHUTDOWN_TIMEOUT"
 	EnvHeraldVersion         = "HERALD_VERSION"
 	EnvHeraldAgentToken      = "HERALD_AGENT_TOKEN"
+	EnvHeraldLogLevel        = "HERALD_LOG_LEVEL"
 )
 
 var authEnv = &auth.Env{
@@ -65,6 +94,7 @@ type Config struct {
 	Database        database.Config       `json:"database"`
 	Storage         storage.Config        `json:"storage"`
 	API             APIConfig             `json:"api"`
+	LogLevel        LogLevel              `json:"log_level"`
 	ShutdownTimeout string                `json:"shutdown_timeout"`
 	Version         string                `json:"version"`
 }
@@ -128,6 +158,9 @@ func (c *Config) Merge(overlay *Config) {
 	if overlay.Version != "" {
 		c.Version = overlay.Version
 	}
+	if overlay.LogLevel != "" {
+		c.LogLevel = overlay.LogLevel
+	}
 	c.Agent.Merge(&overlay.Agent)
 	c.Auth.Merge(&overlay.Auth)
 	c.Server.Merge(&overlay.Server)
@@ -170,6 +203,9 @@ func (c *Config) loadDefaults() {
 	if c.Version == "" {
 		c.Version = "0.1.0"
 	}
+	if c.LogLevel == "" {
+		c.LogLevel = LogLevelInfo
+	}
 }
 
 func (c *Config) loadEnv() {
@@ -179,11 +215,19 @@ func (c *Config) loadEnv() {
 	if v := os.Getenv(EnvHeraldVersion); v != "" {
 		c.Version = v
 	}
+	if v := os.Getenv(EnvHeraldLogLevel); v != "" {
+		c.LogLevel = LogLevel(strings.ToLower(v))
+	}
 }
 
 func (c *Config) validate() error {
 	if _, err := time.ParseDuration(c.ShutdownTimeout); err != nil {
 		return fmt.Errorf("invalid shutdown_timeout: %w", err)
+	}
+	switch c.LogLevel {
+	case LogLevelDebug, LogLevelInfo, LogLevelWarn, LogLevelError:
+	default:
+		return fmt.Errorf("invalid log_level: %q", c.LogLevel)
 	}
 	return nil
 }

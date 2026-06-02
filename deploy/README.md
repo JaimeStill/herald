@@ -176,6 +176,30 @@ When `authEnabled=true`, these additional environment variables are injected:
 - **Redirect URIs** — the compute FQDN is auto-generated; add it post-deployment
 - **Admin consent** — must be granted manually in the portal
 
+### Content Filter (Responsible AI Policy)
+
+The model deployment is assigned a custom Responsible AI content filter
+(`herald-content-filter`), provisioned by `deploy/modules/cognitive.bicep` and
+applied automatically during deployment. It raises the four harm-category
+thresholds (hate, violence, sexual, self-harm) to **High** — blocking only
+high-severity content while allowing low/medium — on both prompts and completions.
+
+This prevents the default (medium-threshold) filter from misclassifying legitimate
+DoD classification-marking vocabulary as harmful and rejecting the request with an
+RAI `400`: markings such as NOFORN ("Not Releasable to Foreign Nationals"),
+`REL TO <countries>`, Restricted Data, and nuclear/WMD declassification exemptions
+otherwise trip the "hate"/"violence" classifiers. Jailbreak prompt-shielding and
+Protected Material detection remain on — the filter is not disabled, and raising
+thresholds to High is self-service (no modified-content-filter approval required).
+
+Override the `raiPolicyName` parameter (default `herald-content-filter`) to use a
+different policy name.
+
+> **Azure Government:** verify `Microsoft.CognitiveServices/accounts/raiPolicies`
+> is available in your Gov region at the API version pinned in `cognitive.bicep`.
+> If it is not, configure the equivalent filter manually in the AI Foundry portal
+> and disable the `raiPolicy` resource locally — see [update.md](update.md).
+
 ## Deployment
 
 ### 1. Create Resource Group and ACR
@@ -412,6 +436,7 @@ All `HERALD_*` environment variables injected into the compute target are compos
 |----------|--------|------------|
 | `HERALD_ENV` | `azure` | Yes |
 | `HERALD_SERVER_PORT` | `8080` | Yes |
+| `HERALD_LOG_LEVEL` | `info` (debug/info/warn/error) | Yes |
 | `HERALD_DB_HOST` | `postgres.outputs.fqdn` | Yes |
 | `HERALD_DB_PORT` | `5432` | Yes |
 | `HERALD_DB_NAME` | `postgres.outputs.databaseName` | Yes |
@@ -430,6 +455,8 @@ All `HERALD_*` environment variables injected into the compute target are compos
 | `HERALD_AGENT_AUTH_TYPE` | `managed_identity` | Yes |
 | `HERALD_AGENT_RESOURCE` | `cognitiveTokenScope` param | Yes |
 | `HERALD_AGENT_CLIENT_ID` | `identity.outputs.clientId` | Yes |
+| `HERALD_AGENT_CAPABILITIES_CHAT` | chat options JSON (`max_completion_tokens`, `reasoning_effort`) | Yes |
+| `HERALD_AGENT_CAPABILITIES_VISION` | vision options JSON (`max_completion_tokens`, `reasoning_effort`, `vision_options.detail`) | Yes |
 | `AZURE_CLIENT_ID` | `identity.outputs.clientId` | Yes |
 | `HERALD_AUTH_TENANT_ID` | `tenantId` param | Auth only |
 | `HERALD_AUTH_CLIENT_ID` | `entraClientId` param | Auth only |

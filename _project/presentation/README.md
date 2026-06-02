@@ -68,6 +68,63 @@ document-level classification. The demo walks an image and a PDF through this fl
 
 <!-- end_slide -->
 
+Deriving the classification
+===
+
+Each inference stage is driven by a **specification** — its output contract and the non-negotiable
+marking rules — and **instructions** for how to read and reason. Both were derived from DoDM
+5200.01, Volume 2 and the Security Classification Markings cheat sheet, then refined by iterative
+testing against the scenario documents in `_project/marked-documents/`.
+
+<!-- new_lines: 4 -->
+
+The marking itself is the highest classification level found on any page, plus the controls that
+apply, in a fixed category order:
+
+<!-- alignment: center -->
+
+`CLASSIFICATION // SCI // SAP // AEA // FGI // DISSEMINATION // OTHER DISSEMINATION`
+
+`SECRET // NOFORN / WNINTEL // SPECAT`
+
+<!-- alignment: left -->
+
+- `//` separates categories
+- `/` separates controls within a category
+- Declassification and exemption markings are explicitly omitted
+
+<!-- new_lines: 4 -->
+
+<!-- column_layout: [1, 1, 1] -->
+
+<!-- column: 0 -->
+
+**`Classify`** — *each page*
+
+Records the markings visible at every banner and portion position, exactly as written, including
+legacy markings no longer issued today such as X1 and WNINTEL. A marking too degraded to read is
+flagged for enhancement instead of guessed at; a page with no legible marking is recorded as
+empty rather than assigned a level from its layout.
+
+<!-- column: 1 -->
+
+**`Enhance`** — *flagged pages only*
+
+Re-renders a flagged page with adjusted brightness and contrast to read a degraded marking, or
+confirms it cannot be read. It only adds to what classify already found, and never removes a
+marking the first pass read cleanly.
+
+<!-- column: 2 -->
+
+**`Finalize`** — *whole document*
+
+Combines the per-page markings into a single banner using the policy's rules: the single highest
+level, and controls that are mutually exclusive, where NOFORN takes precedence over REL TO.
+
+<!-- reset_layout -->
+
+<!-- end_slide -->
+
 Demo
 ===
 

@@ -274,6 +274,7 @@ var containerAppSecrets = useAcrAdmin ? acrAdminSecrets : []
 var baseEnvVars = [
   { name: 'HERALD_ENV', value: 'azure' }
   { name: 'HERALD_SERVER_PORT', value: '8080' }
+  { name: 'HERALD_LOG_LEVEL', value: 'info' }
   { name: 'HERALD_DB_HOST', value: postgres.outputs.fqdn }
   { name: 'HERALD_DB_PORT', value: '5432' }
   { name: 'HERALD_DB_NAME', value: postgres.outputs.databaseName }

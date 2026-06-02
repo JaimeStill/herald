@@ -55,7 +55,7 @@ func (h *imageHandler) Extract(
 		if err := os.WriteFile(srcPath, data, 0600); err != nil {
 			return nil, fmt.Errorf("write image source: %w", err)
 		}
-		if err := Render(ctx, srcPath, outPath, false, nil); err != nil {
+		if err := Render(ctx, srcPath, outPath, RenderOptions{}); err != nil {
 			return nil, fmt.Errorf("normalize %s: %w", ct, err)
 		}
 	}
@@ -75,7 +75,7 @@ func (h *imageHandler) Enhance(
 ) (string, error) {
 	srcPath := filepath.Join(tempDir, "page-1.png")
 	outPath := filepath.Join(tempDir, "page-1-enhanced.png")
-	if err := Render(ctx, srcPath, outPath, false, settings); err != nil {
+	if err := Render(ctx, srcPath, outPath, RenderOptions{Settings: settings}); err != nil {
 		return "", fmt.Errorf("enhance image: %w", err)
 	}
 	return outPath, nil

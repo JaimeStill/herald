@@ -107,8 +107,8 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/tailored-agentic-units/agent v0.1.1 h1:VN23wEE51meDLSmXU6vQS5l5VijlzKNdyxGLUoWpZ9I=
-github.com/tailored-agentic-units/agent v0.1.1/go.mod h1:QcIWYc8oCvq4arhZUCH3WnXuyDSABwbpkgcSi76nb/E=
+github.com/tailored-agentic-units/agent v0.1.2 h1:aCxYMXg3gOy2pYrleS8NyFJkEwUkr9KTqNRAKfUpAdA=
+github.com/tailored-agentic-units/agent v0.1.2/go.mod h1:QcIWYc8oCvq4arhZUCH3WnXuyDSABwbpkgcSi76nb/E=
 github.com/tailored-agentic-units/format v0.1.0 h1:jfExa9ILj2Jl+PWcaPZnVbPsZSFI4Gizb3NNmCPOqJE=
 github.com/tailored-agentic-units/format v0.1.0/go.mod h1:VAy9QSrmVBiaGmJ0o8ZPWIw1PbgR5oZrfMSNXOqkqqc=
 github.com/tailored-agentic-units/format/openai v0.1.0 h1:0L/sJKOjD4g6V/m/6N7xJrs8TyEQZJY1YhOA+oL3t2A=

@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.6.0
+
+### Classification Accuracy & Confidence
+
+- Rework confidence scoring — the vision stages (classify/enhance) emit per-page legibility signals (`confidence`, `undetermined_markings`) and document confidence is derived deterministically in code (`ClassificationState.AggregateConfidence`: most-conservative content-bearing page; undetermined floors to LOW; an unmarked document stays HIGH; result never empty) instead of being guessed by the text-only finalize stage (#152)
+- Rewrite the classify/enhance/finalize prompts for DoD policy alignment (DoDM 5200.01, Volume 2). Finalize assembles the document banner as the highest cumulative classification with policy-aware control combination — NOFORN takes precedence over REL TO/RELIDO, REL TO is suppressed unless the whole document is releasable, and FOUO/CUI is never hoisted into a classified banner — in CAPCO structure/separators, rather than copying a single page's banner (#151)
+- Strict banner — declassification instructions and exemption markings (specific dates, 25X1/50X1-HUM, and legacy X1–X8/OADR/MR) are excluded from the banner (they are classification-authority-block content) and recorded in the rationale instead
+- Transcribe-as-found — legacy markings (X1–X8, WNINTEL) are preserved verbatim and never modernized; image-degraded tokens resolve to the nearest valid marking (`NOFOPI`→`NOFORN`, `XI`/`Xl`→`X1`) without emitting garbled or invalid controls; a caveat/control counts only when associated with a base classification, excluding header/form/org/date metadata (#151)
+- Banner-position scrutiny — the classify stage inspects every required banner position (top banner, bottom banner, portion marks) independently and flags faint or partial marking positions as `undetermined` (triggering the enhancement pass) rather than concluding from the clearest banner alone. Closes the recall gap where a faded bottom-banner control (e.g. NOFORN) was silently dropped at HIGH confidence
+- Reinforce read-don't-infer for unmarked, redacted, routing, and cover pages so the model never fabricates a base classification from page type or context
+
+### Render Pipeline
+
+- Add adaptive contrast normalization to the PDF extract render (`internal/format/`) — a self-limiting `-contrast-stretch` operator pulls faint, low-contrast markings toward the full tonal range so they survive the vision model's downscale, while leaving crisp pages largely untouched. The enhance pass renders on the same contrast baseline plus its targeted brightness/contrast settings, so a re-render builds on (not under) what the model first saw
+- Introduce a `RenderOptions` struct replacing `Render`'s positional parameters; the always-on normalization applies to PDF extraction only, never to native image uploads
+
+### Backend Infrastructure
+
+- Add a configurable log level — `HERALD_LOG_LEVEL` env var / `log_level` config field (`debug`/`info`/`warn`/`error`; defaults to `info`, validated at load) wired into the slog handler via `LogLevel.SlogLevel()`
+- Surface per-call token usage (`input_tokens`/`output_tokens`) in the classify/enhance/finalize debug logs for cost observability
+- Add a model-agnostic capability env channel — `HERALD_AGENT_CAPABILITIES_CHAT` / `HERALD_AGENT_CAPABILITIES_VISION` carry a per-capability options object as JSON and splat verbatim into the agent configuration (#152)
+
+### Dependencies
+
+- Bump `github.com/tailored-agentic-units/agent` v0.1.1 → v0.1.2 — broadens the HTTP client retry policy to cover `408`, `429`, and all `5xx` (previously only `429`/`502`/`503`/`504`), so a transient Azure `500` is retried with the existing exponential backoff + jitter instead of aborting a multi-page classification
+
+### Web Client
+
+- Add a confidence filter (HIGH/MEDIUM/LOW) to the documents view alongside the status filter (#152)
+- Fix the page-size select not reflecting the `?page_size` query parameter after a refresh (#152)
+- Wrap long classification markings on document cards instead of overflowing (#151)
+
+### Deployment
+
+- Codify the Responsible AI content filter in IaC — `deploy/modules/cognitive.bicep` provisions a custom `herald-content-filter` RAI policy (the four harm-category thresholds raised to High on both prompts and completions) and assigns it to the model deployment via `raiPolicyName`, so legitimate classification-marking vocabulary (NOFORN, REL TO, Restricted Data, nuclear/WMD-exemption terms) is not rejected as harmful by the default medium-threshold filter. The IL6/Gov path verifies `raiPolicies` availability and falls back to a manual portal configuration where unsupported (see `deploy/update.md`)
+- Wire `HERALD_LOG_LEVEL=info` into the `main.bicep` environment variables
+- Migrate the cognitive-services configuration to the Azure AI Foundry deployment format
+- Rewrite `deploy/update.md` for the v0.6.0 IL6 delta (log-level env var, RAI policy, fresh-image requirement, version bumps) and document the content filter + the `HERALD_LOG_LEVEL` / capability env vars in `deploy/README.md`
+
+### Documentation
+
+- Add an OV-1 leadership briefing (`_project/ov-1/`) and a presenterm briefing deck (`_project/presentation/`)
+- Fix the config-file reference in `.dockerignore`
+
 ## v0.5.0
 
 ### Classification Workflow

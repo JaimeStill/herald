@@ -107,6 +107,11 @@ func classifyPages(ctx context.Context, rt *Runtime, cs *state.ClassificationSta
 
 			applyPageResponse(&cs.Pages[i], parsed)
 
+			inputTokens, outputTokens := 0, 0
+			if resp.Usage != nil {
+				inputTokens, outputTokens = resp.Usage.InputTokens, resp.Usage.OutputTokens
+			}
+
 			rt.Logger.DebugContext(
 				gctx, "classify page complete",
 				"page", cs.Pages[i].PageNumber,
@@ -114,6 +119,8 @@ func classifyPages(ctx context.Context, rt *Runtime, cs *state.ClassificationSta
 				"markings_found", parsed.MarkingsFound,
 				"undetermined_markings", parsed.UndeterminedMarkings,
 				"enhance", parsed.Enhancements != nil,
+				"input_tokens", inputTokens,
+				"output_tokens", outputTokens,
 			)
 
 			return nil

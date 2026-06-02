@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -668,5 +669,93 @@ func TestAgentCapabilitiesFromConfigPreservedWhenEnvUnset(t *testing.T) {
 	}
 	if vision["reasoning_effort"] != "high" {
 		t.Errorf("vision reasoning_effort: got %v, want high", vision["reasoning_effort"])
+	}
+}
+
+func TestLogLevelDefault(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.LogLevel != config.LogLevelInfo {
+		t.Errorf("log_level default: got %q, want %q", cfg.LogLevel, config.LogLevelInfo)
+	}
+}
+
+func TestLogLevelFromConfig(t *testing.T) {
+	logLevelConfig := `{
+  "log_level": "warn",
+  "server": {"port": 8080},
+  "database": {"name": "herald", "user": "herald"},
+  "storage": {"connection_string": "conn"},
+  "api": {"base_path": "/api"}
+}`
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", logLevelConfig)
+	chdir(t, dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.LogLevel != config.LogLevelWarn {
+		t.Errorf("log_level from config: got %q, want %q", cfg.LogLevel, config.LogLevelWarn)
+	}
+}
+
+func TestLogLevelEnvOverride(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	// Mixed case confirms loadEnv normalizes to lowercase.
+	t.Setenv("HERALD_LOG_LEVEL", "DEBUG")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	if cfg.LogLevel != config.LogLevelDebug {
+		t.Errorf("log_level env override: got %q, want %q", cfg.LogLevel, config.LogLevelDebug)
+	}
+}
+
+func TestLogLevelInvalid(t *testing.T) {
+	dir := t.TempDir()
+	writeConfig(t, dir, "config.json", baseConfig)
+	chdir(t, dir)
+
+	t.Setenv("HERALD_LOG_LEVEL", "trace")
+
+	if _, err := config.Load(); err == nil {
+		t.Fatal("expected error for invalid log_level")
+	}
+}
+
+func TestSlogLevel(t *testing.T) {
+	tests := []struct {
+		level config.LogLevel
+		want  slog.Level
+	}{
+		{config.LogLevelDebug, slog.LevelDebug},
+		{config.LogLevelInfo, slog.LevelInfo},
+		{config.LogLevelWarn, slog.LevelWarn},
+		{config.LogLevelError, slog.LevelError},
+		{config.LogLevel("unrecognized"), slog.LevelInfo},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.level), func(t *testing.T) {
+			if got := tt.level.SlogLevel(); got != tt.want {
+				t.Errorf("SlogLevel(%q): got %v, want %v", tt.level, got, tt.want)
+			}
+		})
 	}
 }

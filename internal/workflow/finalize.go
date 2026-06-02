@@ -72,5 +72,17 @@ func synthesize(ctx context.Context, rt *Runtime, cs *state.ClassificationState)
 	cs.Classification = parsed.Classification
 	cs.Rationale = parsed.Rationale
 
+	inputTokens, outputTokens := 0, 0
+	if resp.Usage != nil {
+		inputTokens, outputTokens = resp.Usage.InputTokens, resp.Usage.OutputTokens
+	}
+
+	rt.Logger.DebugContext(
+		ctx, "finalize complete",
+		"classification", cs.Classification,
+		"input_tokens", inputTokens,
+		"output_tokens", outputTokens,
+	)
+
 	return nil
 }
