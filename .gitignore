@@ -24,8 +24,6 @@ coverage*
 go.work
 go.work.sum
 
-# Vendor
-vendor/
 
 # Node
 node_modules/
