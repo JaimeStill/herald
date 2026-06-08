@@ -163,6 +163,53 @@ docker tag ghcr.io/jaimestill/herald:<tag> <acr-name>.azurecr.<il6-domain-root>/
 docker push <acr-name>.azurecr.<il6-domain-root>/herald:<tag>
 ```
 
+#### Generating the bundle manually (in lieu of CDS)
+
+When the CDS workflow is unavailable, produce the same `herald-v<tag>.tar.gz` by hand on an internet-connected workstation, then carry it up and import it with the steps above. The bundle is just a gzip tarball whose root contains a single `image.tar` (the saved container image) — reproduce that layout and the import steps consume it unchanged.
+
+Throughout, `<tag>` is the version **without** the `v` prefix (e.g. `0.6.0`). The image tag drops the `v` (`ghcr.io/jaimestill/herald:0.6.0`); the bundle filename keeps it (`herald-v0.6.0.tar.gz`), matching the CDS workflow's `IMAGE_TAG=${VERSION#v}` convention.
+
+**Prerequisite: install crane.** `crane` is part of [`google/go-containerregistry`](https://github.com/google/go-containerregistry), an open-source, Google-maintained toolkit that is the de facto standard for registry interaction in the cloud-native ecosystem (used by `ko`, Tekton, and many CI pipelines). It pulls images over the OCI distribution API directly, so it needs **no Docker daemon** — which is why the CDS proxy workflow uses it. If you already have Docker and prefer not to add a tool, skip to Option B; the resulting bundle is equivalent.
+
+```bash
+# Linux / macOS — download the release binary (matches the CDS workflow)
+OS=$(uname -s); ARCH=$(uname -m)   # e.g. Linux x86_64, Darwin arm64
+curl -sL "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_${OS}_${ARCH}.tar.gz" \
+  | tar xz -C "$HOME/.local/bin" crane
+crane version
+
+# Any platform with a Go toolchain
+go install github.com/google/go-containerregistry/cmd/crane@latest
+
+# Homebrew (macOS / Linuxbrew)
+brew install crane
+```
+
+> **Note:** the release archive name encodes OS/arch (`go-containerregistry_Linux_x86_64.tar.gz`, `go-containerregistry_Darwin_arm64.tar.gz`, etc.). Ensure the install target (e.g. `$HOME/.local/bin`) is on your `PATH`.
+
+Generate the bundle with either tool:
+
+```bash
+# Option A — crane (matches the CDS workflow; no Docker daemon required)
+mkdir -p staging
+crane pull ghcr.io/jaimestill/herald:<tag> staging/image.tar
+tar czf herald-v<tag>.tar.gz -C staging .
+sha256sum herald-v<tag>.tar.gz > herald-v<tag>.sha256
+```
+
+```bash
+# Option B — docker (when a Docker daemon is available)
+mkdir -p staging
+docker pull ghcr.io/jaimestill/herald:<tag>
+docker save ghcr.io/jaimestill/herald:<tag> -o staging/image.tar
+tar czf herald-v<tag>.tar.gz -C staging .
+sha256sum herald-v<tag>.tar.gz > herald-v<tag>.sha256
+```
+
+The resulting `herald-v<tag>.tar.gz` (and its `.sha256`) is the same artifact the CDS workflow uploads. Verify integrity after transfer with `sha256sum -c herald-v<tag>.sha256`, then import it using the extract/tag/push steps above.
+
+> **Note:** this manual path bypasses the CDS scanning and transfer-governance pipeline. Use it only when the CDS workflow is unavailable.
+
 ### Migrate Bundle (`migrate-herald-migrate-v<tag>.tar.gz`)
 
 Triggered by `migrate-v*` tags. Contains versioned binaries for linux-amd64 and windows-amd64.
