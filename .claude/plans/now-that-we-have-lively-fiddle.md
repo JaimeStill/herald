@@ -297,10 +297,14 @@ response as JSON; the script author owns batching, concurrency, and resilience. 
 - [x] `internal/cli/documents.go` — `UploadDocument`/`ListDocuments`/`GetDocument` + `upload`
       (single `--file`/`--external-id`/`--platform`), `list` (one page → raw `PageResult`), `get`.
       Builds + vets. (review pending)
-- [ ] **Next:** `internal/cli/classify.go` — `Classify` (single doc, SSE→`Classification`) +
-      classifications `list`/`get`/`by-document`
-- [ ] `internal/cli/cli.go` + `cmd/herald/main.go` — subcommand dispatch, global flags→overlay,
-      signal-cancel context, `version`
+- [x] `internal/cli/classify.go` — `Classify` (single doc, SSE→`Classification`) + classifications
+      `list`/`get`/`by-document`. Builds + vets. (review pending)
+- [x] `internal/cli/cli.go` + `cmd/herald/main.go` — dispatch (two-token + bare), signal-cancel
+      context, `version`, `-h`→exit 0. Binary builds; smoke-tested (version/help/unknown/arg-validation/
+      config-load+connect).
+- [x] `cmd/herald/settings.json` (base, auth none) + `settings.auth.json` (azure overlay, mirrors
+      server config.auth.json). Run the CLI **from cmd/herald/** so its `secrets.json` (gitignored)
+      doesn't collide with the server's root one.
 - [ ] `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`
 - [ ] Tests in `tests/cli/` (retry/backoff, concurrency cap, batch isolation, SSE, config
       precedence, output); godoc pass
