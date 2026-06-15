@@ -305,10 +305,27 @@ response as JSON; the script author owns batching, concurrency, and resilience. 
 - [x] `cmd/herald/settings.json` (base, auth none) + `settings.auth.json` (azure overlay, mirrors
       server config.auth.json). Run the CLI **from cmd/herald/** so its `secrets.json` (gitignored)
       doesn't collide with the server's root one.
-- [ ] **NEXT (post-clear entry point):** Verify against local stack — `stack:reset`/`stack:up`/
-      `dev` (or `dev:auth`), then from `cmd/herald/`: `go run . documents upload --file <pdf>
-      --external-id N --platform TEST`, `classify <id>`, `classifications by-document <id>`,
-      `documents list`. Confirm upload→classify→retrieve round-trips and the `external_id` join key.
+- [x] **Local stack verification (non-auth path) — DONE.** `stack:up` + `mise run dev` (auth none),
+      then `bin/herald --api http://localhost:8080`: `documents upload` (→ Document, status pending),
+      `classify <id>` (→ full Classification), `classifications by-document`/`list`, `documents
+      list --status review --output jsonl`, `documents get`. upload→classify→retrieve round-trips;
+      `external_id`/`external_platform` join key confirmed; `json`/`jsonl` both correct; error
+      envelope → stderr + exit 1; unknown command → usage + exit 1.
+  - **BUG FOUND + FIXED (classify SSE consumer):** the server's `complete` SSE event `data:` line
+    is the full `ExecutionEvent` envelope `{type, timestamp, data}` (server marshals the *event*,
+    not the classification — `internal/classifications/handler.go:159` + `repository.go:217`
+    `SendComplete(classMap)`). The CLI was unmarshaling the envelope straight into `Classification`,
+    yielding an all-zero result. Rewrote `parseClassificationStream` to decode the envelope and
+    switch on `env.Type`, pulling the classification from the nested `data` (and the error
+    `message` from `error` events' nested `data`). The `event:` SSE line is no longer tracked —
+    each `data:` line is self-describing. (`internal/cli/classify.go`)
+  - **Flagged (server-side, NOT CLI):** `POST /api/classifications/{missingId}` returns **500**
+    "document not found" instead of 404 — `Handler.Classify`'s `MapHTTPStatus(err)` doesn't unwrap
+    the not-found sentinel from the workflow-wrapped error. CLI relays it faithfully. Out of CLI scope.
+  - **Not yet exercised:** auth path (verification step 7 — needs `HERALD_CLI_AUTH_*` + secret vs
+    the Entra app reg under `dev:auth`); commercial Azure (step 8); IL6 (step 9, post-release).
+- [ ] **NEXT:** `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`,
+      then tests, then auth-path spot-check.
 - [ ] `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`
 - [ ] Tests in `tests/cli/` (package cli_test): config precedence/scope-derivation, SSE parser
       (`parseClassificationStream` complete/error/truncated), decodeError envelope, output json/jsonl,

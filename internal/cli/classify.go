@@ -60,32 +60,41 @@ func (c *Client) GetClassificationByDocument(ctx context.Context, documentID str
 }
 
 // parseClassificationStream reads an SSE stream and resolves on the terminal
-// event: complete yields the classification, error yields an error. The stream
-// ending without either is itself an error.
+// event. Each data line carries the full ExecutionEvent envelope
+// ({type, timestamp, data}); a complete event yields the classification from its
+// nested data, an error event yields an error. The stream ending without either
+// is itself an error.
 func parseClassificationStream(r io.Reader) (*classifications.Classification, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
-	var event, data string
 	for scanner.Scan() {
 		line := scanner.Text()
-		switch {
-		case line == "":
-			switch event {
-			case "complete":
-				var cl classifications.Classification
-				if err := json.Unmarshal([]byte(data), &cl); err != nil {
-					return nil, fmt.Errorf("decode classification: %w", err)
-				}
-				return &cl, nil
-			case "error":
-				return nil, classificationStreamError(data)
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" {
+			continue
+		}
+
+		var env struct {
+			Type string          `json:"type"`
+			Data json.RawMessage `json:"data"`
+		}
+		if err := json.Unmarshal([]byte(data), &env); err != nil {
+			return nil, fmt.Errorf("decode stream event: %w", err)
+		}
+
+		switch env.Type {
+		case "complete":
+			var cl classifications.Classification
+			if err := json.Unmarshal(env.Data, &cl); err != nil {
+				return nil, fmt.Errorf("decode classification: %w", err)
 			}
-			event, data = "", ""
-		case strings.HasPrefix(line, "event:"):
-			event = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
-		case strings.HasPrefix(line, "data:"):
-			data = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+			return &cl, nil
+		case "error":
+			return nil, classificationStreamError(env.Data)
 		}
 	}
 
@@ -95,11 +104,13 @@ func parseClassificationStream(r io.Reader) (*classifications.Classification, er
 	return nil, fmt.Errorf("classification stream ended without a result")
 }
 
-func classificationStreamError(data string) error {
+// classificationStreamError extracts the message from an error event's data
+// payload ({"message": ..., "node": ...}).
+func classificationStreamError(data json.RawMessage) error {
 	var ed struct {
 		Message string `json:"message"`
 	}
-	if json.Unmarshal([]byte(data), &ed) == nil && ed.Message != "" {
+	if json.Unmarshal(data, &ed) == nil && ed.Message != "" {
 		return fmt.Errorf("classification failed: %s", ed.Message)
 	}
 	return fmt.Errorf("classification failed")
