@@ -322,11 +322,30 @@ response as JSON; the script author owns batching, concurrency, and resilience. 
   - **Flagged (server-side, NOT CLI):** `POST /api/classifications/{missingId}` returns **500**
     "document not found" instead of 404 — `Handler.Classify`'s `MapHTTPStatus(err)` doesn't unwrap
     the not-found sentinel from the workflow-wrapped error. CLI relays it faithfully. Out of CLI scope.
-  - **Not yet exercised:** auth path (verification step 7 — needs `HERALD_CLI_AUTH_*` + secret vs
-    the Entra app reg under `dev:auth`); commercial Azure (step 8); IL6 (step 9, post-release).
+- [x] **Auth path verification (step 7) — DONE against `dev:auth`.** Server (`auth_mode azure`,
+      `config.auth.json`) rejects anonymous with 401; OIDC verifier checks `aud == api://{client_id}`
+      only (no `scp`/`roles` check — `pkg/middleware/auth.go`). CLI run from `cmd/herald/` with
+      `HERALD_CLI_ENV=auth` (loads `settings.auth.json`) validated **both** credential flows:
+  - **Delegated (`az login` / DefaultAzureCredential → AzureCLICredential):** required pre-authorizing
+    the universal Azure CLI client (`04b07795-…`) on the API app reg with the `access_as_user`
+    delegated scope + admin consent. Then `documents list` returned 200. Derived scope
+    `api://{client_id}/.default`.
+  - **Service principal (client secret → ClientSecretCredential):** secret stored in
+    `cmd/herald/secrets.json` (gitignored; `{"auth":{"client_secret":"…"}}`). Selector flips to
+    ClientSecretCredential when tenant+client+secret all present (bypasses `az` entirely). Validated
+    GET (`documents list`), multipart POST (`documents upload`), and SSE (`classify`) — all 200,
+    classification round-tripped. App-only token; Herald accepts on audience alone.
+  - **Not yet exercised:** commercial Azure (step 8); IL6 (step 9, post-release).
 - [ ] **NEXT:** `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`,
       then tests, then auth-path spot-check.
-- [ ] `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`
+- [x] **Root `README.md` — `## Herald CLI` section added.** Build (+ version ldflags), config
+      precedence/files/`HERALD_CLI_*` env, both validated auth paths (az-login delegated + SP secret,
+      with the Azure CLI client pre-auth and same-app/separate-app scope notes), command reference
+      table, `external_id` join-key note, and a bulk upload→classify→retrieve scripting example.
+- [ ] **No `.mise.toml` task** — decided against (CLI is an operator tool, not a dev-loop runtime).
+      Build documented directly in the README instead.
+- [ ] `.github/workflows/herald-release.yml` (`herald-v*`) — release tag aligns to `herald-v0.6.0`
+      (current `config.json` version; no `_project/phase.md` present).
 - [ ] Tests in `tests/cli/` (package cli_test): config precedence/scope-derivation, SSE parser
       (`parseClassificationStream` complete/error/truncated), decodeError envelope, output json/jsonl,
       dispatch routing. Note: no retry/concurrency to test now. Godoc pass.
