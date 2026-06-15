@@ -21,20 +21,23 @@ to the Herald API with Entra and exposes scriptable, stateless commands for bulk
 - **Shape**: Azure-CLI-style. Separate one-shot commands, **no intermediary state files**.
   Inputs come from flags / stdin; results go to **stdout as JSON**. The consumer decides how
   to feed data in and process data out.
-- **Concurrency is a CLI responsibility**: batch commands manage in-flight concurrency,
-  client-side rate limiting, and retry/backoff *internally* so the DBA cannot accidentally
-  overload Azure or Herald by fanning out a shell loop. This is the central design concern.
+- **Concurrency is a CLI responsibility**: batch commands cap in-flight concurrency and retry on
+  `429`/`5xx` (honoring `Retry-After`) *internally*, so the DBA cannot accidentally overload Azure
+  or Herald by fanning out a shell loop. A concurrency cap plus 429-aware retry is the throttle —
+  no separate client-side rate limiter (see Throttle & Concurrency Design).
+- **Keep it lean**: this CLI orchestrates a fixed, small set of endpoints and returns structured
+  JSON. Favor the simplest thing that meets the throttle requirement over general infrastructure.
 - **Name**: `cmd/herald`, binary `herald`, release tag `herald-v*`.
 
 ## Goals / Scope
 
 In scope:
-- `herald documents upload` — batch upload (concurrency-capped, rate-limited, retried)
+- `herald documents upload` — batch upload (concurrency-capped, retried)
 - `herald documents list` / `get` — query documents (for retrieval/extraction)
 - `herald classify` — batch-trigger classification, consume the SSE stream to completion,
-  emit the resulting classification JSON (concurrency-capped, rate-limited, retried)
+  emit the resulting classification JSON (concurrency-capped, retried)
 - `herald classifications list` / `get` / `by-document` — pull classification results for ingest
-- Shared HTTP client with Entra token acquisition, three-layer throttle, and retry
+- Thin HTTP client with Entra token acquisition (SDK-cached), concurrency cap, and 429-aware retry
 - `herald-release.yml` workflow + `.mise.toml` tasks
 
 Out of scope (note as future): `validate` / `update` commands (human review happens in the web
@@ -46,20 +49,22 @@ A single `classify` request is **not** a single unit of Azure load: the server's
 out across document pages internally (`internal/workflow/classify.go` uses
 `errgroup.SetLimit(core.WorkerCount(len(pages)))`) and each page is a vision-model call. So N
 concurrent CLI classify requests ≈ N × pages concurrent Azure OpenAI calls. Uploads are lighter
-(blob + DB) but still bounded by Herald throughput. The CLI defends with three independent
-layers, all configurable:
+(blob + DB) but still bounded by Herald throughput. The CLI defends with **two** simple layers:
 
 1. **Concurrency cap** — max in-flight requests for a batch, via `errgroup.WithContext` +
-   `g.SetLimit(n)` (the house pattern, see `internal/workflow/classify.go`).
-   Defaults: `documents upload` → `--concurrency 4`; `classify` → `--concurrency 2`
-   (conservative because of the page fan-out multiplication).
-2. **Client-side rate limit** — a token-bucket (`golang.org/x/time/rate`) shared by the batch,
-   `--rate` (requests/sec) + `--burst`. Smooths bursts independent of concurrency. The client
-   calls `limiter.Wait(ctx)` before every outbound request. Default conservative, e.g.
-   `--rate 2 --burst 2` for classify, higher for upload.
-3. **Retry with backoff** — on `429` and `5xx`, honor the `Retry-After` header when present,
-   otherwise exponential backoff with full jitter, capped by `--max-retries` (default 5) and a
-   per-request `--timeout`. `4xx` other than 429 fails fast (no retry).
+   `g.SetLimit(n)` (the house pattern, see `internal/workflow/classify.go`). This is the primary,
+   intuitive throttle knob. Per-command defaults: `documents upload` → `4`; `classify` → `2`
+   (conservative because of the page fan-out multiplication). Overridable via `--concurrency`.
+2. **429-aware retry** — on `429`/`5xx`, honor the `Retry-After` header when present, otherwise
+   exponential backoff (`retry_base_delay`..`retry_max_delay`) with full jitter, capped by
+   `--max-retries` (default 5). `4xx` other than 429 fails fast. This is what makes the CLI
+   rate-limit-aware: when the server pushes back, the client waits as instructed and retries.
+
+This deliberately drops a separate client-side token-bucket rate limiter (`golang.org/x/time/rate`)
+and the manual token cache that earlier drafts carried. The concurrency cap governs how hard we
+push; the 429 retry handles overrun per the server's own guidance; `azidentity` already caches
+tokens internally. Net effect: meaningfully less client machinery, one fewer dependency, same
+rate-limit-aware behavior.
 
 Failure isolation: a batch never aborts on a single item's terminal failure. Each item's outcome
 (success payload **or** error string) is captured and emitted in the JSON results array, so a
@@ -72,15 +77,14 @@ partial results are flushed.
 ```
 herald [global flags] <group> <command> [flags] [args]
 
-global flags (also env):
-  --api-url        HERALD_API_URL          base URL, e.g. https://herald.<il6-host>
-  --concurrency    HERALD_CONCURRENCY      max in-flight requests (per-command default)
-  --rate           HERALD_RATE             requests/sec (token bucket)
-  --burst          HERALD_BURST            token-bucket burst
-  --max-retries    HERALD_MAX_RETRIES      retry cap on 429/5xx (default 5)
-  --timeout        HERALD_TIMEOUT          per-request timeout
-  --output         json (default) | jsonl  array vs newline-delimited streaming
-  (auth via HERALD_AUTH_* env — see below)
+global flags (also env, HERALD_CLI_ prefix):
+  --api            HERALD_CLI_API           base URL, e.g. https://herald.<il6-host>
+  --scope          HERALD_CLI_SCOPE         Entra token scope (default api://{client-id}/.default)
+  --concurrency    HERALD_CLI_CONCURRENCY   max in-flight requests (per-command default)
+  --max-retries    HERALD_CLI_MAX_RETRIES   retry cap on 429/5xx (default 5)
+  --timeout        HERALD_CLI_TIMEOUT       per-request timeout (default 10m)
+  --output         json (default) | jsonl   array vs newline-delimited streaming
+  (retry backoff: HERALD_CLI_RETRY_BASE_DELAY / _MAX_DELAY; auth via HERALD_CLI_AUTH_* — see below)
 ```
 
 - `herald documents upload` — input is a JSON array on **stdin** (or `--items @file.json`):
@@ -107,18 +111,21 @@ global flags (also env):
 The `external_id` + `external_platform` round-trip (set on upload, returned on document
 get/list) is the join key for ingest — no separate correlation file is needed.
 
-## Package Layout — `cmd/herald/`
+## Package Layout — `internal/cli/` (+ thin `cmd/herald/main.go`)
+
+Logic lives in the importable `internal/cli` package (black-box testable); `cmd/herald/main.go`
+is a thin `package main` that calls `cli.Run(os.Args[1:])`, mirroring how `cmd/server` stays thin.
 
 | File | Responsibility |
 |------|----------------|
-| `main.go` | Subcommand dispatch via `flag.FlagSet` per command (no cobra — matches `cmd/migrate` minimalism); global flag/env resolution; signal handling |
-| `config.go` | Resolve `Settings` (API URL, throttle knobs, `auth.Config`) from flags + `HERALD_*` env; reuse `auth.Config.Finalize(&auth.Env{...})` |
-| `client.go` | `Client` wrapping `*http.Client` + base URL + `azcore.TokenCredential`; `do()` applies `limiter.Wait`, injects `Authorization: Bearer`, runs retry/backoff honoring `Retry-After`; JSON + multipart + SSE request helpers |
-| `batch.go` | `runBatch[T,R]` — bounded-concurrency runner over a slice using `errgroup.WithContext` + `SetLimit`, capturing per-item result-or-error in input order |
-| `documents.go` | `upload`, `list`, `get` commands |
+| `cmd/herald/main.go` | Thin entry: `os.Exit(cli.Main())` / `cli.Run(args)` |
+| `cli.go` | Subcommand dispatch via `flag.FlagSet` per command (no cobra — matches `cmd/migrate` minimalism); binds global flags into a `*Settings` overlay; signal-cancel context; `version` |
+| `config.go` | `Settings` (API, scope, concurrency, retry knobs, `auth.Config`) via `settings.json`+overlay+`secrets.json`+`HERALD_CLI_*` env+flags; `Load`/`Finalize`/`Merge`/`validate` **(done)** |
+| `client.go` | `Client` wrapping `*http.Client` + base URL + `azcore.TokenCredential`; `do()` injects `Authorization: Bearer` (token via `cred.GetToken`, SDK-cached) and runs 429-aware retry/backoff; `getJSON` + `postMultipart` + `postStream` helpers. No rate limiter, no manual token cache. Methods own a per-call `context.WithTimeout` and `classify` consumes the SSE stream to completion internally (no streaming-body escape) |
+| `batch.go` | `RunBatch[T,R]` — bounded-concurrency runner via `errgroup.WithContext` + `SetLimit`, per-item result-or-error in input order **(done)** |
+| `documents.go` | `upload`, `list`, `get` commands + their `*Client` API methods; resolves per-command concurrency default |
 | `classify.go` | `classify` command + SSE consumer that resolves on `complete`/`error`; classification `list`/`get`/`by-document` |
 | `output.go` | Emit `json` array or `jsonl` to stdout; per-item error envelope; human-readable errors to stderr |
-| `version.go` | `herald version` (build version, aligned with `_project/phase.md`) |
 
 ### Auth resolution (reuse, with one addition)
 
@@ -129,9 +136,10 @@ get/list) is the join key for ingest — no separate correlation file is needed.
   (`api://{herald-api-client-id}`). Add a `--scope` / `HERALD_API_SCOPE` setting (default derived
   as `api://{cfg.Auth.ClientID}/.default`) so the operator can point the SP credential at the
   Herald API resource. The client calls
-  `cred.GetToken(ctx, policy.TokenRequestOptions{Scopes: []string{scope}})` and caches the token
-  until near expiry. Note the IL6 **trailing-slash** scope gotcha (see `il6_deployment_lessons`
-  memory) — make the exact scope string operator-overridable, don't hardcode the suffix.
+  `cred.GetToken(ctx, policy.TokenRequestOptions{Scopes: []string{scope}})` per request and relies
+  on `azidentity`'s internal token cache (no manual caching layer). Note the IL6 **trailing-slash**
+  scope gotcha (see `il6_deployment_lessons` memory) — make the exact scope string
+  operator-overridable, don't hardcode the suffix. Scope env var is `HERALD_CLI_SCOPE`.
 
 ### Reused building blocks (do not reinvent)
 
@@ -145,9 +153,11 @@ get/list) is the join key for ingest — no separate correlation file is needed.
 - SSE contract from `internal/classifications/handler.go:Classify` — `event: <type>` /
   `data: <json>`; resolve on the `complete` event, fail on `error`.
 
-### New dependency
+### Dependencies
 
-- `golang.org/x/time/rate` for the token-bucket limiter (`golang.org/x/sync` is already present).
+- No new dependencies. `golang.org/x/sync` (errgroup) and `azidentity`/`azcore` are already
+  present. The `golang.org/x/time/rate` dependency added in an earlier draft is **removed** (the
+  token-bucket limiter is gone) — drop it from `go.mod` and `go mod tidy`.
 
 ## Release & Tooling
 
@@ -159,21 +169,20 @@ get/list) is the join key for ingest — no separate correlation file is needed.
 - Versioning per project convention — align `herald version` output and any release tag with the
   current `_project/phase.md` target.
 
-## Testing (AI responsibility, `tests/cmd/herald/`, black-box)
+## Testing (AI responsibility, `tests/cli/`, black-box `package cli_test`)
 
 - `httptest.Server` standing in for the Herald API. Table-driven coverage of:
   - **Retry/backoff**: server returns `429` with `Retry-After`, then `200` — assert the client
     waits and succeeds; `5xx` exhausts `--max-retries` and surfaces a terminal error; non-429
     `4xx` fails fast without retry.
   - **Concurrency cap**: instrument the test server to record max simultaneous in-flight requests;
-    assert it never exceeds `--concurrency`.
-  - **Rate limit**: assert observed request spacing respects `--rate`.
-  - **Batch isolation**: one item errors, others succeed → results array carries both, exit is
-    non-fatal.
+    assert it never exceeds `--concurrency` (`RunBatch`).
+  - **Batch isolation**: one item errors, others succeed → results carry both, exit is non-fatal.
   - **SSE consumer**: a streamed `node.start`/`complete` sequence resolves to the embedded
     `Classification`; an `error` event surfaces as the item error.
+  - **Config precedence**: defaults → file → env → flags override order; scope derivation.
   - **Output**: `json` array vs `jsonl` shape; error-envelope fields.
-- Godoc on all exported `cmd/herald` types/functions added post-implementation.
+- Godoc on all exported `internal/cli` types/functions added post-implementation.
 
 ## Verification (end-to-end)
 
@@ -192,9 +201,9 @@ pre-release check; IL6 is tested last, after release. Never test IL6-first.
 5. Retrieve for ingest: `bin/herald classifications by-document <id>` and
    `bin/herald documents list --status review` → confirm `external_id`/`external_platform` join
    key plus `classification`/`confidence`/`markings_found` are present.
-6. Throttle check: point `--concurrency`/`--rate` high against a stub that returns `429` with
-   `Retry-After` and confirm the CLI honors it (covered in tests; spot-check manually).
-7. Auth path: against `dev:auth`, set `HERALD_AUTH_*` + `HERALD_API_SCOPE` and confirm a bearer
+6. Throttle check: confirm `--concurrency` caps in-flight work and that a `429` with `Retry-After`
+   is honored (covered in tests; spot-check manually).
+7. Auth path: against `dev:auth`, set `HERALD_CLI_AUTH_*` + `HERALD_CLI_SCOPE` and confirm a bearer
    token is acquired and accepted.
 8. Commercial Azure: repeat the upload → classify → retrieve flow against the commercial
    deployment as the final pre-release check.
@@ -236,10 +245,17 @@ stays thin with logic in `internal/`, and makes the code black-box testable (`te
   every layer consistently).
 - `Output` is a typed `OutputFormat` enum (`OutputJSON`/`OutputJSONL`), house-consistent with
   `LogLevel`/`auth.Mode`.
-- **Per-command throttle defaults live in the commands**, not in `Settings` (removed the
-  `throttle`/`resolve` helpers). Unset `Concurrency`/`Rate`/`Burst` (0) → command applies its own
-  default (upload concurrency 4 / classify 2; classify lower because one request fans out across
-  pages server-side). `RunBatch` clamps concurrency < 1 to 1.
+- **Simplification (this revision):** dropped the client-side token-bucket rate limiter
+  (`golang.org/x/time/rate`, `Rate`/`Burst` settings, `NewLimiter`) and the manual token cache.
+  Throttle = concurrency cap + 429-aware retry only; tokens are SDK-cached. This cuts `client.go`
+  roughly in half and removes a dependency. Rationale: fixed-endpoint orchestration CLI, keep it lean.
+- **Per-command concurrency default lives in the command**, not in `Settings` (no `throttle`/`resolve`
+  helper). Unset `Concurrency` (0) → command default (upload 4 / classify 2; classify lower because
+  one request fans out across pages server-side). `RunBatch` clamps concurrency < 1 to 1.
+- `NewClient(s *Settings)` — no limiter param. `do()` uses the call's ctx directly (no per-attempt
+  context, no `cancelReadCloser`); each public method wraps a single `context.WithTimeout`, and
+  `Classify` consumes the SSE stream to completion internally (returns `*Classification`, never an
+  open body).
 - `RunBatch[T,R]` (batch.go): `errgroup.WithContext` + `SetLimit`; item failures isolated (recorded
   per `BatchResult`, never cancel the batch); ctx cancel → partial-but-usable results.
 - Reuse `internal/documents.Document` and `internal/classifications.Classification` as decode
@@ -249,20 +265,26 @@ stays thin with logic in `internal/`, and makes the code black-box testable (`te
 
 ### Status
 
-- [x] Branch `feat/herald-cli`; `golang.org/x/time/rate` added to go.mod
-- [x] `internal/cli/config.go` — Settings/Env/Load/Finalize/Merge/validate (reviewed)
-- [x] `internal/cli/batch.go` — `RunBatch` + `BatchResult` (reviewed; package builds)
-- [ ] **Next:** `internal/cli/client.go` — Entra token acquire+cache (`auth.Config.TokenCredential()`
-      + `cred.GetToken` for `Settings.Scope`), `golang.org/x/time/rate` limiter, retry/backoff
-      honoring `Retry-After` (429/5xx; non-429 4xx fails fast), JSON + multipart + SSE helpers
-- [ ] `internal/cli/output.go` — emit json array / jsonl to stdout
-- [ ] `internal/cli/documents.go` — upload (stdin JSON array or single-flag), list, get
+- [x] Branch `feat/herald-cli` (checkpoint #1: `6f594d6`; checkpoint #2: simplification)
+- [x] `internal/cli/batch.go` — `RunBatch` + `BatchResult` (reviewed; unchanged by simplification)
+- [x] `internal/cli/config.go` — trimmed: `Rate`/`Burst` removed from struct/`Env`/`settingsEnv`/
+      `Merge`/`loadEnv`. Rest intact (API, Scope, Concurrency, MaxRetries, RetryBaseDelay/MaxDelay,
+      Timeout, Output, Auth). Reviewed; builds + vets.
+- [x] `internal/cli/client.go` — leaner: no limiter/token-cache/per-attempt-ctx/`cancelReadCloser`;
+      `NewClient(s)` only; `authorize` calls `cred.GetToken` directly. Transport helpers
+      (`getJSON`/`postMultipart`/`postStream`) stay **unexported** — public API is the typed
+      per-endpoint methods (decided: `UploadDocument`/`Classify`/`ListDocuments`/`GetDocument`/
+      classification getters) added in documents.go/classify.go. Reviewed; builds + vets.
+- [x] Removed `golang.org/x/time/rate` from go.mod (`go mod tidy`)
+- [ ] **Next:** `internal/cli/output.go` — emit json array / jsonl to stdout
+- [ ] `internal/cli/documents.go` — upload (stdin JSON array or single-flag), list, get; + exported
+      `*Client` domain methods; per-command concurrency default
 - [ ] `internal/cli/classify.go` — classify (SSE consumer) + classifications list/get/by-document
 - [ ] `internal/cli/cli.go` + `cmd/herald/main.go` — subcommand dispatch, global flags→overlay,
       signal-cancel context, `version`
 - [ ] `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`
-- [ ] Tests in `tests/cli/` (retry/backoff, concurrency cap, rate spacing, batch isolation, SSE,
-      output); godoc pass
+- [ ] Tests in `tests/cli/` (retry/backoff, concurrency cap, batch isolation, SSE, config
+      precedence, output); godoc pass
 - [ ] Verify against local stack → commercial Azure
 
 Checkpoint cadence: update this Status block + commit (WIP, squash at PR) at each reviewed unit.
