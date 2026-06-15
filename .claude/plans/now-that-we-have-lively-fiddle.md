@@ -305,9 +305,15 @@ response as JSON; the script author owns batching, concurrency, and resilience. 
 - [x] `cmd/herald/settings.json` (base, auth none) + `settings.auth.json` (azure overlay, mirrors
       server config.auth.json). Run the CLI **from cmd/herald/** so its `secrets.json` (gitignored)
       doesn't collide with the server's root one.
+- [ ] **NEXT (post-clear entry point):** Verify against local stack — `stack:reset`/`stack:up`/
+      `dev` (or `dev:auth`), then from `cmd/herald/`: `go run . documents upload --file <pdf>
+      --external-id N --platform TEST`, `classify <id>`, `classifications by-document <id>`,
+      `documents list`. Confirm upload→classify→retrieve round-trips and the `external_id` join key.
 - [ ] `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`
-- [ ] Tests in `tests/cli/` (retry/backoff, concurrency cap, batch isolation, SSE, config
-      precedence, output); godoc pass
-- [ ] Verify against local stack → commercial Azure
+- [ ] Tests in `tests/cli/` (package cli_test): config precedence/scope-derivation, SSE parser
+      (`parseClassificationStream` complete/error/truncated), decodeError envelope, output json/jsonl,
+      dispatch routing. Note: no retry/concurrency to test now. Godoc pass.
+- [ ] (Optional) align `version` var with `_project/phase.md`; consider api-cartographer note that
+      herald CLI consumes existing endpoints (no new API docs)
 
 Checkpoint cadence: update this Status block + commit (WIP, squash at PR) at each reviewed unit.
