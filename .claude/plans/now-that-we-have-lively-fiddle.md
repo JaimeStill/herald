@@ -231,6 +231,23 @@ commands, output, version) with a thin `cmd/herald/main.go` entry point — mirr
 stays thin with logic in `internal/`, and makes the code black-box testable (`tests/cli/`,
 `package cli_test`). This supersedes the plan's "everything in `cmd/herald` package main".
 
+### PIVOT — CLI is a 1:1 API primitive (supersedes batch/throttle design above)
+
+The CLI does **not** orchestrate. Each command is exactly one API call that emits the raw
+response as JSON; the script author owns batching, concurrency, and resilience. Consequences:
+
+- **Deleted `batch.go`** (no `RunBatch`); **removed `Concurrency`** setting/env/flag.
+- **Removed retry entirely** — single attempt per command. Rationale: the real rate-limit surface
+  (Azure model calls) is already retried server-side by the agent lib; auto-retrying mutating
+  POSTs risks duplicate documents / re-triggered classifications; a script can wrap `until ...; do`.
+  Removed `MaxRetries`/`RetryBaseDelay`/`RetryMaxDelay` settings and all backoff code.
+- `documents upload` → single file (`--file --external-id --platform`) → emits `Document`.
+  `documents list` → one page, emits raw `PageResult` (script paginates). `classify <id>` → single
+  doc → emits `Classification`. `output.go` → one `emit` (single value; json indented / jsonl compact).
+- `client.go` is now: `NewClient(s)` + `send` (authorize + single `Do`) + `getJSON`/`postMultipart`/
+  `postStream` + `decodeResponse`/`decodeError`. No retry, no limiter, no token cache.
+- Settings reduced to: `API`, `Scope`, `Timeout`, `Output`, `Auth`.
+
 ### Decisions made during implementation
 
 - Package `internal/cli`; thin `cmd/herald/main.go` calls into it.
@@ -265,8 +282,9 @@ stays thin with logic in `internal/`, and makes the code black-box testable (`te
 
 ### Status
 
-- [x] Branch `feat/herald-cli` (checkpoint #1: `6f594d6`; checkpoint #2: simplification)
-- [x] `internal/cli/batch.go` — `RunBatch` + `BatchResult` (reviewed; unchanged by simplification)
+- [x] Branch `feat/herald-cli` (cp#1 `6f594d6`; cp#2 `300af6b` lean client; cp#3 primitive pivot)
+- [x] `internal/cli/batch.go` — **deleted** in the primitive pivot (no batch ops)
+- [x] `internal/cli/output.go` — single `emit[T]` (json/jsonl); array emit removed
 - [x] `internal/cli/config.go` — trimmed: `Rate`/`Burst` removed from struct/`Env`/`settingsEnv`/
       `Merge`/`loadEnv`. Rest intact (API, Scope, Concurrency, MaxRetries, RetryBaseDelay/MaxDelay,
       Timeout, Output, Auth). Reviewed; builds + vets.
@@ -276,10 +294,11 @@ stays thin with logic in `internal/`, and makes the code black-box testable (`te
       per-endpoint methods (decided: `UploadDocument`/`Classify`/`ListDocuments`/`GetDocument`/
       classification getters) added in documents.go/classify.go. Reviewed; builds + vets.
 - [x] Removed `golang.org/x/time/rate` from go.mod (`go mod tidy`)
-- [ ] **Next:** `internal/cli/output.go` — emit json array / jsonl to stdout
-- [ ] `internal/cli/documents.go` — upload (stdin JSON array or single-flag), list, get; + exported
-      `*Client` domain methods; per-command concurrency default
-- [ ] `internal/cli/classify.go` — classify (SSE consumer) + classifications list/get/by-document
+- [x] `internal/cli/documents.go` — `UploadDocument`/`ListDocuments`/`GetDocument` + `upload`
+      (single `--file`/`--external-id`/`--platform`), `list` (one page → raw `PageResult`), `get`.
+      Builds + vets. (review pending)
+- [ ] **Next:** `internal/cli/classify.go` — `Classify` (single doc, SSE→`Classification`) +
+      classifications `list`/`get`/`by-document`
 - [ ] `internal/cli/cli.go` + `cmd/herald/main.go` — subcommand dispatch, global flags→overlay,
       signal-cancel context, `version`
 - [ ] `.github/workflows/herald-release.yml` (`herald-v*`) + `.mise.toml` `herald:build`

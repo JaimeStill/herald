@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand/v2"
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -18,20 +16,15 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 )
 
-// Client is an authenticated, retrying HTTP client for the Herald API. It is safe
-// for concurrent use and intended to be shared across a batch; the retry policy
-// then applies across all in-flight requests. Throughput is governed by the
-// caller's concurrency cap (see RunBatch), not by a client-side rate limiter:
-// when the server pushes back with 429/5xx the client honors Retry-After.
+// Client is an authenticated HTTP client for the Herald API. Each call makes a
+// single attempt (no retry): the CLI is a primitive over the API, so resilience
+// and orchestration are the caller's concern. It is safe for concurrent use.
 type Client struct {
-	base       string
-	client     *http.Client
-	cred       azcore.TokenCredential // nil when auth is disabled
-	scope      string
-	maxRetries int
-	baseDelay  time.Duration
-	maxDelay   time.Duration
-	timeout    time.Duration
+	base    string
+	client  *http.Client
+	cred    azcore.TokenCredential // nil when auth is disabled
+	scope   string
+	timeout time.Duration
 }
 
 // NewClient builds a Client from settings. The credential is derived from the
@@ -45,14 +38,11 @@ func NewClient(s *Settings) (*Client, error) {
 	}
 
 	return &Client{
-		base:       strings.TrimRight(s.API, "/"),
-		client:     &http.Client{},
-		cred:       cred,
-		scope:      s.Scope,
-		maxRetries: s.MaxRetries,
-		baseDelay:  s.RetryBaseDelayDuration(),
-		maxDelay:   s.RetryMaxDelayDuration(),
-		timeout:    s.TimeoutDuration(),
+		base:    strings.TrimRight(s.API, "/"),
+		client:  &http.Client{},
+		cred:    cred,
+		scope:   s.Scope,
+		timeout: s.TimeoutDuration(),
 	}, nil
 }
 
@@ -62,9 +52,11 @@ func (c *Client) getJSON(ctx context.Context, path string, query url.Values, out
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.do(ctx, func(rc context.Context) (*http.Request, error) {
-		return http.NewRequestWithContext(rc, http.MethodGet, c.requestURL(path, query), nil)
-	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.requestURL(path, query), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.send(req)
 	if err != nil {
 		return err
 	}
@@ -73,8 +65,7 @@ func (c *Client) getJSON(ctx context.Context, path string, query url.Values, out
 }
 
 // postMultipart uploads a single file with form fields, bounded by the client
-// timeout, and decodes the 2xx JSON body into out. The multipart body is built
-// once and replayed on each retry.
+// timeout, and decodes the 2xx JSON body into out.
 func (c *Client) postMultipart(
 	ctx context.Context,
 	path string,
@@ -101,20 +92,16 @@ func (c *Client) postMultipart(
 		return fmt.Errorf("finalize multipart: %w", err)
 	}
 
-	body := buf.Bytes()
-	contentType := mw.FormDataContentType()
-
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	resp, err := c.do(ctx, func(rc context.Context) (*http.Request, error) {
-		req, err := http.NewRequestWithContext(rc, http.MethodPost, c.requestURL(path, nil), bytes.NewReader(body))
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Content-Type", contentType)
-		return req, nil
-	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.requestURL(path, nil), &buf)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := c.send(req)
 	if err != nil {
 		return err
 	}
@@ -128,14 +115,13 @@ func (c *Client) postMultipart(
 // (it must close it), since the stream outlives this call. Non-2xx responses are
 // decoded as errors before returning.
 func (c *Client) postStream(ctx context.Context, path string) (*http.Response, error) {
-	resp, err := c.do(ctx, func(rc context.Context) (*http.Request, error) {
-		req, err := http.NewRequestWithContext(rc, http.MethodPost, c.requestURL(path, nil), nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Accept", "text/event-stream")
-		return req, nil
-	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.requestURL(path, nil), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "text/event-stream")
+
+	resp, err := c.send(req)
 	if err != nil {
 		return nil, err
 	}
@@ -146,56 +132,12 @@ func (c *Client) postStream(ctx context.Context, path string) (*http.Response, e
 	return resp, nil
 }
 
-// do executes a request with retry. newRequest is called once per attempt so the
-// request (and its body) is rebuilt fresh each time. Requests are retried on 429
-// and 5xx (honoring Retry-After) and on transport errors, up to maxRetries; other
-// 4xx responses are returned without retry for the caller to decode. The caller
-// owns ctx (including its deadline) and must close the returned body.
-func (c *Client) do(ctx context.Context, newRequest func(context.Context) (*http.Request, error)) (*http.Response, error) {
-	var (
-		lastErr    error
-		retryAfter time.Duration
-	)
-
-	for attempt := 0; ; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(c.backoff(attempt, retryAfter)):
-			}
-		}
-		retryAfter = 0
-
-		req, err := newRequest(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if err := c.authorize(ctx, req); err != nil {
-			return nil, err
-		}
-
-		resp, err := c.client.Do(req)
-		if err != nil {
-			lastErr = err
-			if attempt >= c.maxRetries {
-				return nil, fmt.Errorf("request failed after %d attempts: %w", attempt+1, lastErr)
-			}
-			continue
-		}
-
-		if isRetryable(resp.StatusCode) {
-			retryAfter = parseRetryAfter(resp.Header.Get("Retry-After"))
-			drain(resp.Body)
-			lastErr = fmt.Errorf("server responded %s", resp.Status)
-			if attempt >= c.maxRetries {
-				return nil, fmt.Errorf("after %d attempts: %w", attempt+1, lastErr)
-			}
-			continue
-		}
-
-		return resp, nil
+// send attaches auth and executes a single request attempt.
+func (c *Client) send(req *http.Request) (*http.Response, error) {
+	if err := c.authorize(req.Context(), req); err != nil {
+		return nil, err
 	}
+	return c.client.Do(req)
 }
 
 // authorize attaches a bearer token when auth is enabled. The token is acquired
@@ -219,49 +161,6 @@ func (c *Client) requestURL(path string, query url.Values) string {
 		u += "?" + query.Encode()
 	}
 	return u
-}
-
-func isRetryable(status int) bool {
-	return status == http.StatusTooManyRequests || status >= 500
-}
-
-// backoff returns the wait before the given attempt (1-based for retries).
-// A positive Retry-After is honored verbatim; otherwise it is exponential from
-// the configured base delay, capped at the configured max delay, with full
-// jitter.
-func (c *Client) backoff(attempt int, retryAfter time.Duration) time.Duration {
-	if retryAfter > 0 {
-		return retryAfter
-	}
-	exp := c.baseDelay << (attempt - 1)
-	if exp <= 0 || exp > c.maxDelay {
-		exp = c.maxDelay
-	}
-	if exp <= 0 {
-		return 0
-	}
-	return time.Duration(rand.Int64N(int64(exp)))
-}
-
-// parseRetryAfter interprets a Retry-After header value, which may be a number of
-// seconds or an HTTP date. It returns 0 when absent or unparseable.
-func parseRetryAfter(v string) time.Duration {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return 0
-	}
-	if secs, err := strconv.Atoi(v); err == nil {
-		if secs <= 0 {
-			return 0
-		}
-		return time.Duration(secs) * time.Second
-	}
-	if t, err := http.ParseTime(v); err == nil {
-		if d := time.Until(t); d > 0 {
-			return d
-		}
-	}
-	return 0
 }
 
 // decodeResponse decodes a 2xx body into out (out may be nil to ignore the body)
@@ -295,10 +194,4 @@ func decodeError(resp *http.Response) error {
 		return fmt.Errorf("%s: %s", resp.Status, msg)
 	}
 	return fmt.Errorf("%s", resp.Status)
-}
-
-// drain discards and closes a response body so the connection can be reused.
-func drain(rc io.ReadCloser) {
-	_, _ = io.Copy(io.Discard, io.LimitReader(rc, 64*1024))
-	_ = rc.Close()
 }

@@ -1,16 +1,15 @@
 // Package cli implements the herald command-line client: a stateless,
-// Azure-CLI-style tool for bulk document upload, classification, and result
-// retrieval against the Herald API. Commands take inputs from flags or stdin and
-// emit JSON to stdout; batch commands own their concurrency, client-side rate
-// limiting, and retry/backoff so callers cannot overload the API with a naive
-// shell loop.
+// Azure-CLI-style primitive over the Herald API. Each command maps to a single
+// API call, takes its inputs from flags (or stdin), and emits the response as
+// JSON to stdout. Orchestration — batching, concurrency, retries — is left to
+// the caller's scripts.
 package cli
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/JaimeStill/herald/pkg/auth"
@@ -28,53 +27,54 @@ const (
 	EnvCLIEnv = "HERALD_CLI_ENV"
 )
 
-// OutputFormat is the serialization format for command results written to
-// stdout.
+// OutputFormat is the serialization format for a command's result on stdout.
 type OutputFormat string
 
 const (
-	// OutputJSON emits results as a single indented JSON value (an array for
-	// batch commands).
+	// OutputJSON emits the result as a single indented JSON value.
 	OutputJSON OutputFormat = "json"
-	// OutputJSONL emits one compact JSON value per line, suited to streaming
-	// large batches into line-oriented consumers.
+	// OutputJSONL emits the result as one compact JSON line, suited to piping
+	// into line-oriented consumers.
 	OutputJSONL OutputFormat = "jsonl"
 )
 
+// String implements flag.Value.
+func (o *OutputFormat) String() string { return string(*o) }
+
+// Set implements flag.Value, validating the format at parse time.
+func (o *OutputFormat) Set(v string) error {
+	switch OutputFormat(v) {
+	case OutputJSON, OutputJSONL:
+		*o = OutputFormat(v)
+		return nil
+	default:
+		return fmt.Errorf("invalid output %q: must be %q or %q", v, OutputJSON, OutputJSONL)
+	}
+}
+
 // Built-in defaults applied by loadDefaults before env and flag overrides.
 const (
-	defaultAPI            = "http://localhost:8080"
-	defaultMaxRetries     = 5
-	defaultRetryBaseDelay = "500ms"
-	defaultRetryMaxDelay  = "30s"
-	defaultTimeout        = "10m"
-	defaultOutput         = OutputJSON
+	defaultAPI     = "http://localhost:8080"
+	defaultTimeout = "10m"
+	defaultOutput  = OutputJSON
 )
 
 // Env maps Settings fields to their environment variable names. All CLI
 // variables use the HERALD_CLI_ prefix so they never collide with the server's
 // HERALD_ variables.
 type Env struct {
-	API            string
-	Scope          string
-	Concurrency    string
-	MaxRetries     string
-	RetryBaseDelay string
-	RetryMaxDelay  string
-	Timeout        string
-	Output         string
+	API     string
+	Scope   string
+	Timeout string
+	Output  string
 }
 
 // settingsEnv is the canonical field-to-variable mapping for top-level settings.
 var settingsEnv = &Env{
-	API:            "HERALD_CLI_API",
-	Scope:          "HERALD_CLI_SCOPE",
-	Concurrency:    "HERALD_CLI_CONCURRENCY",
-	MaxRetries:     "HERALD_CLI_MAX_RETRIES",
-	RetryBaseDelay: "HERALD_CLI_RETRY_BASE_DELAY",
-	RetryMaxDelay:  "HERALD_CLI_RETRY_MAX_DELAY",
-	Timeout:        "HERALD_CLI_TIMEOUT",
-	Output:         "HERALD_CLI_OUTPUT",
+	API:     "HERALD_CLI_API",
+	Scope:   "HERALD_CLI_SCOPE",
+	Timeout: "HERALD_CLI_TIMEOUT",
+	Output:  "HERALD_CLI_OUTPUT",
 }
 
 // authEnv maps the embedded auth.Config to HERALD_CLI_AUTH_* variables, mirroring
@@ -90,20 +90,14 @@ var authEnv = &auth.Env{
 	CacheLocation:   "HERALD_CLI_AUTH_CACHE_LOCATION",
 }
 
-// Settings is the resolved configuration for a herald CLI invocation. Concurrency
-// left at zero defers to each command's own conservative default, applied where
-// the command builds its batch. Timeout, RetryBaseDelay, and RetryMaxDelay are
-// duration strings (e.g. "10m") to match the server's config conventions.
+// Settings is the resolved configuration for a herald CLI invocation. Timeout is
+// a duration string (e.g. "10m") to match the server's config conventions.
 type Settings struct {
-	API            string       `json:"api"`
-	Scope          string       `json:"scope"`
-	Concurrency    int          `json:"concurrency"`
-	MaxRetries     int          `json:"max_retries"`
-	RetryBaseDelay string       `json:"retry_base_delay"`
-	RetryMaxDelay  string       `json:"retry_max_delay"`
-	Timeout        string       `json:"timeout"`
-	Output         OutputFormat `json:"output"`
-	Auth           auth.Config  `json:"auth"`
+	API     string       `json:"api"`
+	Scope   string       `json:"scope"`
+	Timeout string       `json:"timeout"`
+	Output  OutputFormat `json:"output"`
+	Auth    auth.Config  `json:"auth"`
 }
 
 // Load reads the base settings file (if present), applies any environment
@@ -144,6 +138,19 @@ func Load(flags *Settings) (*Settings, error) {
 	return s, nil
 }
 
+// bindFlags registers the global flags on fs, bound into a fresh Settings overlay
+// suitable for Load (flags are the highest-precedence overlay). Call it before
+// adding command-specific flags and parsing fs, then pass the returned overlay to
+// Load. Unset flags stay at their zero value and are ignored by Merge.
+func bindFlags(fs *flag.FlagSet) *Settings {
+	flags := &Settings{}
+	fs.StringVar(&flags.API, "api", "", "Herald API base URL")
+	fs.StringVar(&flags.Scope, "scope", "", "Entra token scope (default api://{client-id}/.default)")
+	fs.StringVar(&flags.Timeout, "timeout", "", "per-request timeout (e.g. 10m)")
+	fs.Var(&flags.Output, "output", "output format: json or jsonl")
+	return flags
+}
+
 // Finalize applies defaults, environment overrides, derived defaults, the flag
 // overlay, and validation, in that order. flags is the highest-precedence
 // overlay (CLI flags win over env, which wins over files); it may be nil. The
@@ -173,18 +180,6 @@ func (s *Settings) Merge(overlay *Settings) {
 	if overlay.Scope != "" {
 		s.Scope = overlay.Scope
 	}
-	if overlay.Concurrency != 0 {
-		s.Concurrency = overlay.Concurrency
-	}
-	if overlay.MaxRetries != 0 {
-		s.MaxRetries = overlay.MaxRetries
-	}
-	if overlay.RetryBaseDelay != "" {
-		s.RetryBaseDelay = overlay.RetryBaseDelay
-	}
-	if overlay.RetryMaxDelay != "" {
-		s.RetryMaxDelay = overlay.RetryMaxDelay
-	}
 	if overlay.Timeout != "" {
 		s.Timeout = overlay.Timeout
 	}
@@ -200,30 +195,9 @@ func (s *Settings) TimeoutDuration() time.Duration {
 	return d
 }
 
-// RetryBaseDelayDuration returns RetryBaseDelay parsed as a time.Duration.
-func (s *Settings) RetryBaseDelayDuration() time.Duration {
-	d, _ := time.ParseDuration(s.RetryBaseDelay)
-	return d
-}
-
-// RetryMaxDelayDuration returns RetryMaxDelay parsed as a time.Duration.
-func (s *Settings) RetryMaxDelayDuration() time.Duration {
-	d, _ := time.ParseDuration(s.RetryMaxDelay)
-	return d
-}
-
 func (s *Settings) loadDefaults() {
 	if s.API == "" {
 		s.API = defaultAPI
-	}
-	if s.MaxRetries == 0 {
-		s.MaxRetries = defaultMaxRetries
-	}
-	if s.RetryBaseDelay == "" {
-		s.RetryBaseDelay = defaultRetryBaseDelay
-	}
-	if s.RetryMaxDelay == "" {
-		s.RetryMaxDelay = defaultRetryMaxDelay
 	}
 	if s.Timeout == "" {
 		s.Timeout = defaultTimeout
@@ -239,22 +213,6 @@ func (s *Settings) loadEnv(env *Env) {
 	}
 	if v := os.Getenv(env.Scope); v != "" {
 		s.Scope = v
-	}
-	if v := os.Getenv(env.Concurrency); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			s.Concurrency = n
-		}
-	}
-	if v := os.Getenv(env.MaxRetries); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			s.MaxRetries = n
-		}
-	}
-	if v := os.Getenv(env.RetryBaseDelay); v != "" {
-		s.RetryBaseDelay = v
-	}
-	if v := os.Getenv(env.RetryMaxDelay); v != "" {
-		s.RetryMaxDelay = v
 	}
 	if v := os.Getenv(env.Timeout); v != "" {
 		s.Timeout = v
@@ -279,15 +237,6 @@ func (s *Settings) validate() error {
 	}
 	if _, err := time.ParseDuration(s.Timeout); err != nil {
 		return fmt.Errorf("invalid timeout %q: %w", s.Timeout, err)
-	}
-	if s.MaxRetries < 0 {
-		return fmt.Errorf("max_retries must be >= 0")
-	}
-	if _, err := time.ParseDuration(s.RetryBaseDelay); err != nil {
-		return fmt.Errorf("invalid retry_base_delay %q: %w", s.RetryBaseDelay, err)
-	}
-	if _, err := time.ParseDuration(s.RetryMaxDelay); err != nil {
-		return fmt.Errorf("invalid retry_max_delay %q: %w", s.RetryMaxDelay, err)
 	}
 	switch s.Output {
 	case OutputJSON, OutputJSONL:
