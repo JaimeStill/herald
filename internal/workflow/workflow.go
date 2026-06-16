@@ -23,7 +23,7 @@ func Execute(ctx context.Context, rt *Runtime, documentID uuid.UUID, observer *S
 	if err != nil {
 		return nil, fmt.Errorf("create temp directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	graph, err := buildGraph(rt, observer)
 	if err != nil {

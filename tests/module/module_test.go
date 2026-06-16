@@ -121,13 +121,13 @@ func TestRouterDispatch(t *testing.T) {
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("api"))
+		_, _ = w.Write([]byte("api"))
 	})
 
 	docsMux := http.NewServeMux()
 	docsMux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("docs"))
+		_, _ = w.Write([]byte("docs"))
 	})
 
 	router := module.NewRouter()
@@ -163,7 +163,7 @@ func TestRouterNativeFallback(t *testing.T) {
 	router := module.NewRouter()
 	router.HandleNative("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 
 	rec := httptest.NewRecorder()

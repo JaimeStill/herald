@@ -20,8 +20,8 @@ func NewModule(cfg *config.Config, infra *infrastructure.Infrastructure) (*modul
 
 	m := module.New(cfg.API.BasePath, mux)
 	m.Use(middleware.CORS(&cfg.API.CORS))
-	m.Use(middleware.Auth(&cfg.Auth, runtime.Infrastructure.Logger))
-	m.Use(middleware.Logger(runtime.Infrastructure.Logger))
+	m.Use(middleware.Auth(&cfg.Auth, runtime.Logger))
+	m.Use(middleware.Logger(runtime.Logger))
 
 	return m, nil
 }

@@ -103,7 +103,7 @@ func TestNewDatabaseConnection(t *testing.T) {
 	if conn == nil {
 		t.Fatal("Database.Connection() returned nil")
 	}
-	conn.Close()
+	_ = conn.Close()
 }
 
 func TestNewInvalidStorageConfig(t *testing.T) {

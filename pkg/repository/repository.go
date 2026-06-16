@@ -36,7 +36,7 @@ func WithTx[T any](ctx context.Context, db *sql.DB, fn func(tx *sql.Tx) (T, erro
 	if err != nil {
 		return zero, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	result, err := fn(tx)
 	if err != nil {
@@ -68,7 +68,7 @@ func QueryMany[T any](ctx context.Context, q Querier, query string, args []any, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	results := make([]T, 0)
 	for rows.Next() {

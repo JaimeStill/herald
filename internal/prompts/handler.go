@@ -206,7 +206,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.PageRequest.Normalize(h.pagination)
+	req.Normalize(h.pagination)
 
 	result, err := h.sys.List(r.Context(), req.PageRequest, req.Filters)
 	if err != nil {

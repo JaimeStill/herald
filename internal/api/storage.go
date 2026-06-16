@@ -104,7 +104,7 @@ func (h *storageHandler) view(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	defer result.Body.Close()
+	defer func() { _ = result.Body.Close() }()
 
 	w.Header().Set("Content-Type", result.ContentType)
 
@@ -119,7 +119,7 @@ func (h *storageHandler) view(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("inline; filename=%q", path.Base(key)),
 	)
 	w.WriteHeader(http.StatusOK)
-	io.Copy(w, result.Body)
+	_, _ = io.Copy(w, result.Body)
 }
 
 func (h *storageHandler) download(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +133,7 @@ func (h *storageHandler) download(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-	defer result.Body.Close()
+	defer func() { _ = result.Body.Close() }()
 
 	w.Header().Set("Content-Type", result.ContentType)
 
@@ -148,5 +148,5 @@ func (h *storageHandler) download(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("attachment; filename=%q", path.Base(key)),
 	)
 	w.WriteHeader(http.StatusOK)
-	io.Copy(w, result.Body)
+	_, _ = io.Copy(w, result.Body)
 }

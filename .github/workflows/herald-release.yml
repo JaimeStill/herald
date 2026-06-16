@@ -1,0 +1,44 @@
+name: Herald CLI Release
+
+on:
+  push:
+    tags:
+      - 'herald-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build herald binaries
+        run: |
+          mkdir -p dist
+          VERSION="${GITHUB_REF_NAME#herald-}"
+          LDFLAGS="-X github.com/JaimeStill/herald/internal/cli.version=${VERSION}"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/herald-linux-amd64 ./cmd/herald
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/herald-windows-amd64.exe ./cmd/herald
+
+      - name: Create GitHub Release
+        uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          changelog: cmd/herald/CHANGELOG.md
+          prefix: herald-
+
+      - name: Upload release artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.ref_name }} \
+            dist/herald-linux-amd64 \
+            dist/herald-windows-amd64.exe

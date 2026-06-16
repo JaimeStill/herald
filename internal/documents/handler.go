@@ -104,7 +104,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.PageRequest.Normalize(h.pagination)
+	req.Normalize(h.pagination)
 
 	result, err := h.sys.List(r.Context(), req.PageRequest, req.Filters)
 	if err != nil {
@@ -140,7 +140,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 		handlers.RespondError(w, h.logger, http.StatusBadRequest, ErrInvalidFile)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := io.ReadAll(file)
 	if err != nil {

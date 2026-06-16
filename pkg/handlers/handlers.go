@@ -10,7 +10,7 @@ import (
 func RespondJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // RespondError logs the error and writes a JSON error response.
@@ -18,5 +18,5 @@ func RespondError(w http.ResponseWriter, logger *slog.Logger, status int, err er
 	logger.Error("handler error", "error", err, "status", status)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }
