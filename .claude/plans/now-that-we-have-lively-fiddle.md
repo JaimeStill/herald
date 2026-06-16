@@ -373,9 +373,15 @@ it a proper installed tool. **Decisions locked with the user:**
   `az keyvault secret show ... -o tsv`.
 - New **`settings` command group** (local, non-API) in `cli.go` dispatch + usage. A deliberate,
   scoped exception to the "every command is one API call" primitive ethos.
-- [ ] `.github/workflows/herald-release.yml` (`herald-v*`) — `linux/amd64` + `windows/amd64`
-      (amd64 only), `.exe` suffix on Windows, `CGO_ENABLED=0` cross-compile (pure-Go, clean). Release
-      tag aligns to `herald-v0.6.0` (current `config.json` version; no `_project/phase.md` present).
+- [x] **`.github/workflows/herald-release.yml` — DONE.** Trigger `herald-v*`; `linux/amd64` +
+      `windows/amd64` (amd64 only, `.exe` on Windows) via `CGO_ENABLED=0` cross-compile; version
+      injected by ldflags into `internal/cli.version` after stripping the `herald-` prefix
+      (`herald-v0.1.0` → `herald version` prints `herald v0.1.0`); `create-gh-release-action` with
+      `prefix: herald-`. Verified locally: both targets cross-compile (Windows = PE32+ x86-64),
+      version output clean. **Divergent versioning decision (user):** the CLI is versioned
+      independently of the server — **starts at `v0.1.0`** with its own **`cmd/herald/CHANGELOG.md`**
+      (workflow `changelog:` points there, not the root). This is a deliberate exception to the
+      CLAUDE.md "all versions align to the phase target" convention — capture in CLAUDE.md if it sticks.
 - [x] **Tests in `tests/cli/` (package cli_test) — DONE, 29 pass, vet clean.** Five files:
       `helpers_test.go` (isolate HOME+CWD, capture stdout, feed stdin), `config_test.go` (defaults,
       profile, local-overrides-profile, secrets layering, CWD-only overlay, env, flag, scope

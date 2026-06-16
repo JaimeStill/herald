@@ -136,10 +136,10 @@ The `scope` field is the bare scope name (e.g., `access`). The client composes t
 go build -o bin/herald ./cmd/herald
 ```
 
-The release version is injected at build time:
+The release version is injected at build time (the `herald-release` workflow does this automatically from the tag; the CLI is versioned independently of the server, starting at `v0.1.0`):
 
 ```bash
-go build -ldflags "-X github.com/JaimeStill/herald/internal/cli.version=herald-v0.6.0" -o bin/herald ./cmd/herald
+go build -ldflags "-X github.com/JaimeStill/herald/internal/cli.version=v0.1.0" -o bin/herald ./cmd/herald
 ```
 
 ### Configuration
