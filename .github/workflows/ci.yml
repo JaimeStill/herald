@@ -13,10 +13,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+
+      # The app/pkg-web packages go:embed the built web client (app/dist),
+      # which is gitignored — build it so the Go toolchain can compile.
+      - name: Build web client
+        run: |
+          cd app
+          bun install --frozen-lockfile
+          bun run build
 
       - name: go vet
         run: go vet ./...
@@ -27,10 +36,17 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build web client
+        run: |
+          cd app
+          bun install --frozen-lockfile
+          bun run build
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
