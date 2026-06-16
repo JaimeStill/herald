@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/JaimeStill/herald/pkg/auth"
@@ -23,6 +24,10 @@ const (
 	BaseConfigFile       = "settings.json"
 	OverlayConfigPattern = "settings.%s.json"
 	SecretsConfigFile    = "secrets.json"
+
+	// ProfileDirName is the per-user configuration directory under the home
+	// directory (~/.herald on *nix, %USERPROFILE%\.herald on Windows).
+	ProfileDirName = ".herald"
 
 	EnvCLIEnv = "HERALD_CLI_ENV"
 )
@@ -100,35 +105,37 @@ type Settings struct {
 	Auth    auth.Config  `json:"auth"`
 }
 
-// Load reads the base settings file (if present), applies any environment
-// overlay and secrets file, then finalizes all values with flags as the
-// highest-precedence overlay. With no files present, defaults, environment
-// variables, and flags provide the entire configuration. flags may be nil.
+// Load resolves settings by merging layers from lowest to highest precedence:
+// the per-user profile (~/.herald/settings.json then secrets.json), the working
+// directory (settings.json, the HERALD_CLI_ENV overlay, then secrets.json),
+// HERALD_CLI_* environment variables, and finally flags. The profile is the base
+// and the working directory overrides it (local wins). Absent files are skipped,
+// so defaults, environment, and flags can supply the entire configuration. flags
+// may be nil.
 func Load(flags *Settings) (*Settings, error) {
 	s := &Settings{}
 
-	if _, err := os.Stat(BaseConfigFile); err == nil {
-		loaded, err := loadFile(BaseConfigFile)
-		if err != nil {
+	// Profile layer (base): per-user defaults that apply from any directory.
+	if dir, ok := ProfileDir(); ok {
+		if err := mergeFileIfPresent(s, filepath.Join(dir, BaseConfigFile)); err != nil {
 			return nil, err
 		}
-		s = loaded
+		if err := mergeFileIfPresent(s, filepath.Join(dir, SecretsConfigFile)); err != nil {
+			return nil, err
+		}
 	}
 
+	// Working-directory layer (overrides the profile).
+	if err := mergeFileIfPresent(s, BaseConfigFile); err != nil {
+		return nil, err
+	}
 	if path := overlayPath(); path != "" {
-		overlay, err := loadFile(path)
-		if err != nil {
+		if err := mergeFileIfPresent(s, path); err != nil {
 			return nil, fmt.Errorf("load overlay %s: %w", path, err)
 		}
-		s.Merge(overlay)
 	}
-
-	if _, err := os.Stat(SecretsConfigFile); err == nil {
-		secrets, err := loadFile(SecretsConfigFile)
-		if err != nil {
-			return nil, err
-		}
-		s.Merge(secrets)
+	if err := mergeFileIfPresent(s, SecretsConfigFile); err != nil {
+		return nil, err
 	}
 
 	if err := s.Finalize(settingsEnv, authEnv, flags); err != nil {
@@ -136,6 +143,30 @@ func Load(flags *Settings) (*Settings, error) {
 	}
 
 	return s, nil
+}
+
+// ProfileDir returns the per-user Herald configuration directory (~/.herald),
+// reporting false when the home directory cannot be determined.
+func ProfileDir() (string, bool) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return "", false
+	}
+	return filepath.Join(home, ProfileDirName), true
+}
+
+// mergeFileIfPresent merges path into s when it exists, leaving s untouched when
+// the file is absent.
+func mergeFileIfPresent(s *Settings, path string) error {
+	if _, err := os.Stat(path); err != nil {
+		return nil
+	}
+	loaded, err := loadFile(path)
+	if err != nil {
+		return err
+	}
+	s.Merge(loaded)
+	return nil
 }
 
 // bindFlags registers the global flags on fs, bound into a fresh Settings overlay

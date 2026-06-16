@@ -144,16 +144,15 @@ go build -ldflags "-X github.com/JaimeStill/herald/internal/cli.version=herald-v
 
 ### Configuration
 
-The CLI loads configuration from the **current working directory**, layered lowest-to-highest precedence:
+Configuration is resolved by merging layers from lowest to highest precedence:
 
 1. built-in defaults (API `http://localhost:8080`, output `json`, timeout `10m`)
-2. `settings.json` — base configuration
-3. `settings.<HERALD_CLI_ENV>.json` — environment overlay (e.g. `settings.auth.json` via `HERALD_CLI_ENV=auth`)
-4. `secrets.json` — gitignored secrets (e.g. an SP client secret)
-5. `HERALD_CLI_*` environment variables
-6. command-line flags
+2. **profile** — `~/.herald/settings.json` then `~/.herald/secrets.json` (`%USERPROFILE%\.herald` on Windows)
+3. **working directory** — `settings.json`, the `settings.<HERALD_CLI_ENV>.json` overlay, then `secrets.json`
+4. `HERALD_CLI_*` environment variables
+5. command-line flags
 
-All variables use the `HERALD_CLI_` prefix so they never collide with the server's `HERALD_*`. These files are distinct from the server's `config.json`/`secrets.json`, so the CLI can run from its own directory (`cmd/herald/`) without reading the server's configuration. Run the CLI from a directory containing its `settings.json`, or supply everything via flags and `HERALD_CLI_*` env.
+The profile is the base and the working directory overrides it (**local wins**), so an operator can configure `~/.herald` once and run `herald` from anywhere, while a project directory can still override per run. All variables use the `HERALD_CLI_` prefix so they never collide with the server's `HERALD_*`, and these files are distinct from the server's `config.json`/`secrets.json`. Run `herald settings show` to print the fully resolved configuration from where you stand (the client secret is redacted unless `--show-secrets` is passed).
 
 | Global flag | Env | Description |
 |-------------|-----|-------------|
@@ -192,15 +191,16 @@ az login --tenant <tenant-id>
 HERALD_CLI_ENV=auth ./bin/herald documents list
 ```
 
-**Option B — service principal (client secret, app-only token).** The credential the production operator uses. Put the secret in a gitignored `secrets.json` beside `settings.json`:
-
-```json
-{ "auth": { "client_secret": "<secret-value>" } }
-```
+**Option B — service principal (client secret, app-only token).** The credential the production operator uses. Put the azure `auth` block in `~/.herald/settings.json`, then store the secret with `settings secret` so it never lands in shell history — it accepts the secret on stdin, which pairs well with Azure Key Vault:
 
 ```bash
-HERALD_CLI_ENV=auth ./bin/herald documents list
+az keyvault secret show --vault-name <vault> --name <secret> --query value -o tsv | herald settings secret
+# writes ~/.herald/secrets.json (0600) → { "auth": { "client_secret": "..." } }
+
+herald documents list
 ```
+
+The secret can also be passed as a positional argument (`herald settings secret <value>`) or written to a gitignored `secrets.json` by hand: `{ "auth": { "client_secret": "<value>" } }`.
 
 If the secret belongs to the **same** app registration as the API, the derived `api://<client-id>/.default` scope is already correct. If it belongs to a **separate** client app, set `client_id` to that client and override the scope to the API's audience: `HERALD_CLI_SCOPE=api://<api-client-id>/.default`. App-only `.default` token issuance may require an Application-type **app role** on the API granted to the client SP.
 
@@ -219,6 +219,8 @@ herald <command> [flags] [args]
 | `classifications list [filters]` | One page of classifications (`--classification`, `--confidence`, `--document-id`, `--page`, …) |
 | `classifications get <id>` | Fetch a single classification |
 | `classifications by-document <document-id>` | Fetch a document's classification |
+| `settings show [--show-secrets]` | Print the fully resolved settings from all sources; the client secret is redacted unless `--show-secrets` |
+| `settings secret [<secret>\|-]` | Write the Entra client secret to `~/.herald/secrets.json`; reads stdin when the argument is omitted or `-` |
 | `version` | Print the CLI version |
 
 The `external_id` + `external_platform` pair set on upload round-trips on every document response, serving as the join key back to the program-of-record — no separate correlation file is needed.

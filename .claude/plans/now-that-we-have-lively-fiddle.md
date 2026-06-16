@@ -344,8 +344,38 @@ response as JSON; the script author owns batching, concurrency, and resilience. 
       table, `external_id` join-key note, and a bulk upload→classify→retrieve scripting example.
 - [ ] **No `.mise.toml` task** — decided against (CLI is an operator tool, not a dev-loop runtime).
       Build documented directly in the README instead.
-- [ ] `.github/workflows/herald-release.yml` (`herald-v*`) — release tag aligns to `herald-v0.6.0`
-      (current `config.json` version; no `_project/phase.md` present).
+
+### Follow-on scope — installed-operator features (added after auth verification, do BEFORE release)
+
+**STATUS: profile config + `settings show`/`settings secret` IMPLEMENTED & verified** (config.go
+profile layer, new settings.go, cli.go dispatch/usage). Verified in a sandbox `HOME`: `settings show`
+resolves all layers (secret `<redacted>` by default, revealed with `--show-secrets`); `settings secret`
+writes `~/.herald/secrets.json` via stdin (0700 dir / 0600 file), preserving other keys; precedence
+confirmed profile-base → CWD-override → flags-win; scope derived from profile client_id. README updated.
+Redaction factored into `redactSecrets(*Settings)` per review. `go build ./... && go vet ./...` clean.
+
+The DBA runs the released binary from a Windows 11 box, not from `cmd/herald/`. Three features make
+it a proper installed tool. **Decisions locked with the user:**
+
+- **Profile-level config** at `~/.herald/` (`%USERPROFILE%\.herald` on Windows, via
+  `os.UserHomeDir()`). Precedence is **profile-base, local-wins**:
+  `defaults → ~/.herald/settings.json → ~/.herald/secrets.json → ./settings.json →
+  ./settings.<HERALD_CLI_ENV>.json → ./secrets.json → HERALD_CLI_* env → flags`. Overlay
+  (`settings.<env>.json`) stays CWD-only (dev convenience). Missing home dir → skip the profile
+  layer silently. Implemented by extending `Load` in `config.go` (uniform merge-if-present layers).
+- **`settings show`** — `Load` the resolved settings and `emit` them. Redact `auth.client_secret`
+  to `<redacted>` when set (key stays visible, value masked); `--show-secrets` reveals. Source-layer
+  provenance deferred (resolved values only for now).
+- **`settings secret [<secret>|-]`** — write `client_secret` into `~/.herald/secrets.json`
+  (read-modify-write a `map[string]any` so other keys survive; `MkdirAll` 0700, file 0600 — note
+  Windows chmod only toggles read-only, real protection is the USERPROFILE ACL). Secret from the
+  positional arg, else **stdin** (arg omitted or `-`) so it can be piped from
+  `az keyvault secret show ... -o tsv`.
+- New **`settings` command group** (local, non-API) in `cli.go` dispatch + usage. A deliberate,
+  scoped exception to the "every command is one API call" primitive ethos.
+- [ ] `.github/workflows/herald-release.yml` (`herald-v*`) — `linux/amd64` + `windows/amd64`
+      (amd64 only), `.exe` suffix on Windows, `CGO_ENABLED=0` cross-compile (pure-Go, clean). Release
+      tag aligns to `herald-v0.6.0` (current `config.json` version; no `_project/phase.md` present).
 - [ ] Tests in `tests/cli/` (package cli_test): config precedence/scope-derivation, SSE parser
       (`parseClassificationStream` complete/error/truncated), decodeError envelope, output json/jsonl,
       dispatch routing. Note: no retry/concurrency to test now. Godoc pass.

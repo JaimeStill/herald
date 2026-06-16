@@ -29,6 +29,8 @@ var commands = map[string]command{
 	"classifications list":        classificationsList,
 	"classifications get":         classificationsGet,
 	"classifications by-document": classificationsByDocument,
+	"settings show":               settingsShow,
+	"settings secret":             settingsSecret,
 }
 
 // Main runs the CLI and returns a process exit code. A help request (-h) exits
@@ -92,6 +94,8 @@ Commands:
   classifications list                        list classifications (filters, --page, --page-size)
   classifications get <id>                    get a classification
   classifications by-document <document-id>   get a document's classification
+  settings show                               print the fully resolved settings (--show-secrets to reveal)
+  settings secret [<secret>|-]                write the client secret to ~/.herald/secrets.json (stdin if omitted)
   version                                     print the CLI version
 
 Global flags (also HERALD_CLI_* env):
@@ -100,6 +104,8 @@ Global flags (also HERALD_CLI_* env):
   --timeout <dur>      per-request timeout
   --output json|jsonl  output format
   auth via HERALD_CLI_AUTH_* env / settings.json
+
+Config is resolved from ~/.herald/ then the working directory, then env, then flags.
 
 Run 'herald <command> -h' for command-specific flags.
 `)
