@@ -376,9 +376,15 @@ it a proper installed tool. **Decisions locked with the user:**
 - [ ] `.github/workflows/herald-release.yml` (`herald-v*`) — `linux/amd64` + `windows/amd64`
       (amd64 only), `.exe` suffix on Windows, `CGO_ENABLED=0` cross-compile (pure-Go, clean). Release
       tag aligns to `herald-v0.6.0` (current `config.json` version; no `_project/phase.md` present).
-- [ ] Tests in `tests/cli/` (package cli_test): config precedence/scope-derivation, SSE parser
-      (`parseClassificationStream` complete/error/truncated), decodeError envelope, output json/jsonl,
-      dispatch routing. Note: no retry/concurrency to test now. Godoc pass.
+- [x] **Tests in `tests/cli/` (package cli_test) — DONE, 29 pass, vet clean.** Five files:
+      `helpers_test.go` (isolate HOME+CWD, capture stdout, feed stdin), `config_test.go` (defaults,
+      profile, local-overrides-profile, secrets layering, CWD-only overlay, env, flag, scope
+      derivation, validation errors, OutputFormat.Set, ProfileDir), `client_test.go` (upload/list/get
+      via httptest, **SSE complete-envelope regression**, error + truncated streams, decodeError
+      json+plain fallback, pre-stream error), `settings_test.go` (secret via arg/stdin, key
+      preservation + 0600 perms, show redacted/revealed/unset), `dispatch_test.go` (no-args, unknown,
+      version, help). SSE parser/decodeError covered through the public `Client` methods. Godoc on new
+      exports (`ProfileDir`, `ProfileDirName`) + `redactSecrets` present.
 - [ ] (Optional) align `version` var with `_project/phase.md`; consider api-cartographer note that
       herald CLI consumes existing endpoints (no new API docs)
 
