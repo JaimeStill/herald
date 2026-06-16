@@ -80,6 +80,8 @@ All env vars use the `HERALD_` prefix (e.g., `HERALD_SERVER_PORT`, `HERALD_DB_HO
 
 All version references across the project (ARM parameter files, config defaults, tags) must align with the current phase version target from `_project/phase.md`. ARM parameter files use four-part versions: `major.minor.patch.build`. The fourth position tracks deployment iterations — `0` for the phase release, `> 0` for dev builds (e.g., `0.4.0.0` is the v0.4.0 release, `0.4.0.3` is the third dev iteration).
 
+**Exception — `herald` CLI** (`cmd/herald`): the CLI is versioned independently of the server. It has its own `herald-v*` release tag line (starting at `v0.1.0`) and its own `cmd/herald/CHANGELOG.md`; the `herald-release` workflow injects the tag-derived version via ldflags. Do not align the CLI's version to the phase target.
+
 ## Go Conventions
 
 - **Naming**: Short, singular, lowercase package names. No type stuttering.
