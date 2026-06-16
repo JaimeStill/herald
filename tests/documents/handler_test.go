@@ -363,9 +363,9 @@ func TestHandlerUpload(t *testing.T) {
 
 		var buf bytes.Buffer
 		writer := multipart.NewWriter(&buf)
-		writer.WriteField("external_id", "12345")
-		writer.WriteField("external_platform", "HQ")
-		writer.Close()
+		_ = writer.WriteField("external_id", "12345")
+		_ = writer.WriteField("external_platform", "HQ")
+		_ = writer.Close()
 
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("POST", "/documents", &buf)
@@ -528,16 +528,16 @@ func createMultipartForm(t *testing.T, filename string, content []byte, external
 		if err != nil {
 			t.Fatalf("create form file: %v", err)
 		}
-		part.Write(content)
+		_, _ = part.Write(content)
 	}
 
 	if externalID != "" {
-		writer.WriteField("external_id", externalID)
+		_ = writer.WriteField("external_id", externalID)
 	}
 	if externalPlatform != "" {
-		writer.WriteField("external_platform", externalPlatform)
+		_ = writer.WriteField("external_platform", externalPlatform)
 	}
 
-	writer.Close()
+	_ = writer.Close()
 	return &buf, writer.FormDataContentType()
 }

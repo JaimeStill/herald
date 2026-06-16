@@ -53,12 +53,12 @@ func TestUploadDocument(t *testing.T) {
 		if err != nil {
 			t.Fatalf("form file: %v", err)
 		}
-		f.Close()
+		_ = f.Close()
 		if hdr.Filename != "sample.pdf" {
 			t.Errorf("filename: got %q, want sample.pdf", hdr.Filename)
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id":                "11111111-1111-1111-1111-111111111111",
 			"external_id":       7,
 			"external_platform": "PROG",
@@ -87,7 +87,7 @@ func TestListDocuments(t *testing.T) {
 		if got := r.URL.Query().Get("status"); got != "review" {
 			t.Errorf("status query: got %q, want review", got)
 		}
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"data":        []map[string]any{{"id": "11111111-1111-1111-1111-111111111111", "status": "review"}},
 			"total":       1,
 			"page":        1,
@@ -117,7 +117,7 @@ func TestGetDocument(t *testing.T) {
 		if r.URL.Path != "/api/documents/abc" {
 			t.Errorf("path: got %s, want /api/documents/abc", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id":     "11111111-1111-1111-1111-111111111111",
 			"status": "complete",
 		})
@@ -140,7 +140,7 @@ func sseHandler(events ...string) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		flusher, _ := w.(http.Flusher)
 		for _, e := range events {
-			w.Write([]byte(e))
+			_, _ = w.Write([]byte(e))
 			if flusher != nil {
 				flusher.Flush()
 			}
@@ -204,7 +204,7 @@ func TestDecodeErrorEnvelope(t *testing.T) {
 	t.Run("json error envelope", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": "document not found"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "document not found"})
 		}))
 		defer srv.Close()
 
@@ -220,7 +220,7 @@ func TestDecodeErrorEnvelope(t *testing.T) {
 	t.Run("plain body fallback", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
-			w.Write([]byte("upstream exploded"))
+			_, _ = w.Write([]byte("upstream exploded"))
 		}))
 		defer srv.Close()
 
@@ -237,7 +237,7 @@ func TestDecodeErrorEnvelope(t *testing.T) {
 func TestClassifyPreStreamError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid document id"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid document id"})
 	}))
 	defer srv.Close()
 

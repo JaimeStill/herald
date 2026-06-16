@@ -385,6 +385,15 @@ it a proper installed tool. **Decisions locked with the user:**
       preservation + 0600 perms, show redacted/revealed/unset), `dispatch_test.go` (no-args, unknown,
       version, help). SSE parser/decodeError covered through the public `Client` methods. Godoc on new
       exports (`ProfileDir`, `ProfileDirName`) + `redactSecrets` present.
+- [x] **CI workflow `.github/workflows/ci.yml` — DONE.** test job (`go vet ./...` +
+      `go test -race ./tests/...`) and lint job (`golangci-lint-action@v9`, pinned `v2.12.2`), on
+      push/PR to main. No services needed (suite runs without infra), no PAT (tau modules public),
+      `go-version-file: go.mod`, action versions matching the existing workflows. Required cleaning
+      the **whole repo to zero golangci-lint findings first** (user chose fix-not-suppress): ~46
+      errcheck + QF1008 across 23 files, all pure mechanical behavior-preserving fixes
+      (`defer x.Close()` → `defer func(){ _ = x.Close() }()`, blank-assign ignored returns, remove
+      embedded-field selectors). Verified locally: `golangci-lint run ./...` = 0 issues, vet/build
+      clean, all 23 test packages pass.
 - [ ] (Optional) align `version` var with `_project/phase.md`; consider api-cartographer note that
       herald CLI consumes existing endpoints (no new API docs)
 

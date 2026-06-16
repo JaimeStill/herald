@@ -40,7 +40,7 @@ func chdir(t *testing.T, dir string) {
 	if err := os.Chdir(dir); err != nil {
 		t.Fatalf("chdir %s: %v", dir, err)
 	}
-	t.Cleanup(func() { os.Chdir(orig) })
+	t.Cleanup(func() { _ = os.Chdir(orig) })
 }
 
 // captureStdout redirects os.Stdout for the duration of fn and returns what was
@@ -57,7 +57,7 @@ func captureStdout(t *testing.T, fn func()) string {
 
 	fn()
 
-	w.Close()
+	_ = w.Close()
 	data, _ := io.ReadAll(r)
 	return string(data)
 }
@@ -73,8 +73,8 @@ func withStdin(t *testing.T, content string, fn func()) {
 	os.Stdin = r
 	done := make(chan struct{})
 	go func() {
-		io.WriteString(w, content)
-		w.Close()
+		_, _ = io.WriteString(w, content)
+		_ = w.Close()
 		close(done)
 	}()
 	defer func() { os.Stdin = orig }()

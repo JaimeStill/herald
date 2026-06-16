@@ -60,7 +60,7 @@ func (c *Client) getJSON(ctx context.Context, path string, query url.Values, out
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return decodeResponse(resp, out)
 }
 
@@ -105,7 +105,7 @@ func (c *Client) postMultipart(
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	return decodeResponse(resp, out)
 }
 
@@ -126,7 +126,7 @@ func (c *Client) postStream(ctx context.Context, path string) (*http.Response, e
 		return nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		return nil, decodeError(resp)
 	}
 	return resp, nil

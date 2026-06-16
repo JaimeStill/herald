@@ -38,7 +38,7 @@ func TestNewReturnsSystem(t *testing.T) {
 	}
 
 	// sql.Open is lazy — Close should succeed even without a real database
-	conn.Close()
+	_ = conn.Close()
 }
 
 func TestNewSetsPoolParams(t *testing.T) {
@@ -60,7 +60,7 @@ func TestNewSetsPoolParams(t *testing.T) {
 	}
 
 	conn := sys.Connection()
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	stats := conn.Stats()
 	if stats.MaxOpenConnections != 42 {

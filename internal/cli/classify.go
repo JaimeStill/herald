@@ -27,7 +27,7 @@ func (c *Client) Classify(ctx context.Context, documentID string) (*classificati
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return parseClassificationStream(resp.Body)
 }

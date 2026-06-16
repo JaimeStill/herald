@@ -113,7 +113,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.PageRequest.Normalize(h.pagination)
+	req.Normalize(h.pagination)
 
 	result, err := h.sys.List(r.Context(), req.PageRequest, req.Filters)
 	if err != nil {
@@ -162,8 +162,8 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		fmt.Fprintf(w, "event: %s\n", event.Type)
-		fmt.Fprintf(w, "data: %s\n\n", data)
+		_, _ = fmt.Fprintf(w, "event: %s\n", event.Type)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
 
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()

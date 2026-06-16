@@ -39,7 +39,7 @@ func TestRespondJSON(t *testing.T) {
 			handlers.RespondJSON(rec, tt.status, tt.data)
 
 			res := rec.Result()
-			defer res.Body.Close()
+			defer func() { _ = res.Body.Close() }()
 
 			if res.StatusCode != tt.wantStatus {
 				t.Errorf("status: got %d, want %d", res.StatusCode, tt.wantStatus)
@@ -64,7 +64,7 @@ func TestRespondError(t *testing.T) {
 	handlers.RespondError(rec, logger, http.StatusBadRequest, errors.New("invalid input"))
 
 	res := rec.Result()
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", res.StatusCode)
