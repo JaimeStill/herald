@@ -44,4 +44,5 @@ The CLI is a stateless, Azure-CLI-style **primitive**: each command makes exactl
 - **`dev:auth`**: both credential flows validated end-to-end (delegated `az login` after pre-authorizing the Azure CLI client + `access_as_user` consent; SP client-secret app-only token) across GET, multipart upload, and SSE classify. Server validates audience + signature only.
 - **Tests**: 29 black-box tests in `tests/cli`, all pass; full repo suite passes with no infra.
 - **Quality gates**: `golangci-lint run ./...` = 0 issues; `go vet ./...`, `go build ./...` clean; release cross-compile verified (Windows = PE32+ x86-64), `herald version` → `herald v0.1.0`.
-- **Not yet exercised**: commercial Azure (final pre-release check); IL6 (post-release); first CI/release workflow runs on GitHub.
+- **CI (PR #155)**: green — both jobs pass. CI must build the web client (`bun run build`) before the Go steps because `app`/`pkg/web` `go:embed` the gitignored `app/dist`; local runs masked this. Actions on Node 24 (`checkout@v6`, `setup-go@v6`, `setup-bun@v2`).
+- **Not yet exercised**: commercial Azure (final pre-release check); IL6 (post-release); the `herald-release` workflow (only triggers on a `herald-v*` tag — cross-compile verified locally).
