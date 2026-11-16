@@ -340,6 +340,62 @@ az cognitiveservices account purge \
   --location <region>
 ```
 
+## Decommissioned Reference Deployment
+
+The commercial reference deployment (`heraldgroup`, `centralus`) was torn down on
+2026-11-16 to stop incurring cost. Before deletion, the live resources were checked
+against this directory: every Bicep-managed resource matched `main.bicep` +
+`main.parameters.json` (image `herald:0.6.0`, `gpt-5.2` / `2025-12-11` with
+`herald-content-filter`, PostgreSQL 17 `Standard_B1ms`, Container Apps 2 CPU / 4Gi,
+0–3 replicas, managed-identity ACR pull, auth enabled). Running the
+[Deployment](#deployment) steps with the committed parameter file reproduces it.
+
+### Last-Known State
+
+| Resource | Name | Managed by |
+|----------|------|------------|
+| Resource group | `heraldgroup` (`centralus`) | Manual (step 1) |
+| Container Registry | `heraldregistry` (Standard, admin disabled) | Manual (step 1) |
+| Managed identity | `herald-identity` | Bicep |
+| Log Analytics | `herald-logs` (PerGB2018, 30-day retention) | Bicep |
+| PostgreSQL | `herald-db` | Bicep |
+| Storage | `heraldstorage` / `documents` | Bicep |
+| AI Services | `herald-ai` (subdomain `herald-ai-prod`) | Bicep |
+| Container App env / app | `herald-env` / `herald-app` | Bicep |
+
+ACR held `herald` tags `0.4.1`, `0.4.2`, `0.5.0`, `0.6.0`, all re-tags of
+`ghcr.io/jaimestill/herald:<tag>`, so they can be re-pushed from GHCR (step 2).
+
+### Not Captured in Bicep (Intentionally)
+
+- **`herald-ai/herald-ai-project`** is an AI Foundry project created in the portal.
+  Herald calls the account's OpenAI endpoint directly and does not use the project,
+  so you don't need to recreate it.
+- **`gpt-5-mini` deployment** (`2025-08-07`, `Microsoft.DefaultV2` filter) is left
+  over from v0.5.0. It is unused and superseded by `gpt-5.2`.
+- **Application data**: the PostgreSQL database and the `documents` blobs were not
+  backed up. A redeploy starts empty; run migrations (step 4) to rebuild the schema.
+
+### Lives Outside the Resource Group
+
+- **Entra app registration** `herald` (client ID in `main.parameters.json`) is a
+  tenant-level object and survives the deletion. Its SPA redirect URIs still list
+  the old hosts (`herald-app.politebay-a10e5b18.centralus.azurecontainerapps.io`,
+  `herald-app.azurewebsites.net`). A new Container Apps environment gets a new random
+  FQDN, so add `https://<new-fqdn>/app/` after redeploying (step 6) and remove the
+  stale entries.
+- **`deploy/main.secrets.json`** (gitignored) holds the PostgreSQL admin password on
+  the operator's machine only. If it is lost, create a new one: the database is
+  created fresh, so any password works.
+
+### Redeploy Checklist
+
+1. Purge the soft-deleted Cognitive Services account (see [Teardown](#teardown)),
+   or the `herald-ai-prod` subdomain is still reserved and the deployment fails.
+2. Follow [Deployment](#deployment) steps 1–6 with `heraldgroup` / `heraldregistry`.
+   Storage account and ACR names are globally unique. If one has been claimed in the
+   meantime, change `acrName` / `prefix` in `main.parameters.json`.
+
 ## Diagnostics
 
 ### Container App
